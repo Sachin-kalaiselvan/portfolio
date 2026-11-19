@@ -18,17 +18,14 @@ export function Footer() {
     <footer className="footer" data-theme="night">
       <div className="wrap">
         <div className="footer__top">
-          <p className="footer__name display" aria-hidden="true">
-            {profile.givenName}<br />
-            <span className="serif-i">{profile.familyName}</span>
-          </p>
+          <p className="footer__name">{profile.name}</p>
           <button type="button" className="footer__top-btn mono" onClick={toTop}>
             <span className="arrow" aria-hidden="true">↑</span> Back to top
           </button>
         </div>
         <div className="footer__grid">
           <p className="footer__desc">
-            {profile.name} — founder of {profile.business.name}. Building operations software, games and digital experiences from{' '}
+            Founder of {profile.business.name}. Software for manufacturers, backend systems, games and websites, built in{' '}
             {profile.location.split(',')[0]}.
           </p>
           <nav aria-label="Footer">
@@ -70,7 +67,7 @@ export function Footer() {
         <div className="footer__base mono muted">
           <span>© {year} {profile.name}</span>
           <span>{profile.location}</span>
-          <span>Set in Geist &amp; Instrument Serif</span>
+          <span>Set in Geist and Instrument Serif</span>
         </div>
       </div>
     </footer>

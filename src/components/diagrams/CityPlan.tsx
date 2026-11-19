@@ -94,7 +94,7 @@ export function CityPlan({ label, className }: { label: string; className?: stri
 
         {/* annotations */}
         <g className="cp-labels">
-          <text x="70" y="610">ARTERIAL — 4 LANES, NO DISCIPLINE</text>
+          <text x="70" y="610">MAIN ROAD</text>
           <text x="560" y="150">FLYOVER</text>
           <text x="90" y="820">LANES</text>
           <text x="790" y="806">MARKET</text>

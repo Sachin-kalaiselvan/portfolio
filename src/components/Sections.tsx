@@ -4,13 +4,14 @@ import { capabilities } from '../content/capabilities';
 import { experiments } from '../content/experiments';
 import { Lines } from './Lines';
 
-export function SectionHead({ no, label, lines, id }: { no: string; label: string; lines: ReactNode[]; id: string }) {
+export function SectionHead({ no, label, lines, id }: { no: string; label?: string; lines: ReactNode[]; id: string }) {
   return (
     <header className="shead">
       <hr className="rule rv-rule" />
       <div className="shead__row">
         <p className="shead__label mono">
-          <span className="accent">{no}</span> — {label}
+          <span className="accent">{no}</span>
+          {label && <span className="muted"> / {label}</span>}
         </p>
         <Lines className="shead__title h2" lines={lines} id={id} />
       </div>
@@ -22,7 +23,7 @@ export function About() {
   return (
     <section className="section about" id="about" aria-labelledby="about-title">
       <div className="wrap">
-        <SectionHead no="02" label="About" id="about-title" lines={['I start with the business,', <span key="b">not the <em className="serif-i">stack.</em></span>]} />
+        <SectionHead no="02" label={profile.location} id="about-title" lines={['About']} />
 
         <div className="grid about__grid">
           {profile.portrait && (
@@ -33,12 +34,10 @@ export function About() {
             </figure>
           )}
           <div className="about__intro">
-            <p className="about__drop serif rv">
-              {profile.name} is a founder in Bengaluru who designs, builds and sells his own products.
-            </p>
+            <p className="about__drop serif rv">{about.paragraphs[0]}</p>
           </div>
           <div className="about__text prose rv" style={{ ['--i' as string]: 1 }}>
-            {about.paragraphs.map((p, i) => (
+            {about.paragraphs.slice(1).map((p, i) => (
               <p key={i}>{p}</p>
             ))}
           </div>
@@ -59,7 +58,7 @@ export function About() {
 
         <div className="grid about__lower">
           <div className="about__now">
-            <p className="mono muted rv">Currently exploring</p>
+            <p className="mono muted rv">Working on now</p>
             <ul className="now-list">
               {about.exploring.map((e, i) => (
                 <li key={e} className="rv" style={{ ['--i' as string]: i }}>
@@ -90,7 +89,7 @@ export function Capabilities() {
   return (
     <section className="section caps" id="capabilities" aria-labelledby="caps-title">
       <div className="wrap">
-        <SectionHead no="03" label="Capabilities" id="caps-title" lines={['What I can be', <span key="b"><em className="serif-i">trusted</em> with.</span>]} />
+        <SectionHead no="03" label="Each one points to a project above" id="caps-title" lines={['What I work on']} />
         <div className="caps__grid">
           {capabilities.map((c, gi) => (
             <div className="caps__col rv" key={c.group} style={{ ['--i' as string]: gi }}>
@@ -115,10 +114,10 @@ export function Experiments() {
   return (
     <section className="section lab" id="experiments" aria-labelledby="lab-title">
       <div className="wrap">
-        <SectionHead no="04" label="Experiments" id="lab-title" lines={['Smaller things,', <span key="b">built to <em className="serif-i">find out.</em></span>]} />
+        <SectionHead no="04" label={`${experiments.length} entries`} id="lab-title" lines={['Smaller projects']} />
         <p className="lab__intro prose rv">
-          Games, tools, prototypes and pipelines. Some are live, some are halfway, one was a hackathon weekend. Each is labelled with
-          exactly where it stands.
+          Games, tools and prototypes. Some are live on Google Play or the web, some are unfinished. Each one shows its current
+          status.
         </p>
         <ol className="lab__list">
           {experiments.map((x, i) => (
@@ -168,18 +167,18 @@ export function Contact() {
     <section className="section contact" id="contact" aria-labelledby="contact-title" data-theme="night">
       <div className="wrap">
         <p className="mono contact__label rv">
-          <span className="accent">05</span> — Contact
+          <span className="accent">05</span> <span className="muted">/ Contact</span>
         </p>
         <Lines
           as="h2"
           id="contact-title"
           className="contact__title display"
-          lines={['Have something', <span key="b"><em className="serif-i">worth</em> building?</span>]}
+          lines={['Get in touch.']}
         />
         <div className="contact__grid">
           <p className="lead contact__lead rv">
-            A business problem, a product that needs finishing, a strange idea that deserves a prototype. Write to me directly; it comes
-            straight to me.
+            If you have a business problem, a product that needs finishing, or an idea you want to test, email me. I read and reply
+            to everything myself.
           </p>
           <div className="contact__actions rv" style={{ ['--i' as string]: 1 }}>
             <a className="contact__email" href={`mailto:${contact.email}`}>

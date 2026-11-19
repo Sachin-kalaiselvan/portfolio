@@ -21,7 +21,7 @@ FONTS = f"""
 
 src = (ROOT / "src/content/projects.ts").read_text()
 cards = [{"slug": "default", "index": "", "name": "Sachin Kalaiselvan",
-          "cat": "Founder · Independent product builder", "line": "I build the business <em>and</em> the software it runs on."}]
+          "cat": "Founder, The Ingredient List", "line": "Software for manufacturers, backend systems, mobile games and an open-world game set in Bengaluru."}]
 for m in re.finditer(r"\n    slug: '([^']+)',\n    index: '([^']+)',\n    name: '([^']+)',(?:\n    parent: '[^']+',)?\n    category: '([^']+)',[\s\S]*?\n    summary: '((?:[^'\\]|\\.)*)'", src):
     cards.append({"slug": m[1], "index": m[2], "name": m[3], "cat": m[4], "line": m[5].replace("\\'", "'")})
 

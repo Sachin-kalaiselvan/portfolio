@@ -11,9 +11,9 @@ export const site = {
    * Leave unset until the domain is decided: canonical tags and sitemap are skipped.
    */
   url: (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '') ?? '',
-  title: 'Sachin Kalaiselvan — Founder & independent product builder',
+  title: 'Sachin Kalaiselvan · Founder, The Ingredient List',
   description:
-    'Sachin Kalaiselvan is a Bengaluru founder who builds businesses and the software they run on: a manufacturing ERP, backend automation, mobile apps and an open-world game set in Bengaluru.',
+    'Sachin Kalaiselvan runs The Ingredient List in Bengaluru. He builds THREXA, an ERP for manufacturers, along with backend automation, mobile games and apps, client websites and an open-world game set in Bengaluru.',
   locale: 'en_IN',
   ogImage: '/og/og-default.png',
 };
@@ -23,7 +23,7 @@ export const profile = {
   name: 'Sachin Kalaiselvan',
   givenName: 'Sachin',
   familyName: 'Kalaiselvan',
-  roleLine: 'Founder · Independent product builder · Entrepreneur',
+  roleLine: 'Founder, The Ingredient List',
   location: 'Bengaluru, India',
   business: {
     name: 'The Ingredient List',
@@ -52,46 +52,45 @@ export const contact = {
   ] as { label: string; href: string }[],
 };
 
-/** About section copy. Written from what Sachin has stated; edit freely. */
+/** About section copy, in Sachin's own voice. Edit freely. */
 export const about = {
-  lede: 'I start with the business, not the stack.',
   paragraphs: [
-    'Most of what I build begins somewhere unglamorous: a production manager answering the same question on the phone every evening, a spreadsheet that has quietly become the company’s memory, an invoice nobody noticed was overdue. I go and look at how the work is actually done, then decide what software should exist.',
-    'I run The Ingredient List, a small studio in Bengaluru. THREXA is its product arm, where I build operations software for manufacturers. Alongside it I ship mobile games and apps, build backend automation, design websites for clients, and spend the remaining hours on an open-world game set in the city I live in.',
-    'I design, write the code and sell it myself. That keeps me honest about the parts that matter: whether a factory owner will actually open the app at 7 PM, and whether the thing still works on a cheap Android phone.',
+    'I run The Ingredient List, a small studio in Bengaluru. THREXA is its product arm, where I build ERP software for manufacturers. I also make mobile games and apps, build backend automation, design websites for clients, and work on an open-world game set in Bengaluru.',
+    'Most of what I build starts with a problem I have seen up close: an owner phoning the floor at night to find out what happened that day, a spreadsheet the whole company depends on, invoices nobody chased. I look at how the work is actually done before deciding what to build.',
+    'I do the design, the code and the selling myself.',
   ],
   approach: [
     {
-      title: 'Go to where the work happens',
-      body: 'Factory floors, shop counters, a WhatsApp group full of order photos. The real workflow is rarely the one people describe in a meeting.',
+      title: 'Look at the real workflow',
+      body: 'I visit the factory or the shop, or read the WhatsApp group where the orders come in. What people do is usually different from what they describe in a meeting.',
     },
     {
-      title: 'Build the smallest true thing',
-      body: 'One workflow that saves an hour every day beats twelve modules that demo well. Scope comes from the problem, not from a feature list.',
+      title: 'Start small',
+      body: 'One workflow that saves an hour a day is worth more than a dozen modules that look good in a demo.',
     },
     {
-      title: 'Design is part of the engineering',
-      body: 'Language, layout, motion and speed decide whether software gets used. I treat them with the same care as the schema.',
+      title: 'Design and code together',
+      body: 'Wording, layout and speed decide whether people use software, so I treat them as part of the build, not decoration at the end.',
     },
     {
-      title: 'Say what is finished',
-      body: 'Every project here is labelled with its real status. Prototypes are called prototypes.',
+      title: 'Say what’s finished',
+      body: 'Every project here shows its real status. If something is a prototype, it says so.',
     },
   ],
   exploring: [
-    'Turning the THREXA prototype into a complete, production-ready manufacturing ERP',
-    'Real-time 3D for phones: a believable Bengaluru on mid-range Android hardware',
-    'Small, sharply designed mobile games and utilities published under The Ingredient List',
-    'Lead-generation and qualification pipelines that run on my own servers',
+    'Finishing THREXA so it can run in a real plant',
+    'Getting a dense 3D city to run on mid-range Android phones',
+    'Small mobile games and utilities published under The Ingredient List',
+    'Lead pipelines that run on my own server instead of paying per lead',
   ],
   /**
-   * Background as stated by Sachin. Dates are intentionally omitted until confirmed.
-   * Remove any line you would rather not publish.
+   * Background as stated by Sachin. Dates are left out until confirmed.
+   * Delete any line you don't want public.
    */
   background: [
-    { label: 'Now', text: 'Founder, The Ingredient List — and its product arm, THREXA' },
+    { label: 'Now', text: 'Founder, The Ingredient List, and its product arm THREXA' },
     { label: 'Before', text: 'Managing Director and AI systems lead at Lavenders Finance, a family-owned NBFC (since closed)' },
-    { label: 'Before', text: 'Consulting stint at Kiran IT Solutions' },
+    { label: 'Before', text: 'Consulting at Kiran IT Solutions' },
     { label: 'Study', text: 'PGP in Data Science, Great Lakes' },
     { label: 'Study', text: 'BBA in Finance, NMIMS Mumbai' },
   ],

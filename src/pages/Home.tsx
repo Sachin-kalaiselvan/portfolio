@@ -5,6 +5,7 @@ import { WorkIndex } from '../components/WorkIndex';
 import { Features } from '../components/Features';
 import { About, Capabilities, Contact, Experiments, SectionHead } from '../components/Sections';
 import { navigation } from '../content/capabilities';
+import { projects } from '../content/projects';
 import { SECTION_EVENT } from '../lib/sections';
 
 /** Tell the navigation which section is currently in the reading zone. */
@@ -38,9 +39,9 @@ export default function Home() {
         <div className="wrap">
           <SectionHead
             no="01"
-            label="Selected work"
+            label={`${projects.length} projects, with their current status`}
             id="work-title"
-            lines={['Five projects,', <span key="b">told <em className="serif-i">honestly.</em></span>]}
+            lines={['Selected work']}
           />
           <WorkIndex />
         </div>
