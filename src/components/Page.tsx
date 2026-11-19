@@ -46,18 +46,18 @@ export function Page({ children, theme, className }: Props) {
     if (navType === 'POP') {
       const y = readPositions()[location.key];
       if (typeof y === 'number') {
-        window.scrollTo(0, y);
+        window.scrollTo({ top: y, behavior: 'instant' });
         return;
       }
     }
     if (location.hash) {
       const el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
       if (el) {
-        el.scrollIntoView({ block: 'start' });
+        el.scrollIntoView({ block: 'start', behavior: 'instant' });
         return;
       }
     }
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.key]);
 
   // Head tags for client-side navigation (the prerenderer writes them for first load).
