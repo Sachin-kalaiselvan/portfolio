@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { Nav } from './components/Nav';
 import { Footer } from './components/Footer';
 import { saveScroll } from './components/Page';
-import { markNavigated } from './lib/transition';
+import { markNavigated, setNavType } from './lib/transition';
 import Home from './pages/Home';
 import CaseStudy from './pages/CaseStudy';
 import NotFound from './pages/NotFound';
@@ -45,12 +45,14 @@ function useTransitionLocation() {
 }
 
 export function App() {
-  const location = useLocation();
+  const navigationType = useNavigationType();
   const { shown, leaving } = useTransitionLocation();
+  setNavType(navigationType);
 
-  // Remember the scroll position of each history entry before leaving it.
+  // Remember the scroll position of the page on screen, under its own history entry.
   useEffect(() => {
-    const key = location.key;
+    if (leaving) return;
+    const key = shown.key;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -64,7 +66,7 @@ export function App() {
       window.removeEventListener('scroll', onScroll);
       cancelAnimationFrame(raf);
     };
-  }, [location.key]);
+  }, [shown.key, leaving]);
 
   useEffect(() => {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

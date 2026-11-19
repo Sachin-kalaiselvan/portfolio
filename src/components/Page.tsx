@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, type ReactNode } from 'react';
-import { useLocation, useNavigationType } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { getMeta } from '../seo';
 import { useRevealScan } from '../lib/hooks';
-import { hasNavigated } from '../lib/transition';
+import { getNavType, hasNavigated } from '../lib/transition';
 
 const useIso = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 const SCROLL_KEY = 'scroll-positions';
@@ -39,11 +39,10 @@ interface Props {
 
 export function Page({ children, theme, className }: Props) {
   const location = useLocation();
-  const navType = useNavigationType();
 
   // Scroll: restore on back/forward, jump to hash, otherwise start at the top.
   useIso(() => {
-    if (navType === 'POP') {
+    if (getNavType() === 'POP') {
       const y = readPositions()[location.key];
       if (typeof y === 'number') {
         window.scrollTo({ top: y, behavior: 'instant' });
