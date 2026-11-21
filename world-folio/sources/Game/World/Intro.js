@@ -44,6 +44,18 @@ export class Intro
             this.label.rotation.x = -0.4
         }
         
+        // Portrait phones: the label goes in front of the car instead of beside it, so it isn't cut off or hidden by the trees
+        this.label.maxScale = 1
+        if(this.game.viewport.ratio < 1)
+        {
+            this.label.position.copy(this.center)
+            this.label.position.x += 2.5
+            this.label.position.z += 2.1
+            this.label.position.y = 1.6
+            this.label.rotation.x = -0.4
+            this.label.maxScale = 0.8
+        }
+
         this.label.scale.setScalar(0.01)
         this.game.scene.add(this.label)
     }
@@ -125,8 +137,8 @@ export class Intro
         this.text.textures = new Map()
         this.text.updateTexture = async () =>
         {
-            // Define name
-            let name = 'mouseKeyboard'
+            // Define name (phones and tablets say "tap" before any touch has happened)
+            let name = window.matchMedia('(hover: none) and (pointer: coarse)').matches ? 'touch' : 'mouseKeyboard'
             
             if(this.game.inputs.mode === Inputs.MODE_GAMEPAD)
             {
@@ -272,7 +284,7 @@ export class Intro
                 overwrite: true,
                 onUpdate: () =>
                 {
-                    this.label.scale.setScalar(dummy.scale)
+                    this.label.scale.setScalar(dummy.scale * this.label.maxScale)
                 }
             }
         )
@@ -291,7 +303,7 @@ export class Intro
                 overwrite: true,
                 onUpdate: () =>
                 {
-                    this.label.scale.setScalar(dummy.scale)
+                    this.label.scale.setScalar(dummy.scale * this.label.maxScale)
                 },
                 onComplete: () =>
                 {

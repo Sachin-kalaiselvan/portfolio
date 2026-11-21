@@ -427,7 +427,7 @@ export class View
         this.cinematic.position = new THREE.Vector3()
         this.cinematic.target = new THREE.Vector3()
         this.cinematic.dummy = this.camera.clone()
-        this.cinematic.nonIdealRatioOffset = 10
+        this.cinematic.nonIdealRatioOffset = 12.5 // pulled back a little more on tall phones so side signs stay in frame
 
         // this.cinematic.targetHelper = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicNodeMaterial({ color: '#ff00ff', wireframe: true }))
         // this.cinematic.targetHelper.userData.preventPreRender = true

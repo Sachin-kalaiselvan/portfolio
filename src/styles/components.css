@@ -223,6 +223,7 @@
 .menu__socials {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 1.5rem;
 }
 .menu__socials a {
@@ -1569,6 +1570,7 @@
 .cs-intro__top {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.75rem 2.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--rule);
@@ -2263,9 +2265,16 @@
   border-color: var(--ink);
 }
 .menu__world {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   min-height: 48px;
-  justify-self: start;
+  padding: 0 1.1rem;
+  align-self: flex-start;
+  border-color: rgb(243 240 232 / 0.3);
+}
+.menu__world:hover {
+  background: var(--paper);
+  color: var(--night);
+  border-color: var(--paper);
 }
 .cs-world {
   appearance: none;
@@ -2286,5 +2295,13 @@
 @media (max-width: 520px) {
   .nav__bar > .nav__world {
     display: none;
+  }
+  /* Phones: "View in the world" gets its own line under the back link */
+  .cs-intro__top .cs-world {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .cs-intro__top .cs-intro__cat {
+    order: 2;
   }
 }

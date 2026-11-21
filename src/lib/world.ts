@@ -56,6 +56,13 @@ export function routeFirstVisit() {
   }
   if (url.pathname !== '/' || url.hash) return;
   if (read().mode === '2d') return;
+  // Only once per visit, so the page is reachable afterwards (e.g. typing the address again).
+  try {
+    if (sessionStorage.getItem('world-auto')) return;
+    sessionStorage.setItem('world-auto', '1');
+  } catch {
+    /* no session storage: still redirect once */
+  }
   const conn = (navigator as unknown as { connection?: { saveData?: boolean } }).connection;
   if (conn?.saveData || !hasWebGL()) return;
   window.location.replace('/world/');
