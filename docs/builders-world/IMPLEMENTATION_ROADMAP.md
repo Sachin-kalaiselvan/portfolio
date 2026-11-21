@@ -1,5 +1,7 @@
 # Implementation roadmap
 
+> **Status (21 Nov 2026).** Milestones 1–7 were built in order on `world/build` without stopping between milestones, as instructed. What was built, what changed from this plan and what was measured: `BUILD_REPORT.md`.
+
 Eight milestones, following the updated plan. **One milestone at a time.** Each ends with a report (files changed, dependencies added, build output, tests run, measured performance, known limitations, rollback steps) and stops for approval before the next begins.
 
 The renderer, input, physics and vehicle are proven together (M1–M2) before any finished world is built (M3).

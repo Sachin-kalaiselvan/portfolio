@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { navigation } from '../content/capabilities';
 import { contact, profile } from '../content/profile';
 import { goToSection, SECTION_EVENT } from '../lib/sections';
+import { enterWorld } from '../ui-world/bridge';
+import { writePrefs } from '../world/boot/prefs';
 
 export function Nav() {
   const { pathname } = useLocation();
@@ -104,6 +106,17 @@ export function Nav() {
           </ul>
         </nav>
 
+        <button
+          type="button"
+          className="nav__world"
+          onClick={() => {
+            writePrefs({ mode: '3d' });
+            enterWorld(null);
+          }}
+        >
+          Enter the world
+        </button>
+
         <a className="nav__cta mono" href={`mailto:${contact.email}`}>
           <span className="nav__cta-dot" aria-hidden="true" />
           Email
@@ -146,6 +159,17 @@ export function Nav() {
               </li>
             ))}
           </ol>
+          <button
+            type="button"
+            className="nav__world menu__world"
+            onClick={() => {
+              setOpen(false);
+              writePrefs({ mode: '3d' });
+              enterWorld(null);
+            }}
+          >
+            Enter the world
+          </button>
           <div className="menu__foot">
             <a className="link" href={`mailto:${contact.email}`}>{contact.email}</a>
             <div className="menu__socials mono">

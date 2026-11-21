@@ -1,5 +1,7 @@
 # Performance strategy
 
+> **Measured results (21 Nov 2026)** are in `BUILD_REPORT.md`. Frame-rate budgets are still unverified on real hardware.
+
 Every number in this document is a **target or a budget**, not a measurement. Nothing has been built or benchmarked yet. Each milestone reports measured results against these targets, and targets that turn out wrong are revised with the measurement that showed it.
 
 The only measured figures here come from disk, for comparison: the reference site's whole compressed world is about 1.0 MB of models plus 3.1 MB of textures (`BRUNO_REPOSITORY_RESEARCH.md` §2.12), and our current 2D site's production JavaScript is 340 KB raw, 105 KB gzipped (one file, measured on 21 Nov 2026 from the existing build).

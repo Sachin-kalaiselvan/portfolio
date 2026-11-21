@@ -1,5 +1,7 @@
 # Asset production plan
 
+> **Superseded (21 Nov 2026).** Decision D3 was taken: every asset is modelled procedurally in code, so the Blender/glTF pipeline below was not used. See `BUILD_REPORT.md`.
+
 Code can render a world, but it can't turn weak assets into a good one. This plan decides how the world looks, who makes each piece, in what order, and to what budget.
 
 **Hard rules**

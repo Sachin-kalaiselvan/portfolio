@@ -7,6 +7,7 @@ import { markNavigated, setNavType } from './lib/transition';
 import Home from './pages/Home';
 import CaseStudy from './pages/CaseStudy';
 import NotFound from './pages/NotFound';
+import { WorldShell } from './ui-world/WorldShell';
 import './styles/fonts';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -84,6 +85,7 @@ export function App() {
         </Routes>
       </div>
       <Footer />
+      <WorldShell />
     </>
   );
 }

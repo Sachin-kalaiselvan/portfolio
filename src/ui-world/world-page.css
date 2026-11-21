@@ -1,0 +1,162 @@
+/* Page-side pieces of THE BUILDER'S WORLD: entry buttons and notices.
+   Loaded with the page; everything else loads with the world. */
+
+.world-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: #ebe5d7;
+}
+html.world-locked,
+html.world-locked body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* ——— On the page —————————————————————————————————————————— */
+.back-to-world {
+  position: fixed;
+  z-index: 290;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 52px;
+  padding: 0 1.2rem 0 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 500 0.9rem/1 var(--font-sans);
+  cursor: pointer;
+  box-shadow: 0 18px 44px -16px rgb(19 19 18 / 0.6);
+  animation: w-prompt 600ms 300ms var(--ease-out) both;
+  transition: background var(--d-fast), transform var(--d-fast) var(--ease-out);
+}
+.back-to-world:hover {
+  background: var(--cobalt);
+  transform: translateY(-2px);
+}
+.back-to-world__car {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cobalt);
+  position: relative;
+}
+.back-to-world:hover .back-to-world__car {
+  background: var(--paper);
+}
+.back-to-world__car::before {
+  content: '';
+  position: absolute;
+  inset: 12px 8px 11px;
+  border-radius: 4px 6px 3px 3px;
+  background: var(--paper);
+  box-shadow: inset 6px -3px 0 -2px var(--cobalt);
+}
+.back-to-world:hover .back-to-world__car::before {
+  background: var(--cobalt);
+}
+
+.world-notice {
+  position: fixed;
+  z-index: 290;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.7rem 0.7rem 0.7rem 1.1rem;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.9rem;
+  animation: w-prompt 500ms var(--ease-out) both;
+}
+.world-notice button {
+  appearance: none;
+  border: 0;
+  background: rgb(243 240 232 / 0.12);
+  color: inherit;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.nav__world {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: inherit;
+  font: 500 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: background var(--d-fast), color var(--d-fast), border-color var(--d-fast);
+}
+.nav__world::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cobalt);
+}
+.nav__world:hover {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.menu__world {
+  margin-top: 2rem;
+  min-height: 48px;
+  justify-self: start;
+}
+.cs-world {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 32px;
+}
+.cs-world::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cobalt);
+}
+.cs-world:hover {
+  color: var(--accent);
+}
+@media (max-width: 520px) {
+  .nav__bar > .nav__world {
+    display: none;
+  }
+}
+
+@keyframes w-prompt { from { opacity: 0; transform: translateY(22px) scale(0.94); } }
+@media (prefers-reduced-motion: reduce) {
+  .back-to-world,
+  .world-notice {
+    animation-duration: 1ms !important;
+  }
+}
