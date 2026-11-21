@@ -2,6 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
+import { routeFirstVisit } from './lib/world';
+
+// First visit to the home page goes to the 3D world (/world/); "View as page" there comes back with ?page.
+routeFirstVisit();
 
 const root = document.getElementById('root')!;
 const tree = (

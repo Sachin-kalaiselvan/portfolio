@@ -5,31 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "build": "tsc --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs && npm run build:world",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-content.mjs && vitest run",
-    "test:e2e": "playwright test"
+    "test": "node scripts/check-content.mjs",
+    "build:world": "cd world-folio && npm ci --force --no-audit --no-fund && npx vite build && cd .. && rm -rf dist/world && cp -r world-folio/dist dist/world"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "^0.21.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.6",
-    "three": "^0.187.0"
+    "react-router-dom": "^7.18.6"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.3.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.8",
-    "vitest": "^5.1.1"
+    "vite": "^8.3.8"
   }
 }

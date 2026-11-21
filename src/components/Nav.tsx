@@ -3,8 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { navigation } from '../content/capabilities';
 import { contact, profile } from '../content/profile';
 import { goToSection, SECTION_EVENT } from '../lib/sections';
-import { enterWorld } from '../ui-world/bridge';
-import { writePrefs } from '../world/boot/prefs';
+import { enterWorld } from '../lib/world';
 
 export function Nav() {
   const { pathname } = useLocation();
@@ -110,8 +109,7 @@ export function Nav() {
           type="button"
           className="nav__world"
           onClick={() => {
-            writePrefs({ mode: '3d' });
-            enterWorld(null);
+            enterWorld();
           }}
         >
           Enter the world
@@ -164,8 +162,7 @@ export function Nav() {
             className="nav__world menu__world"
             onClick={() => {
               setOpen(false);
-              writePrefs({ mode: '3d' });
-              enterWorld(null);
+              enterWorld();
             }}
           >
             Enter the world

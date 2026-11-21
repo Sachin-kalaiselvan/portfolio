@@ -1,6 +1,4 @@
-import { enterWorld } from '../ui-world/bridge';
-import { writePrefs } from '../world/boot/prefs';
-import { spotForSlug } from '../world/content/placements';
+import { enterWorld } from '../lib/world';
 import { useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Page } from '../components/Page';
@@ -178,7 +176,6 @@ function BlockView({ block, n }: { block: Block; n: number }) {
 }
 
 function Intro({ p }: { p: Project }) {
-  const inWorld = spotForSlug(p.slug);
   return (
     <header className="cs-intro wrap">
       <div className="cs-intro__top mono">
@@ -186,18 +183,9 @@ function Intro({ p }: { p: Project }) {
           <span className="arrow" aria-hidden="true">←</span> All work
         </Link>
         <span className="muted">Case study {p.index} / {String(projects.length).padStart(2, '0')}</span>
-        {inWorld && (
-          <button
-            type="button"
-            className="cs-world"
-            onClick={() => {
-              writePrefs({ mode: '3d' });
-              enterWorld(p.slug);
-            }}
-          >
-            View in the world
-          </button>
-        )}
+        <button type="button" className="cs-world" onClick={() => enterWorld('projects')}>
+          View in the world
+        </button>
         <span className="muted cs-intro__cat">{p.category}</span>
       </div>
       <h1 className={`cs-intro__title display cs-intro__title--${p.theme}`}>
