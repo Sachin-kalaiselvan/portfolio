@@ -1,13 +1,13 @@
-# Sachin Kalaiselvan — portfolio
+# portfolio
 
-A drivable 3D portfolio.
+my portfolio, but you drive around it. 3D world, little car, every project's a stop.
 
-```
+```bash
 npm ci --force
 npm run dev       # local
-npm run build     # production build in dist/
+npm run build     # -> dist/
 ```
 
-Content: `sources/data/projects.js`, `lab.js`, `social.js`; images in `static/projects/images/`, `static/lab/images/`, `static/career/`; page copy in `sources/index.html`.
+content lives in `sources/data/projects.js`, `lab.js`, `social.js`. images in `static/projects/images/`, `static/lab/images/`, `static/career/`. page copy's in `sources/index.html`.
 
-License terms for the underlying code: `license.md`.
+licence for the underlying code: `license.md`.
