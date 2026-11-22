@@ -6,12 +6,6 @@ const text = `
 ║ Mail    ⇒ sachin@theingredientlist.co
 ║ GitHub  ⇒ https://github.com/Sachin-kalaiselvan
 ╚═══════════════════════╝
-
-╔═ Credits ═════════════╗
-║ This world is built on Bruno Simon's open-source folio-2025 (MIT)
-║ https://github.com/brunosimon/folio-2025
-║ Music by Kounine (CC0)
-╚═══════════════════════╝
 `
 let finalText = ''
 let finalStyles = []
