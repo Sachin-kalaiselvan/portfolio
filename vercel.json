@@ -1,16 +1,33 @@
 {
+  "installCommand": "npm ci --force",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
   "headers": [
     {
       "source": "/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/work/:slug*",
+      "destination": "/",
+      "permanent": false
     },
     {
-      "source": "/media/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000" }]
+      "source": "/world",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/world/:path*",
+      "destination": "/",
+      "permanent": false
     }
   ]
 }
