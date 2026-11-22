@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Marketing Budget Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;500;600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1d2433;--ink2:#4a5263;--mute:#868d9b;--line:#e4e6ea;--line2:#d2d6dd;
+  --vio:#1f4e79;--vio2:#2b6296;--coral:#b4472f;--mint:#2e7d5b;--sun:#b0832a;--sky:#3f6fa8;--rose:#8a4f7d;--ease:cubic-bezier(.25,.8,.25,1);
+  --h:'Source Serif 4',Georgia,serif;--b:'Source Sans 3',system-ui,sans-serif;--m:'Source Code Pro',ui-monospace,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 var(--b);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+.shell{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+aside{position:sticky;top:0;height:100vh;padding:22px 14px;display:flex;flex-direction:column;gap:22px;background:#fff;border-right:1px solid var(--line)}
+.brand{display:flex;gap:10px;align-items:center;padding:0 8px}
+.brand .orb{width:28px;height:28px;border-radius:6px;background:var(--vio);position:relative;flex:none;overflow:hidden}
+.brand .orb i{position:absolute;left:6px;right:6px;bottom:6px;height:3px;background:#fff;border-radius:1px;box-shadow:0 -5px 0 rgba(255,255,255,.7),0 -10px 0 rgba(255,255,255,.45);animation:lift 4s var(--ease) infinite}
+@keyframes lift{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.brand b{font:600 15px/1.2 var(--b)}
+.brand small{display:block;color:var(--mute);font:400 12px var(--b);margin-top:2px}
+.nav{display:flex;flex-direction:column;gap:1px;position:relative;padding-left:2px}
+.nav button{all:unset;cursor:pointer;position:relative;z-index:1;display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:6px;font:500 14px var(--b);color:var(--ink2);transition:color .2s,background .2s}
+.nav button:hover{background:#f3f4f6;color:var(--ink)}
+.nav button svg{width:16px;height:16px;flex:none;opacity:.8}
+.nav button.on{color:var(--ink);background:#eef2f7}
+.nav .blob{position:absolute;left:0;width:2px;height:22px;margin-top:8px;border-radius:1px;background:var(--vio);transition:transform .45s var(--ease)}
+.side-note{margin-top:auto;font-size:12px;color:var(--mute);padding:0 8px}
+main{padding:30px clamp(16px,3vw,40px) 80px;min-width:0;max-width:1380px}
+.view{display:none}.view.on{display:block;animation:in .45s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+h1{font:600 clamp(24px,2.6vw,30px)/1.15 var(--h);letter-spacing:-.01em;margin:0}
+.lede{color:var(--ink2);margin:6px 0 0;max-width:720px}
+.grid{display:grid;gap:16px;align-items:start}.g2{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px 22px;animation:rise .5s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card h3{margin:0 0 2px;font:600 17px var(--h)}
+.card .hint{color:var(--mute);font-size:13px;margin:0 0 14px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:8px}
+.kpi{padding:16px 20px;border-left:1px solid var(--line);animation:rise .5s var(--ease) both}
+.kpi:first-child{border-left:0}
+.kpi:nth-child(2){animation-delay:.04s}.kpi:nth-child(3){animation-delay:.08s}.kpi:nth-child(4){animation-delay:.12s}
+.kpi span{font:500 12.5px var(--b);color:var(--mute)}
+.kpi b{display:block;font:600 28px/1.15 var(--h);margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi small{color:var(--ink2);font-size:12.5px}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:6px;font:600 13.5px var(--b);background:var(--ink);color:#fff;transition:background .15s;white-space:nowrap}
+.btn:hover{background:#2c3546}
+.btn.v{background:var(--vio)}.btn.v:hover{background:#18405f}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line2)}
+.btn.ghost:hover{background:#f3f4f6}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border-radius:4px;font:500 12.5px var(--b);background:#eef2f7;color:var(--vio)}
+.pill.m{background:#ebf4ef;color:var(--mint)}.pill.c{background:#f8ece9;color:var(--coral)}.pill.s{background:#f7f1e4;color:var(--sun)}
+table{width:100%;border-collapse:collapse}
+th{font:500 12.5px var(--b);color:var(--mute);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid #eef0f3}
+td.n,th.n{text-align:right;font-family:var(--m);font-size:13px;font-variant-numeric:tabular-nums}
+tbody tr{animation:rise .4s var(--ease) both}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;vertical-align:0}
+svg text{font-family:var(--m)}
+.draw{animation:draw 1.2s var(--ease) both}
+@keyframes draw{from{stroke-dasharray:1 1;stroke-dashoffset:1}to{stroke-dasharray:1 1;stroke-dashoffset:0}}
+.area{animation:grow 1s var(--ease) both;transform-origin:center bottom}
+@keyframes grow{from{transform:scaleY(.02);opacity:0}to{transform:none;opacity:1}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:13px;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.ch .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ch .top b{font:600 16px var(--h)}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:12px;border:1px solid var(--line);border-radius:6px}
+.mini div{padding:8px 10px;border-left:1px solid var(--line)}.mini div:first-child{border-left:0}
+.mini span{display:block;font:500 11.5px var(--b);color:var(--mute)}
+.mini b{font:600 16px var(--h)}
+.sl{margin:4px 0 16px}
+.sl .t{display:flex;justify-content:space-between;align-items:baseline}
+.sl label{font-weight:600;font-size:13.5px}
+.sl b{font:600 24px var(--h)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--vio) var(--p,50%),var(--line2) var(--p,50%))}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--vio) var(--p,50%),var(--line2) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--vio);margin-top:-7px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--vio)}
+.alloc{display:flex;flex-direction:column;gap:14px}
+.arow{display:grid;grid-template-columns:150px 1fr 170px;gap:14px;align-items:center}
+.arow .nm{font-weight:600;font-size:14px}
+.arow .bars{display:flex;flex-direction:column;gap:3px}
+.arow .bars i{display:block;height:10px;border-radius:2px;transition:width .8s var(--ease)}
+.arow .bars i.now{background:#dfe3e9}
+.arow .v{font:13px var(--m);text-align:right}
+.arow .v b{font:600 15px var(--h);display:block}
+.arow .lims{display:flex;gap:6px;margin-top:4px}
+.arow .lims input{width:72px;padding:3px 6px;border:1px solid var(--line2);border-radius:4px;font:12px var(--m);background:#fff}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font:500 12.5px var(--b);color:var(--ink2)}
+.f input,.f select{padding:8px 10px;border:1px solid var(--line2);border-radius:6px;background:#fff;font:400 14px var(--b);width:100%}
+.frow{display:grid;grid-template-columns:1.3fr 1fr 1fr auto;gap:10px;align-items:end}
+.drop{border:1.5px dashed var(--line2);border-radius:8px;padding:26px;text-align:center;color:var(--ink2);cursor:pointer;transition:all .2s;display:block}
+.drop.on,.drop:hover{border-color:var(--vio);background:#f3f6fa}
+.prose{max-width:760px}.prose h3{font:600 19px var(--h);margin:24px 0 6px}.prose h3:first-child{margin-top:0}.prose p{color:var(--ink2)}
+.prose code{font:12.5px var(--m);background:#f3f4f6;padding:1px 6px;border-radius:4px}
+.busy{position:fixed;right:20px;top:20px;z-index:50;background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 6px 20px rgba(29,36,51,.1);border-radius:8px;padding:10px 14px;font:600 13px var(--b);display:flex;gap:10px;align-items:center;transform:translateY(-90px);transition:transform .45s var(--ease)}
+.busy.on{transform:none}
+.busy .ring{width:14px;height:14px;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--vio);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.busy em{font-style:normal;font-family:var(--m);color:var(--mute)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,90px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:6px;font-weight:600;transition:transform .4s var(--ease);z-index:60}
+.toast.on{transform:translate(-50%,0)}
+.tip{position:absolute;pointer-events:none;background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 24px rgba(29,36,51,.12);border-radius:6px;padding:8px 10px;font-size:12.5px;opacity:0;transition:opacity .15s;z-index:5;min-width:180px}
+.tip b{font:600 13px var(--b)}
+.scroll{overflow-x:auto}
+@media (max-width:1100px){.g2,.g3{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(3){border-left:0}.kpi:nth-child(n+3){border-top:1px solid var(--line)}}
+@media (max-width:760px){
+  .shell{grid-template-columns:1fr}
+  aside{position:fixed;inset:auto 0 0 0;height:auto;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:40;gap:0;border-right:0;border-top:1px solid var(--line)}
+  .brand,.side-note{display:none}
+  .nav{flex-direction:row;overflow-x:auto;padding:0}
+  .nav button{flex-direction:column;gap:2px;font-size:10.5px;padding:6px 8px;flex:1;min-width:58px}
+  .nav .blob{display:none}.nav button.on{color:var(--vio);background:transparent}
+  main{padding:18px 12px 110px}
+  .arow{grid-template-columns:1fr auto;gap:6px 10px}
+  .arow .bars{grid-column:1/-1;order:3}
+  .frow{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside>
+  <div class="brand"><div class="orb"><i></i></div><div><b>Marketing Budget Planner</b><small>Media mix and budget</small></div></div>
+  <nav class="nav" id="nav"><div class="blob" id="blob"></div>
+    <button data-v="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 16l4-5 4 3 6-8"/></svg>Overview</button>
+    <button data-v="channels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20c4 0 6-14 18-14"/><circle cx="12" cy="11" r="2"/></svg>Channels</button>
+    <button data-v="budget"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h13"/></svg>Budget</button>
+    <button data-v="calibrate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Lift tests</button>
+    <button data-v="fit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-5 4 4 8-9"/><path d="M3 21h18"/></svg>Fit</button>
+    <button data-v="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/></svg>Data</button>
+    <button data-v="bench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 6"/></svg>Benchmark</button>
+    <button data-v="how"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>How it works</button>
+  </nav>
+  <div class="side-note" id="sideNote"></div>
+</aside>
+<main>
+  <section class="view" id="v-overview">
+    <div class="head"><div><h1 id="oTitle">Where revenue comes from</h1><p class="lede" id="oLede"></p></div><button class="btn ghost" id="bootBtn">Add 90% ranges</button></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid g2">
+      <div class="card" style="position:relative"><h3>Weekly revenue, split by source</h3><p class="hint">Baseline = what would've sold with zero paid media. Brand, organic, repeat buyers, seasonality.</p><svg id="stack" viewBox="0 0 820 330" style="width:100%"></svg><div class="tip" id="tip"></div><div class="legend" id="stackLeg"></div></div>
+      <div class="card"><h3>Return on each rupee</h3><p class="hint" id="roiHint">Revenue caused per ₹1 over the whole period.</p><svg id="roi" viewBox="0 0 420 300" style="width:100%"></svg></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-channels">
+    <div class="head"><div><h1>Channels</h1><p class="lede">How each channel reacts to spend. Curve flattens as it saturates. Carry-over = how long an ad keeps working after it stops running.</p></div><label style="display:flex;gap:8px;align-items:center;font-weight:600;font-size:13px" id="truthWrap"><input type="checkbox" id="truth"> Show the true curves (demo data only)</label></div>
+    <div class="chgrid" id="chgrid"></div>
+  </section>
+
+  <section class="view" id="v-budget">
+    <div class="head"><div><h1>Plan the budget</h1><p class="lede">Set a weekly budget + any limits. It finds the split that earns the most off each channel's response curve.</p></div><div class="row" style="display:flex;gap:8px"><button class="btn ghost" id="saveScen">Save scenario</button><button class="btn v" id="csvPlan">Export plan</button></div></div>
+    <div class="grid g2">
+      <div class="card"><div class="sl"><div class="t"><label>Weekly budget</label><b id="bLab"></b></div><input type="range" id="bSl" min="0" max="1000"></div>
+        <div class="alloc" id="alloc"></div>
+        <div class="legend"><span><i style="background:var(--line2)"></i>Now (average of the last 13 weeks)</span><span><i style="background:var(--vio)"></i>Recommended</span></div></div>
+      <div class="grid">
+        <div class="kpis" style="grid-template-columns:1fr 1fr;margin:0" id="bK"></div>
+        <div class="card"><h3>Revenue against budget</h3><p class="hint">Best weekly media revenue you can get at each budget. Dot = your plan.</p><svg id="frontier" viewBox="0 0 420 230" style="width:100%"></svg></div>
+        <div class="card"><h3>Saved scenarios</h3><div id="scen"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-calibrate">
+    <div class="head"><div><h1>Lift tests</h1><p class="lede">A model fit on history alone can't always tell channels apart when their spend moves together. If you've run an experiment (geo holdout, conversion lift study, a channel switched off for a few weeks) put in what it measured and the model refits to agree with it, as far as the data lets it.</p></div></div>
+    <div class="grid g2">
+      <div class="card"><h3>Tests</h3><p class="hint">ROI = revenue caused per ₹1 during the test. ± is the test's standard error.</p><div id="tests"></div>
+        <div class="frow" style="margin-top:12px"><div class="f"><label>Channel</label><select id="tCh"></select></div><div class="f"><label>Measured ROI</label><input id="tRoi" inputmode="decimal" placeholder="1.8"></div><div class="f"><label>± error</label><input id="tSe" inputmode="decimal" placeholder="0.3"></div><button class="btn v" id="tAdd">Add and refit</button></div></div>
+      <div class="card"><h3>Before and after</h3><p class="hint">ROI per channel, without tests vs with.</p><svg id="calChart" viewBox="0 0 420 260" style="width:100%"></svg></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-fit">
+    <div class="head"><div><h1>How well it fits</h1><p class="lede">Refit without the last 13 weeks, then asked to predict them from spend alone. That's the honest test.</p></div></div>
+    <div class="kpis" id="fK"></div>
+    <div class="card"><h3>Actual against model</h3><p class="hint">Shaded = the 13 weeks the holdout model never saw.</p><svg id="fitChart" viewBox="0 0 900 300" style="width:100%"></svg><div class="legend"><span><i style="background:var(--ink)"></i>Actual</span><span><i style="background:var(--vio)"></i>Model (all weeks)</span><span><i style="background:var(--coral)"></i>Holdout prediction</span></div></div>
+  </section>
+
+  <section class="view" id="v-data">
+    <div class="head"><div><h1>Data</h1><p class="lede">Weekly rows: <code style="font-family:var(--m)">week, revenue</code>, then one spend column per channel. Columns starting with <code style="font-family:var(--m)">ctrl:</code> count as other drivers (sale weeks, festivals, price changes). 2+ years of data works best.</p></div></div>
+    <div class="grid g2">
+      <div class="card"><h3 id="dTitle">Current data</h3><p class="hint" id="dHint"></p><div class="scroll" style="max-height:440px;overflow:auto"><table id="dTable"></table></div></div>
+      <div class="card"><h3>Load your own</h3><label class="drop" id="drop"><input type="file" id="file" accept=".csv" hidden><b>Drop a CSV</b><br><span style="font-size:12.5px">or click to choose</span></label>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn ghost sm" id="sample">Download the demo as CSV</button><button class="btn ghost sm" id="reset">Reload the demo</button></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-bench">
+    <div class="head"><div><h1>Benchmark</h1><p class="lede">Tested on simulated brands where i know the true effect of every channel, plus against separate python implementations.</p></div></div>
+    <div class="kpis" id="bkK"></div>
+    <div class="grid g2">
+      <div class="card"><h3>Recovering the truth</h3><p class="hint" id="recHint"></p><table id="recT"></table></div>
+      <div class="card"><h3>Independent checks</h3><table id="chkT"></table></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-how">
+    <div class="card prose">
+      <h3>The model</h3><p>Weekly revenue = baseline + one term per channel. Baseline is level, trend, yearly seasonality (two sin/cos pairs) and any control columns. Each channel's spend goes through <b>carry-over</b> (geometric adstock, part of this week's effect spills into next week) and <b>saturation</b> (hill curve, double the spend ≠ double the effect), then gets a non-negative weight.</p>
+      <h3>Fitting</h3><p>For any carry-over + curve shape the weights are solved exactly with non-negative least squares. The shapes themselves get searched with nelder-mead from a few starts. Soft priors keep the shapes sane when the data can't pin them down (carry-over ~0.3, saturation near typical spend, shape ~1.5).</p>
+      <h3>How sure is it</h3><p>"add 90% ranges" refits on 40 resampled versions of your history (8-week chunks of the residuals so streaks stay intact) and shows the middle 90% of each channel's ROI.</p>
+      <h3>Lift tests</h3><p>Each experiment becomes one extra observation of that channel's ROI, weighted by how tight the test was. On simulated brands one test on the smallest channel cut its typical ROI error ~3x (see benchmark).</p>
+      <h3>The budget</h3><p>A channel's weekly response at steady spend = weight × hill(spend). Those curves are S-shaped, so anything that just chases marginal return can get stuck. Instead the budget gets cut into 400 units and split exactly with dynamic programming, then fine-tuned by shuffling money between pairs of channels. Vs scipy SLSQP with 20 starts on 300 random cases it never lost and won about half.</p>
+      <h3>Limits</h3><p>History shows correlation, only experiments prove cause. Curves are only trustworthy inside the spend range you've actually tried, so by default each channel is capped at 2x its biggest recent week. Change it if you want.</p>
+    </div>
+  </section>
+</main>
+</div>
+<div class="busy" id="busy"><div class="ring"></div><span id="busyMsg">Fitting</span><em id="busyPct"></em></div>
+<div class="toast" id="toast"></div>
+<script>// Marketing Budget Planner core: a marketing mix model (geometric adstock + Hill saturation per channel,
+// trend, yearly seasonality) fitted by non-negative least squares inside a Nelder-Mead search over the
+// curve shapes, bootstrap intervals, and a budget optimiser. Plain JS, browser and Node.
+(function (root) {
+  'use strict';
+  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+  // ---------- transforms ----------
+  // Geometric adstock, normalised so a constant spend x settles at x: a_t = (1-θ)x_t + θ a_{t-1}
+  function adstock(x, theta) {
+    const out = new Float64Array(x.length); let a = 0;
+    // start from the steady state of the first few weeks so the series doesn't ramp up from zero
+    const warm = x.slice(0, Math.min(8, x.length)); a = warm.length ? mean(warm) : 0;
+    for (let t = 0; t < x.length; t++) { a = (1 - theta) * x[t] + theta * a; out[t] = a; }
+    return out;
+  }
+  const hill = (x, K, s) => (x <= 0 ? 0 : 1 / (1 + Math.pow(K / x, s)));
+
+  // ---------- NNLS (Lawson & Hanson 1974) ----------
+  // min ||A b - y||  subject to b_j >= 0 for j in `pos`; other coefficients are free.
+  // Solved on the normal equations, which is fine at this size (< 20 columns).
+  function solveSym(M, v) {
+    const n = v.length, A = M.map((r, i) => r.concat([v[i]]));
+    for (let c = 0; c < n; c++) {
+      let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]];
+      const d = A[c][c]; if (Math.abs(d) < 1e-12) { A[c][c] = 1e-12; }
+      for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; }
+    }
+    return A.map((r, i) => r[n] / r[i]);
+  }
+  function nnls(XtX, Xty, pos, ridge = 1e-8) {
+    const n = Xty.length, isPos = new Array(n).fill(false); pos.forEach((j) => (isPos[j] = true));
+    const M = XtX.map((r, i) => r.map((v, j) => v + (i === j ? ridge * (XtX[i][i] || 1) : 0)));
+    const sub = (P) => { const S = solveSym(P.map((i) => P.map((j) => M[i][j])), P.map((i) => Xty[i])); const b = new Array(n).fill(0); P.forEach((i, k) => (b[i] = S[k])); return b; };
+    let P = []; for (let j = 0; j < n; j++) if (!isPos[j]) P.push(j);
+    let b = P.length ? sub(P) : new Array(n).fill(0);
+    for (let outer = 0; outer < 3 * n + 10; outer++) {
+      // gradient w = X'y - X'X b
+      const w = Xty.map((v, i) => v - M[i].reduce((s, m, j) => s + m * b[j], 0));
+      let jmax = -1, wmax = 1e-10 * (Math.abs(Xty.reduce((s, v) => s + Math.abs(v), 0)) + 1);
+      for (let j = 0; j < n; j++) if (isPos[j] && !P.includes(j) && w[j] > wmax) { wmax = w[j]; jmax = j; }
+      if (jmax < 0) break;
+      P.push(jmax);
+      for (let inner = 0; inner < 3 * n + 10; inner++) {
+        const z = sub(P);
+        const bad = P.filter((j) => isPos[j] && z[j] <= 0);
+        if (!bad.length) { b = z; break; }
+        let alpha = 1; for (const j of bad) alpha = Math.min(alpha, b[j] / (b[j] - z[j] || 1e-18));
+        b = b.map((v, j) => v + alpha * (z[j] - v));
+        P = P.filter((j) => !(isPos[j] && b[j] <= 1e-12));
+        P.forEach(() => 0);
+        for (let j = 0; j < n; j++) if (isPos[j] && !P.includes(j)) b[j] = 0;
+      }
+    }
+    return b;
+  }
+
+  // ---------- design ----------
+  // data: {y:[...], spend:{channel:[...]}, period (52 for weekly)}
+  function baseColumns(n, period, harmonics) {
+    const cols = [new Array(n).fill(1), Array.from({ length: n }, (_, t) => t / n)];
+    const names = ['base', 'trend'];
+    for (let k = 1; k <= harmonics; k++) {
+      cols.push(Array.from({ length: n }, (_, t) => Math.sin((2 * Math.PI * k * t) / period))); names.push('sin' + k);
+      cols.push(Array.from({ length: n }, (_, t) => Math.cos((2 * Math.PI * k * t) / period))); names.push('cos' + k);
+    }
+    return { cols, names };
+  }
+  // channel curve parameters, packed per channel as [theta, kRel, s]: K = kRel * mean adstocked spend
+  function mediaColumns(spend, channels, p) {
+    return channels.map((c, i) => {
+      const a = adstock(spend[c], p[3 * i]);
+      const scale = mean(a) || 1, K = p[3 * i + 1] * scale;
+      return { col: Array.from(a, (v) => hill(v, K, p[3 * i + 2])), K, scale };
+    });
+  }
+  function linearFit(cols, y, posIdx) {
+    const n = y.length, k = cols.length;
+    const XtX = Array.from({ length: k }, () => new Array(k).fill(0)), Xty = new Array(k).fill(0);
+    for (let i = 0; i < k; i++) { for (let j = i; j < k; j++) { let s = 0; const a = cols[i], b = cols[j]; for (let t = 0; t < n; t++) s += a[t] * b[t]; XtX[i][j] = XtX[j][i] = s; } let s = 0; for (let t = 0; t < n; t++) s += cols[i][t] * y[t]; Xty[i] = s; }
+    const b = nnls(XtX, Xty, posIdx);
+    let sse = 0; const fit = new Float64Array(n);
+    for (let t = 0; t < n; t++) { let f = 0; for (let i = 0; i < k; i++) f += b[i] * cols[i][t]; fit[t] = f; sse += (y[t] - f) ** 2; }
+    return { b, sse, fit };
+  }
+
+  // ---------- Nelder-Mead over the curve shapes ----------
+  function nelderMead(f, x0, lo, hi, iters, step = 0.2) {
+    const n = x0.length, cl = (x) => x.map((v, i) => clamp(v, lo[i], hi[i]));
+    let S = [cl(x0)]; for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] += (hi[i] - lo[i]) * step * (x[i] > (lo[i] + hi[i]) / 2 ? -1 : 1); S.push(cl(x)); }
+    let F = S.map(f);
+    for (let it = 0; it < iters; it++) {
+      const o = F.map((v, i) => i).sort((a, b) => F[a] - F[b]); S = o.map((i) => S[i]); F = o.map((i) => F[i]);
+      if (F[n] - F[0] <= 1e-12 * Math.abs(F[0])) break;
+      const c = new Array(n).fill(0); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += S[i][j] / n;
+      const pt = (t) => cl(c.map((v, j) => v + t * (S[n][j] - v)));
+      const xr = pt(-1), fr = f(xr);
+      if (fr < F[0]) { const xe = pt(-2), fe = f(xe); if (fe < fr) { S[n] = xe; F[n] = fe; } else { S[n] = xr; F[n] = fr; } }
+      else if (fr < F[n - 1]) { S[n] = xr; F[n] = fr; }
+      else { const xc = pt(fr < F[n] ? -0.5 : 0.5), fc = f(xc); if (fc < Math.min(fr, F[n])) { S[n] = xc; F[n] = fc; } else for (let i = 1; i <= n; i++) { S[i] = cl(S[i].map((v, j) => S[0][j] + 0.5 * (v - S[0][j]))); F[i] = f(S[i]); } }
+    }
+    let b = 0; for (let i = 1; i <= n; i++) if (F[i] < F[b]) b = i;
+    return { x: S[b], f: F[b] };
+  }
+  let seed0 = 1; const rng = (s) => { let x = s || 1; return () => ((x = (x * 16807) % 2147483647) / 2147483647); };
+
+  // Bounds: theta 0..0.9 (weekly carry-over), K 0.2..4 × mean adstocked spend, shape s 0.6..4
+  const LO = [0, 0.2, 0.6], HI = [0.9, 4, 4];
+  function fit(data, opts = {}) {
+    const channels = Object.keys(data.spend), n = data.y.length, period = data.period || 52, harmonics = opts.harmonics == null ? 2 : opts.harmonics;
+    const base = baseColumns(n, period, harmonics);
+    for (const [k, v] of Object.entries(data.controls || {})) { base.cols.push(v); base.names.push(k); }
+    const yMean = mean(data.y), y = data.y.map((v) => v / yMean);
+    const nb = base.cols.length, posIdx = channels.map((_, i) => nb + i).concat([0]);
+    // Lift-test calibration: {channel: {roi, se}} from a geo or holdout experiment. Each test becomes one extra
+    // weighted observation of that channel's ROI inside the least-squares solve, so it moves the coefficient directly.
+    const cal = Object.entries(opts.calibration || data.calibration || {}).filter(([c, v]) => channels.includes(c) && v && v.se > 0 && isFinite(v.roi));
+    const spendTot = Object.fromEntries(channels.map((c) => [c, data.spend[c].reduce((a, b) => a + b, 0)]));
+    let sig = 0; // sqrt of the noise variance, set below; calibration rows are weighted by sig / se
+    const solve = (p) => {
+      const m = mediaColumns(data.spend, channels, p), cols = base.cols.concat(m.map((x) => x.col));
+      if (!cal.length || !sig) return { m, lf: linearFit(cols, y, posIdx) };
+      const ext = cols.map((c) => Array.from(c)), yy = y.slice();
+      for (const [c, v] of cal) {
+        const i = channels.indexOf(c), w = sig / v.se;
+        ext.forEach((col, j) => col.push(j === nb + i ? (w * yMean * m[i].col.reduce((a, b) => a + b, 0)) / spendTot[c] : 0));
+        yy.push(w * v.roi);
+      }
+      return { m, lf: linearFit(ext, yy, posIdx) };
+    };
+    const sse = (p) => solve(p).lf.sse;
+    // Weak priors on the curve shapes (a MAP fit): carry-over around 0.3, half-saturation near typical spend,
+    // shape near 1.5. Spend series in real accounts move together and drift slowly, so without them the
+    // least-squares fit happily trades one channel's effect for another's or for the baseline.
+    const prior = opts.prior === false ? null : Object.assign({ theta: [0.3, 0.3], kRel: [1, 0.8], s: [1.5, 0.8] }, opts.prior || {});
+    const sigma2 = sse(channels.flatMap(() => [0.3, 1, 1.5])) / n; sig = Math.sqrt(sigma2);
+    const penalty = (p) => { if (!prior) return 0; let q = 0; for (let i = 0; i < channels.length; i++) q += ((p[3 * i] - prior.theta[0]) / prior.theta[1]) ** 2 + ((p[3 * i + 1] - prior.kRel[0]) / prior.kRel[1]) ** 2 + ((p[3 * i + 2] - prior.s[0]) / prior.s[1]) ** 2; return q; };
+    const obj = (p) => sse(p) / sigma2 + penalty(p);
+    const lo = channels.flatMap(() => LO), hi = channels.flatMap(() => HI);
+    const r = rng(opts.seed || 7);
+    let best = null;
+    const starts = opts.starts || 6, iters = opts.iters || 250 * channels.length;
+    for (let k = 0; k < starts; k++) {
+      const x0 = k === 0 ? (opts.warm || channels.flatMap(() => [0.4, 1, 1.5])) : lo.map((l, i) => l + r() * (hi[i] - l));
+      const res = nelderMead(obj, x0, lo, hi, iters);
+      if (!best || res.f < best.f) best = res;
+      if (opts.onProgress) opts.onProgress((k + 1) / starts);
+    }
+    // polish from the best point
+    best = nelderMead(obj, best.x, lo, hi, iters, 0.05);
+    const res = finish(data, channels, base, best.x, yMean, solve);
+    res.objective = best.f; res.sigma2 = sigma2;
+    return res;
+  }
+  function finish(data, channels, base, p, yMean, solve) {
+    const n = data.y.length, nb = base.cols.length;
+    const { m: media, lf } = solve(p);
+    const b = lf.b.map((v) => v * yMean);
+    const fitted = Array.from(lf.fit.slice(0, n), (v) => v * yMean);
+    const contrib = {}; const baseline = new Array(n).fill(0);
+    for (let t = 0; t < n; t++) for (let i = 0; i < nb; i++) baseline[t] += b[i] * base.cols[i][t];
+    const ch = {};
+    channels.forEach((c, i) => {
+      const beta = b[nb + i], col = media[i].col;
+      contrib[c] = Array.from(col, (v) => beta * v);
+      const spendTot = data.spend[c].reduce((s, v) => s + v, 0), contribTot = contrib[c].reduce((s, v) => s + v, 0);
+      ch[c] = { theta: p[3 * i], K: media[i].K, s: p[3 * i + 2], beta, scale: media[i].scale, spend: spendTot, contribution: contribTot, roi: spendTot ? contribTot / spendTot : 0 };
+    });
+    const resid = data.y.map((v, t) => v - fitted[t]);
+    const ssTot = data.y.reduce((s, v) => s + (v - yMean) ** 2, 0), sse = resid.reduce((s, e) => s + e * e, 0);
+    return { channels, params: p, coef: b, baseNames: base.names, baseline, contrib, ch, fitted, resid, r2: 1 - sse / ssTot, mape: mean(data.y.map((v, t) => Math.abs(resid[t]) / Math.abs(v))) * 100, sse, n };
+  }
+
+  // Predict revenue for a (longer) data set with a model fitted on its first model.n weeks
+  function predict(model, data) {
+    const N = data.y.length, nTr = model.n, period = data.period || 52, harm = (model.baseNames.filter((x) => x.startsWith('sin')).length);
+    const cols = [new Array(N).fill(1), Array.from({ length: N }, (_, t) => t / nTr)];
+    for (let k = 1; k <= harm; k++) { cols.push(Array.from({ length: N }, (_, t) => Math.sin((2 * Math.PI * k * t) / period))); cols.push(Array.from({ length: N }, (_, t) => Math.cos((2 * Math.PI * k * t) / period))); }
+    for (const v of Object.values(data.controls || {})) cols.push(v);
+    const out = new Array(N).fill(0);
+    cols.forEach((c, i) => { for (let t = 0; t < N; t++) out[t] += model.coef[i] * c[t]; });
+    model.channels.forEach((c) => { const a = adstock(data.spend[c], model.ch[c].theta); for (let t = 0; t < N; t++) out[t] += model.ch[c].beta * hill(a[t], model.ch[c].K, model.ch[c].s); });
+    return out;
+  }
+  const slice = (data, n) => ({ y: data.y.slice(0, n), spend: Object.fromEntries(Object.entries(data.spend).map(([k, v]) => [k, v.slice(0, n)])), controls: Object.fromEntries(Object.entries(data.controls || {}).map(([k, v]) => [k, v.slice(0, n)])), period: data.period });
+
+  // Weekly response at a steady weekly spend x (adstock settles at x): beta * hill(x)
+  const response = (c, x) => c.beta * hill(x, c.K, c.s);
+  const marginal = (c, x, h) => (response(c, x + (h || Math.max(1, x * 1e-4))) - response(c, x)) / (h || Math.max(1, x * 1e-4));
+
+  // ---------- budget optimiser ----------
+  // Maximise sum_c response_c(x_c) with sum x_c = B and lo_c <= x_c <= hi_c.
+  // Hill curves with s > 1 are S-shaped (not concave), so marginal-return rules can get stuck. The budget
+  // above the minimums is cut into G equal units and split exactly by dynamic programming over channels
+  // (globally optimal on that grid), then refined continuously by moving money between pairs of channels.
+  function optimise(chs, B, bounds, opts = {}) {
+    const names = Object.keys(chs), n = names.length;
+    const lo = names.map((c) => (bounds && bounds[c] ? bounds[c][0] : 0)), hi = names.map((c) => (bounds && bounds[c] ? Math.min(bounds[c][1], B) : B));
+    const R = B - lo.reduce((s, v) => s + v, 0);
+    if (R < -1e-9) throw new Error('Minimums add up to more than the budget');
+    if (hi.reduce((s, v) => s + v, 0) < B - 1e-9) throw new Error('Maximums add up to less than the budget');
+    const f = (i, v) => response(chs[names[i]], v);
+    const G = opts.grid || 400, u = R / G;
+    // dp[i][g]: best total for channels 0..i using g units; choice[i][g]: units given to channel i
+    let prev = new Float64Array(G + 1).fill(-Infinity); prev[0] = 0;
+    const choice = [];
+    for (let i = 0; i < n; i++) {
+      const kmax = u > 0 ? Math.min(G, Math.floor((hi[i] - lo[i]) / u + 1e-9)) : 0;
+      const val = Float64Array.from({ length: kmax + 1 }, (_, k) => f(i, lo[i] + k * u));
+      const cur = new Float64Array(G + 1).fill(-Infinity), ch = new Int16Array(G + 1);
+      for (let g = 0; g <= G; g++) for (let k = 0; k <= Math.min(kmax, g); k++) { const v = prev[g - k] + val[k]; if (v > cur[g]) { cur[g] = v; ch[g] = k; } }
+      choice.push(ch); prev = cur;
+    }
+    // the grid may not reach G exactly when caps bind; take the best reachable total and place the rest after
+    let g = G; while (g > 0 && prev[g] === -Infinity) g--;
+    const x = lo.slice();
+    for (let i = n - 1; i >= 0; i--) { const k = choice[i][g]; x[i] += k * u; g -= k; }
+    let rest = B - x.reduce((s, v) => s + v, 0);
+    for (let i = 0; i < n && rest > 1e-9; i++) { const add = Math.min(rest, hi[i] - x[i]); x[i] += add; rest -= add; }
+    // continuous polish
+    for (let step = Math.max(u, B / 400); step >= B / 1e6; step /= 3) {
+      for (let round = 0; round < 50; round++) {
+        let improved = false;
+        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+          if (i === j) continue;
+          const m = Math.min(step, x[i] - lo[i], hi[j] - x[j]); if (m <= 1e-12) continue;
+          const gain = f(i, x[i] - m) + f(j, x[j] + m) - f(i, x[i]) - f(j, x[j]);
+          if (gain > 1e-9 * Math.abs(f(i, x[i]) + f(j, x[j]) + 1)) { x[i] -= m; x[j] += m; improved = true; }
+        }
+        if (!improved) break;
+      }
+    }
+    const alloc = Object.fromEntries(names.map((c, i) => [c, x[i]]));
+    return { alloc, total: x.reduce((s, v, k) => s + f(k, v), 0) };
+  }
+  const totalResponse = (chs, alloc) => Object.keys(alloc).reduce((s, c) => s + response(chs[c], alloc[c]), 0);
+
+  // ---------- bootstrap ----------
+  // Moving-block bootstrap of residuals (blocks of 8 weeks keep the autocorrelation), refit each replicate
+  function bootstrap(data, model, B, opts = {}) {
+    const r = rng(opts.seed || 11), n = data.y.length, L = opts.block || 8, out = [];
+    for (let b = 0; b < B; b++) {
+      const res = [];
+      while (res.length < n) { const st = Math.floor(r() * (n - L + 1)); for (let k = 0; k < L && res.length < n; k++) res.push(model.resid[st + k]); }
+      const y = model.fitted.map((v, t) => v + res[t]);
+      const m = fit({ y, spend: data.spend, period: data.period, controls: data.controls }, { starts: 1, iters: opts.iters || 150 * model.channels.length, seed: 100 + b, warm: model.params });
+      out.push(Object.fromEntries(model.channels.map((c) => [c, { roi: m.ch[c].roi, contribution: m.ch[c].contribution }])));
+      if (opts.onProgress) opts.onProgress((b + 1) / B);
+    }
+    const ci = {};
+    for (const c of model.channels) {
+      const rois = out.map((o) => o[c].roi).sort((a, b) => a - b);
+      ci[c] = { lo: rois[Math.floor(0.05 * (rois.length - 1))], hi: rois[Math.ceil(0.95 * (rois.length - 1))], sd: Math.sqrt(mean(rois.map((v) => (v - mean(rois)) ** 2))) };
+    }
+    return { ci, draws: out };
+  }
+
+  // ---------- simulation (for the demo and the recovery test) ----------
+  function simulate(o) {
+    const r = rng(o.seed || 3), n = o.weeks || 156, gauss = () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+    const spend = {}, truth = {};
+    for (const c of o.channels) {
+      const level = c.weekly, on = [];
+      for (let t = 0; t < n; t++) {
+        let v = level * (1 + c.wobble * Math.sin((2 * Math.PI * t) / 52 + c.phase)) * Math.exp((o.spendNoise == null ? 0.35 : o.spendNoise) * gauss());
+        if (c.flighting && Math.floor(t / c.flighting) % 2 === 1) v *= 0.15;
+        if (c.festival) { const w = t % 52; if (w >= 40 && w <= 45) v *= c.festival; }
+        on.push(Math.max(0, v));
+      }
+      spend[c.name] = on;
+    }
+    const y = new Array(n).fill(0), base = new Array(n).fill(0), contrib = {};
+    for (let t = 0; t < n; t++) { const w = t % 52; base[t] = o.base * (1 + o.growth * t / n + 0.12 * Math.sin((2 * Math.PI * t) / 52 - 1.2) + (w >= 40 && w <= 45 ? o.festivalLift : 0)); y[t] = base[t]; }
+    for (const c of o.channels) {
+      const a = adstock(spend[c.name], c.theta), K = c.kRel * mean(a);
+      contrib[c.name] = Array.from(a, (v) => c.beta * hill(v, K, c.s));
+      contrib[c.name].forEach((v, t) => (y[t] += v));
+      const sp = spend[c.name].reduce((s, v) => s + v, 0), ct = contrib[c.name].reduce((s, v) => s + v, 0);
+      truth[c.name] = { theta: c.theta, K, s: c.s, beta: c.beta, roi: ct / sp, contribution: ct, spend: sp };
+    }
+    for (let t = 0; t < n; t++) y[t] = Math.max(0, y[t] * (1 + o.noise * gauss()));
+    const festival = Array.from({ length: n }, (_, t) => (t % 52 >= 40 && t % 52 <= 45 ? 1 : 0));
+    return { y, spend, period: 52, controls: { 'Festive weeks': festival }, truth, base, contrib };
+  }
+
+  const api = { adstock, hill, nnls, fit, predict, slice, response, marginal, optimise, totalResponse, bootstrap, simulate, nelderMead, linearFit, baseColumns, mean, rng };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MMM = api;
+})(typeof self !== 'undefined' ? self : this);
+</script>
+<script>// The demo brand: 3 years of weekly revenue and spend for a Bengaluru D2C skincare label, simulated from
+// known effects so the app can show how close the model gets. Shared by the app and the tests.
+(function (root) {
+  const L = 1e5;
+  const spec = { seed: 6, weeks: 156, base: 40 * L, growth: 0.25, festivalLift: 0.35, noise: 0.05, spendNoise: 0.6, channels: [
+    { name: 'Meta ads', weekly: 6 * L, wobble: 0.2, phase: 0, theta: 0.35, kRel: 0.9, s: 1.6, beta: 16 * L, festival: 1.8, flighting: 9 },
+    { name: 'Google search', weekly: 4 * L, wobble: 0.15, phase: 1, theta: 0.1, kRel: 1.4, s: 1.2, beta: 15 * L, festival: 1.5, flighting: 13 },
+    { name: 'YouTube', weekly: 3 * L, wobble: 0.3, phase: 2, theta: 0.6, kRel: 1.2, s: 2.2, beta: 9 * L, flighting: 6 },
+    { name: 'Influencers', weekly: 2 * L, wobble: 0.4, phase: 3, theta: 0.5, kRel: 0.7, s: 1.0, beta: 5 * L, flighting: 4 },
+    { name: 'Amazon ads', weekly: 2.5 * L, wobble: 0.1, phase: 4, theta: 0.15, kRel: 1.0, s: 1.4, beta: 7 * L, festival: 2.2, flighting: 7 },
+  ] };
+  const api = { spec };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Demo = api;
+})(typeof self !== 'undefined' ? self : this);
+</script>
+<script>const CORE_SRC = "// Marketing Budget Planner core: a marketing mix model (geometric adstock + Hill saturation per channel,\n// trend, yearly seasonality) fitted by non-negative least squares inside a Nelder-Mead search over the\n// curve shapes, bootstrap intervals, and a budget optimiser. Plain JS, browser and Node.\n(function (root) {\n  'use strict';\n  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;\n  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));\n\n  // ---------- transforms ----------\n  // Geometric adstock, normalised so a constant spend x settles at x: a_t = (1-\u03b8)x_t + \u03b8 a_{t-1}\n  function adstock(x, theta) {\n    const out = new Float64Array(x.length); let a = 0;\n    // start from the steady state of the first few weeks so the series doesn't ramp up from zero\n    const warm = x.slice(0, Math.min(8, x.length)); a = warm.length ? mean(warm) : 0;\n    for (let t = 0; t < x.length; t++) { a = (1 - theta) * x[t] + theta * a; out[t] = a; }\n    return out;\n  }\n  const hill = (x, K, s) => (x <= 0 ? 0 : 1 / (1 + Math.pow(K / x, s)));\n\n  // ---------- NNLS (Lawson & Hanson 1974) ----------\n  // min ||A b - y||  subject to b_j >= 0 for j in `pos`; other coefficients are free.\n  // Solved on the normal equations, which is fine at this size (< 20 columns).\n  function solveSym(M, v) {\n    const n = v.length, A = M.map((r, i) => r.concat([v[i]]));\n    for (let c = 0; c < n; c++) {\n      let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;\n      [A[c], A[p]] = [A[p], A[c]];\n      const d = A[c][c]; if (Math.abs(d) < 1e-12) { A[c][c] = 1e-12; }\n      for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; }\n    }\n    return A.map((r, i) => r[n] / r[i]);\n  }\n  function nnls(XtX, Xty, pos, ridge = 1e-8) {\n    const n = Xty.length, isPos = new Array(n).fill(false); pos.forEach((j) => (isPos[j] = true));\n    const M = XtX.map((r, i) => r.map((v, j) => v + (i === j ? ridge * (XtX[i][i] || 1) : 0)));\n    const sub = (P) => { const S = solveSym(P.map((i) => P.map((j) => M[i][j])), P.map((i) => Xty[i])); const b = new Array(n).fill(0); P.forEach((i, k) => (b[i] = S[k])); return b; };\n    let P = []; for (let j = 0; j < n; j++) if (!isPos[j]) P.push(j);\n    let b = P.length ? sub(P) : new Array(n).fill(0);\n    for (let outer = 0; outer < 3 * n + 10; outer++) {\n      // gradient w = X'y - X'X b\n      const w = Xty.map((v, i) => v - M[i].reduce((s, m, j) => s + m * b[j], 0));\n      let jmax = -1, wmax = 1e-10 * (Math.abs(Xty.reduce((s, v) => s + Math.abs(v), 0)) + 1);\n      for (let j = 0; j < n; j++) if (isPos[j] && !P.includes(j) && w[j] > wmax) { wmax = w[j]; jmax = j; }\n      if (jmax < 0) break;\n      P.push(jmax);\n      for (let inner = 0; inner < 3 * n + 10; inner++) {\n        const z = sub(P);\n        const bad = P.filter((j) => isPos[j] && z[j] <= 0);\n        if (!bad.length) { b = z; break; }\n        let alpha = 1; for (const j of bad) alpha = Math.min(alpha, b[j] / (b[j] - z[j] || 1e-18));\n        b = b.map((v, j) => v + alpha * (z[j] - v));\n        P = P.filter((j) => !(isPos[j] && b[j] <= 1e-12));\n        P.forEach(() => 0);\n        for (let j = 0; j < n; j++) if (isPos[j] && !P.includes(j)) b[j] = 0;\n      }\n    }\n    return b;\n  }\n\n  // ---------- design ----------\n  // data: {y:[...], spend:{channel:[...]}, period (52 for weekly)}\n  function baseColumns(n, period, harmonics) {\n    const cols = [new Array(n).fill(1), Array.from({ length: n }, (_, t) => t / n)];\n    const names = ['base', 'trend'];\n    for (let k = 1; k <= harmonics; k++) {\n      cols.push(Array.from({ length: n }, (_, t) => Math.sin((2 * Math.PI * k * t) / period))); names.push('sin' + k);\n      cols.push(Array.from({ length: n }, (_, t) => Math.cos((2 * Math.PI * k * t) / period))); names.push('cos' + k);\n    }\n    return { cols, names };\n  }\n  // channel curve parameters, packed per channel as [theta, kRel, s]: K = kRel * mean adstocked spend\n  function mediaColumns(spend, channels, p) {\n    return channels.map((c, i) => {\n      const a = adstock(spend[c], p[3 * i]);\n      const scale = mean(a) || 1, K = p[3 * i + 1] * scale;\n      return { col: Array.from(a, (v) => hill(v, K, p[3 * i + 2])), K, scale };\n    });\n  }\n  function linearFit(cols, y, posIdx) {\n    const n = y.length, k = cols.length;\n    const XtX = Array.from({ length: k }, () => new Array(k).fill(0)), Xty = new Array(k).fill(0);\n    for (let i = 0; i < k; i++) { for (let j = i; j < k; j++) { let s = 0; const a = cols[i], b = cols[j]; for (let t = 0; t < n; t++) s += a[t] * b[t]; XtX[i][j] = XtX[j][i] = s; } let s = 0; for (let t = 0; t < n; t++) s += cols[i][t] * y[t]; Xty[i] = s; }\n    const b = nnls(XtX, Xty, posIdx);\n    let sse = 0; const fit = new Float64Array(n);\n    for (let t = 0; t < n; t++) { let f = 0; for (let i = 0; i < k; i++) f += b[i] * cols[i][t]; fit[t] = f; sse += (y[t] - f) ** 2; }\n    return { b, sse, fit };\n  }\n\n  // ---------- Nelder-Mead over the curve shapes ----------\n  function nelderMead(f, x0, lo, hi, iters, step = 0.2) {\n    const n = x0.length, cl = (x) => x.map((v, i) => clamp(v, lo[i], hi[i]));\n    let S = [cl(x0)]; for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] += (hi[i] - lo[i]) * step * (x[i] > (lo[i] + hi[i]) / 2 ? -1 : 1); S.push(cl(x)); }\n    let F = S.map(f);\n    for (let it = 0; it < iters; it++) {\n      const o = F.map((v, i) => i).sort((a, b) => F[a] - F[b]); S = o.map((i) => S[i]); F = o.map((i) => F[i]);\n      if (F[n] - F[0] <= 1e-12 * Math.abs(F[0])) break;\n      const c = new Array(n).fill(0); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += S[i][j] / n;\n      const pt = (t) => cl(c.map((v, j) => v + t * (S[n][j] - v)));\n      const xr = pt(-1), fr = f(xr);\n      if (fr < F[0]) { const xe = pt(-2), fe = f(xe); if (fe < fr) { S[n] = xe; F[n] = fe; } else { S[n] = xr; F[n] = fr; } }\n      else if (fr < F[n - 1]) { S[n] = xr; F[n] = fr; }\n      else { const xc = pt(fr < F[n] ? -0.5 : 0.5), fc = f(xc); if (fc < Math.min(fr, F[n])) { S[n] = xc; F[n] = fc; } else for (let i = 1; i <= n; i++) { S[i] = cl(S[i].map((v, j) => S[0][j] + 0.5 * (v - S[0][j]))); F[i] = f(S[i]); } }\n    }\n    let b = 0; for (let i = 1; i <= n; i++) if (F[i] < F[b]) b = i;\n    return { x: S[b], f: F[b] };\n  }\n  let seed0 = 1; const rng = (s) => { let x = s || 1; return () => ((x = (x * 16807) % 2147483647) / 2147483647); };\n\n  // Bounds: theta 0..0.9 (weekly carry-over), K 0.2..4 \u00d7 mean adstocked spend, shape s 0.6..4\n  const LO = [0, 0.2, 0.6], HI = [0.9, 4, 4];\n  function fit(data, opts = {}) {\n    const channels = Object.keys(data.spend), n = data.y.length, period = data.period || 52, harmonics = opts.harmonics == null ? 2 : opts.harmonics;\n    const base = baseColumns(n, period, harmonics);\n    for (const [k, v] of Object.entries(data.controls || {})) { base.cols.push(v); base.names.push(k); }\n    const yMean = mean(data.y), y = data.y.map((v) => v / yMean);\n    const nb = base.cols.length, posIdx = channels.map((_, i) => nb + i).concat([0]);\n    // Lift-test calibration: {channel: {roi, se}} from a geo or holdout experiment. Each test becomes one extra\n    // weighted observation of that channel's ROI inside the least-squares solve, so it moves the coefficient directly.\n    const cal = Object.entries(opts.calibration || data.calibration || {}).filter(([c, v]) => channels.includes(c) && v && v.se > 0 && isFinite(v.roi));\n    const spendTot = Object.fromEntries(channels.map((c) => [c, data.spend[c].reduce((a, b) => a + b, 0)]));\n    let sig = 0; // sqrt of the noise variance, set below; calibration rows are weighted by sig / se\n    const solve = (p) => {\n      const m = mediaColumns(data.spend, channels, p), cols = base.cols.concat(m.map((x) => x.col));\n      if (!cal.length || !sig) return { m, lf: linearFit(cols, y, posIdx) };\n      const ext = cols.map((c) => Array.from(c)), yy = y.slice();\n      for (const [c, v] of cal) {\n        const i = channels.indexOf(c), w = sig / v.se;\n        ext.forEach((col, j) => col.push(j === nb + i ? (w * yMean * m[i].col.reduce((a, b) => a + b, 0)) / spendTot[c] : 0));\n        yy.push(w * v.roi);\n      }\n      return { m, lf: linearFit(ext, yy, posIdx) };\n    };\n    const sse = (p) => solve(p).lf.sse;\n    // Weak priors on the curve shapes (a MAP fit): carry-over around 0.3, half-saturation near typical spend,\n    // shape near 1.5. Spend series in real accounts move together and drift slowly, so without them the\n    // least-squares fit happily trades one channel's effect for another's or for the baseline.\n    const prior = opts.prior === false ? null : Object.assign({ theta: [0.3, 0.3], kRel: [1, 0.8], s: [1.5, 0.8] }, opts.prior || {});\n    const sigma2 = sse(channels.flatMap(() => [0.3, 1, 1.5])) / n; sig = Math.sqrt(sigma2);\n    const penalty = (p) => { if (!prior) return 0; let q = 0; for (let i = 0; i < channels.length; i++) q += ((p[3 * i] - prior.theta[0]) / prior.theta[1]) ** 2 + ((p[3 * i + 1] - prior.kRel[0]) / prior.kRel[1]) ** 2 + ((p[3 * i + 2] - prior.s[0]) / prior.s[1]) ** 2; return q; };\n    const obj = (p) => sse(p) / sigma2 + penalty(p);\n    const lo = channels.flatMap(() => LO), hi = channels.flatMap(() => HI);\n    const r = rng(opts.seed || 7);\n    let best = null;\n    const starts = opts.starts || 6, iters = opts.iters || 250 * channels.length;\n    for (let k = 0; k < starts; k++) {\n      const x0 = k === 0 ? (opts.warm || channels.flatMap(() => [0.4, 1, 1.5])) : lo.map((l, i) => l + r() * (hi[i] - l));\n      const res = nelderMead(obj, x0, lo, hi, iters);\n      if (!best || res.f < best.f) best = res;\n      if (opts.onProgress) opts.onProgress((k + 1) / starts);\n    }\n    // polish from the best point\n    best = nelderMead(obj, best.x, lo, hi, iters, 0.05);\n    const res = finish(data, channels, base, best.x, yMean, solve);\n    res.objective = best.f; res.sigma2 = sigma2;\n    return res;\n  }\n  function finish(data, channels, base, p, yMean, solve) {\n    const n = data.y.length, nb = base.cols.length;\n    const { m: media, lf } = solve(p);\n    const b = lf.b.map((v) => v * yMean);\n    const fitted = Array.from(lf.fit.slice(0, n), (v) => v * yMean);\n    const contrib = {}; const baseline = new Array(n).fill(0);\n    for (let t = 0; t < n; t++) for (let i = 0; i < nb; i++) baseline[t] += b[i] * base.cols[i][t];\n    const ch = {};\n    channels.forEach((c, i) => {\n      const beta = b[nb + i], col = media[i].col;\n      contrib[c] = Array.from(col, (v) => beta * v);\n      const spendTot = data.spend[c].reduce((s, v) => s + v, 0), contribTot = contrib[c].reduce((s, v) => s + v, 0);\n      ch[c] = { theta: p[3 * i], K: media[i].K, s: p[3 * i + 2], beta, scale: media[i].scale, spend: spendTot, contribution: contribTot, roi: spendTot ? contribTot / spendTot : 0 };\n    });\n    const resid = data.y.map((v, t) => v - fitted[t]);\n    const ssTot = data.y.reduce((s, v) => s + (v - yMean) ** 2, 0), sse = resid.reduce((s, e) => s + e * e, 0);\n    return { channels, params: p, coef: b, baseNames: base.names, baseline, contrib, ch, fitted, resid, r2: 1 - sse / ssTot, mape: mean(data.y.map((v, t) => Math.abs(resid[t]) / Math.abs(v))) * 100, sse, n };\n  }\n\n  // Predict revenue for a (longer) data set with a model fitted on its first model.n weeks\n  function predict(model, data) {\n    const N = data.y.length, nTr = model.n, period = data.period || 52, harm = (model.baseNames.filter((x) => x.startsWith('sin')).length);\n    const cols = [new Array(N).fill(1), Array.from({ length: N }, (_, t) => t / nTr)];\n    for (let k = 1; k <= harm; k++) { cols.push(Array.from({ length: N }, (_, t) => Math.sin((2 * Math.PI * k * t) / period))); cols.push(Array.from({ length: N }, (_, t) => Math.cos((2 * Math.PI * k * t) / period))); }\n    for (const v of Object.values(data.controls || {})) cols.push(v);\n    const out = new Array(N).fill(0);\n    cols.forEach((c, i) => { for (let t = 0; t < N; t++) out[t] += model.coef[i] * c[t]; });\n    model.channels.forEach((c) => { const a = adstock(data.spend[c], model.ch[c].theta); for (let t = 0; t < N; t++) out[t] += model.ch[c].beta * hill(a[t], model.ch[c].K, model.ch[c].s); });\n    return out;\n  }\n  const slice = (data, n) => ({ y: data.y.slice(0, n), spend: Object.fromEntries(Object.entries(data.spend).map(([k, v]) => [k, v.slice(0, n)])), controls: Object.fromEntries(Object.entries(data.controls || {}).map(([k, v]) => [k, v.slice(0, n)])), period: data.period });\n\n  // Weekly response at a steady weekly spend x (adstock settles at x): beta * hill(x)\n  const response = (c, x) => c.beta * hill(x, c.K, c.s);\n  const marginal = (c, x, h) => (response(c, x + (h || Math.max(1, x * 1e-4))) - response(c, x)) / (h || Math.max(1, x * 1e-4));\n\n  // ---------- budget optimiser ----------\n  // Maximise sum_c response_c(x_c) with sum x_c = B and lo_c <= x_c <= hi_c.\n  // Hill curves with s > 1 are S-shaped (not concave), so marginal-return rules can get stuck. The budget\n  // above the minimums is cut into G equal units and split exactly by dynamic programming over channels\n  // (globally optimal on that grid), then refined continuously by moving money between pairs of channels.\n  function optimise(chs, B, bounds, opts = {}) {\n    const names = Object.keys(chs), n = names.length;\n    const lo = names.map((c) => (bounds && bounds[c] ? bounds[c][0] : 0)), hi = names.map((c) => (bounds && bounds[c] ? Math.min(bounds[c][1], B) : B));\n    const R = B - lo.reduce((s, v) => s + v, 0);\n    if (R < -1e-9) throw new Error('Minimums add up to more than the budget');\n    if (hi.reduce((s, v) => s + v, 0) < B - 1e-9) throw new Error('Maximums add up to less than the budget');\n    const f = (i, v) => response(chs[names[i]], v);\n    const G = opts.grid || 400, u = R / G;\n    // dp[i][g]: best total for channels 0..i using g units; choice[i][g]: units given to channel i\n    let prev = new Float64Array(G + 1).fill(-Infinity); prev[0] = 0;\n    const choice = [];\n    for (let i = 0; i < n; i++) {\n      const kmax = u > 0 ? Math.min(G, Math.floor((hi[i] - lo[i]) / u + 1e-9)) : 0;\n      const val = Float64Array.from({ length: kmax + 1 }, (_, k) => f(i, lo[i] + k * u));\n      const cur = new Float64Array(G + 1).fill(-Infinity), ch = new Int16Array(G + 1);\n      for (let g = 0; g <= G; g++) for (let k = 0; k <= Math.min(kmax, g); k++) { const v = prev[g - k] + val[k]; if (v > cur[g]) { cur[g] = v; ch[g] = k; } }\n      choice.push(ch); prev = cur;\n    }\n    // the grid may not reach G exactly when caps bind; take the best reachable total and place the rest after\n    let g = G; while (g > 0 && prev[g] === -Infinity) g--;\n    const x = lo.slice();\n    for (let i = n - 1; i >= 0; i--) { const k = choice[i][g]; x[i] += k * u; g -= k; }\n    let rest = B - x.reduce((s, v) => s + v, 0);\n    for (let i = 0; i < n && rest > 1e-9; i++) { const add = Math.min(rest, hi[i] - x[i]); x[i] += add; rest -= add; }\n    // continuous polish\n    for (let step = Math.max(u, B / 400); step >= B / 1e6; step /= 3) {\n      for (let round = 0; round < 50; round++) {\n        let improved = false;\n        for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {\n          if (i === j) continue;\n          const m = Math.min(step, x[i] - lo[i], hi[j] - x[j]); if (m <= 1e-12) continue;\n          const gain = f(i, x[i] - m) + f(j, x[j] + m) - f(i, x[i]) - f(j, x[j]);\n          if (gain > 1e-9 * Math.abs(f(i, x[i]) + f(j, x[j]) + 1)) { x[i] -= m; x[j] += m; improved = true; }\n        }\n        if (!improved) break;\n      }\n    }\n    const alloc = Object.fromEntries(names.map((c, i) => [c, x[i]]));\n    return { alloc, total: x.reduce((s, v, k) => s + f(k, v), 0) };\n  }\n  const totalResponse = (chs, alloc) => Object.keys(alloc).reduce((s, c) => s + response(chs[c], alloc[c]), 0);\n\n  // ---------- bootstrap ----------\n  // Moving-block bootstrap of residuals (blocks of 8 weeks keep the autocorrelation), refit each replicate\n  function bootstrap(data, model, B, opts = {}) {\n    const r = rng(opts.seed || 11), n = data.y.length, L = opts.block || 8, out = [];\n    for (let b = 0; b < B; b++) {\n      const res = [];\n      while (res.length < n) { const st = Math.floor(r() * (n - L + 1)); for (let k = 0; k < L && res.length < n; k++) res.push(model.resid[st + k]); }\n      const y = model.fitted.map((v, t) => v + res[t]);\n      const m = fit({ y, spend: data.spend, period: data.period, controls: data.controls }, { starts: 1, iters: opts.iters || 150 * model.channels.length, seed: 100 + b, warm: model.params });\n      out.push(Object.fromEntries(model.channels.map((c) => [c, { roi: m.ch[c].roi, contribution: m.ch[c].contribution }])));\n      if (opts.onProgress) opts.onProgress((b + 1) / B);\n    }\n    const ci = {};\n    for (const c of model.channels) {\n      const rois = out.map((o) => o[c].roi).sort((a, b) => a - b);\n      ci[c] = { lo: rois[Math.floor(0.05 * (rois.length - 1))], hi: rois[Math.ceil(0.95 * (rois.length - 1))], sd: Math.sqrt(mean(rois.map((v) => (v - mean(rois)) ** 2))) };\n    }\n    return { ci, draws: out };\n  }\n\n  // ---------- simulation (for the demo and the recovery test) ----------\n  function simulate(o) {\n    const r = rng(o.seed || 3), n = o.weeks || 156, gauss = () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };\n    const spend = {}, truth = {};\n    for (const c of o.channels) {\n      const level = c.weekly, on = [];\n      for (let t = 0; t < n; t++) {\n        let v = level * (1 + c.wobble * Math.sin((2 * Math.PI * t) / 52 + c.phase)) * Math.exp((o.spendNoise == null ? 0.35 : o.spendNoise) * gauss());\n        if (c.flighting && Math.floor(t / c.flighting) % 2 === 1) v *= 0.15;\n        if (c.festival) { const w = t % 52; if (w >= 40 && w <= 45) v *= c.festival; }\n        on.push(Math.max(0, v));\n      }\n      spend[c.name] = on;\n    }\n    const y = new Array(n).fill(0), base = new Array(n).fill(0), contrib = {};\n    for (let t = 0; t < n; t++) { const w = t % 52; base[t] = o.base * (1 + o.growth * t / n + 0.12 * Math.sin((2 * Math.PI * t) / 52 - 1.2) + (w >= 40 && w <= 45 ? o.festivalLift : 0)); y[t] = base[t]; }\n    for (const c of o.channels) {\n      const a = adstock(spend[c.name], c.theta), K = c.kRel * mean(a);\n      contrib[c.name] = Array.from(a, (v) => c.beta * hill(v, K, c.s));\n      contrib[c.name].forEach((v, t) => (y[t] += v));\n      const sp = spend[c.name].reduce((s, v) => s + v, 0), ct = contrib[c.name].reduce((s, v) => s + v, 0);\n      truth[c.name] = { theta: c.theta, K, s: c.s, beta: c.beta, roi: ct / sp, contribution: ct, spend: sp };\n    }\n    for (let t = 0; t < n; t++) y[t] = Math.max(0, y[t] * (1 + o.noise * gauss()));\n    const festival = Array.from({ length: n }, (_, t) => (t % 52 >= 40 && t % 52 <= 45 ? 1 : 0));\n    return { y, spend, period: 52, controls: { 'Festive weeks': festival }, truth, base, contrib };\n  }\n\n  const api = { adstock, hill, nnls, fit, predict, slice, response, marginal, optimise, totalResponse, bootstrap, simulate, nelderMead, linearFit, baseColumns, mean, rng };\n  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MMM = api;\n})(typeof self !== 'undefined' ? self : this);\n";const BENCH = {"recovery": {"summary": {"brands": 100, "channelFits": 400, "medianRoiError": {"map": 0.22376639986581384, "leastSquares": 0.30213788491615834, "withOneLiftTest": 0.1612615629552955}, "p75RoiError": {"map": 0.5063051888763265, "leastSquares": 0.5764233253821267, "withOneLiftTest": 0.3640176094555963}, "smallestChannel": {"median": 0.275495647404426, "withLiftTest": 0.09093351383308008}, "shareErrorPoints": {"median": 5.178012320492018, "p90": 16.19567912201927}, "medianR2": 0.855834090752805, "msPerFit": 2408.09, "interval90Coverage": 0.8373983739837398, "intervalChannels": 123}}, "fit": {"brands": 20, "rescore_rel_diff_max": 1.4852861175620327e-12, "engine_vs_scipy_median": 8.272277741729899e-13, "engine_vs_scipy_worst": 8.588396608350095e-07, "engine_as_good_or_better": 20}, "optim": {"cases": 300, "median_gap": -9.046046031910451e-07, "worst_gap": 8.434393908052577e-10, "within_0_1pct": 300, "engine_better": 149}};</script>
+<script>
+(() => {
+'use strict';
+const X = window.MMM, $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const KEY = 'mbp:v1', COL = ['#2f5d8a', '#c0603f', '#3f8462', '#c19a3c', '#7a5c94', '#2f8a8f', '#9a4f5f', '#5d6b7d'];
+const L = 1e5, CR = 1e7;
+const inr = (x) => { const a = Math.abs(x), s = x < 0 ? '−' : ''; return a >= CR ? s + '₹' + (a / CR).toFixed(2) + ' Cr' : a >= L ? s + '₹' + (a / L).toFixed(a >= 10 * L ? 1 : 2) + ' L' : s + '₹' + Math.round(a).toLocaleString('en-IN'); };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function demoData() {
+  const d = X.simulate(Demo.spec);
+  return { name: 'Glow & Grain skincare', start: '2023-11-27', y: d.y.map(Math.round), spend: Object.fromEntries(Object.entries(d.spend).map(([k, v]) => [k, v.map(Math.round)])), controls: d.controls, demo: true };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!S || !S.data) S = { data: demoData(), tests: {}, scen: [], view: 'overview', budget: null, lims: {} };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const color = (c) => COL[S.data && Object.keys(S.data.spend).indexOf(c) % COL.length];
+const truth = () => (S.data.demo ? X.simulate(Demo.spec).truth : null);
+
+// ---------- worker ----------
+const W = new Worker(URL.createObjectURL(new Blob([CORE_SRC + `
+self.onmessage = (e) => {
+  const { job, data, tests, model } = e.data, M = self.MMM;
+  const prog = (msg) => (p) => self.postMessage({ type: 'progress', msg, p });
+  if (job === 'fit') {
+    const full = M.fit(data, { onProgress: prog('Fitting the model') });
+    const plain = Object.keys(tests).length ? M.fit(data, { calibration: {}, starts: 3 }) : null;
+    const withTests = Object.keys(tests).length ? M.fit(data, { calibration: tests, warm: full.params, onProgress: prog('Applying lift tests') }) : null;
+    const n = data.y.length, h = Math.min(13, Math.floor(n / 6));
+    const tr = M.fit(M.slice(data, n - h), { calibration: tests, starts: 3, onProgress: prog('Holdout check') });
+    const pred = M.predict(tr, data);
+    self.postMessage({ type: 'fit', model: withTests || full, plain: plain || full, holdout: { h, pred } });
+  }
+  if (job === 'boot') {
+    const b = M.bootstrap(data, model, 40, { iters: 120 * model.channels.length, onProgress: prog('Resampling 40 histories') });
+    self.postMessage({ type: 'boot', ci: b.ci });
+  }
+};`], { type: 'text/javascript' })));
+let MODEL = null, PLAIN = null, HOLD = null, CI = null;
+function busy(on, msg, p) { $('#busy').classList.toggle('on', on); if (msg) $('#busyMsg').textContent = msg; $('#busyPct').textContent = p != null ? Math.round(p * 100) + '%' : ''; }
+W.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === 'progress') busy(true, m.msg, m.p);
+  if (m.type === 'fit') { MODEL = m.model; PLAIN = m.plain; HOLD = m.holdout; CI = null; busy(false); $('#kpis').innerHTML = ''; render(); }
+  if (m.type === 'boot') { CI = m.ci; busy(false); render(); toast('90% ranges added'); }
+};
+const dataForFit = () => ({ y: S.data.y, spend: S.data.spend, controls: S.data.controls || {}, period: 52 });
+function refit() { busy(true, 'Fitting the model', 0); W.postMessage({ job: 'fit', data: dataForFit(), tests: S.tests }); }
+$('#bootBtn').onclick = () => { if (!MODEL) return; busy(true, 'Resampling', 0); W.postMessage({ job: 'boot', data: dataForFit(), model: MODEL }); };
+
+// ---------- navigation ----------
+function go(v) { S.view = v; save(); $$('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v)); $$('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); moveBlob(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function moveBlob() { const b = $(`#nav button[data-v="${S.view}"]`); if (b) $('#blob').style.transform = `translateY(${b.offsetTop}px)`; }
+$$('#nav button').forEach((b) => (b.onclick = () => go(b.dataset.v)));
+window.addEventListener('resize', moveBlob);
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t.h); t.h = setTimeout(() => t.classList.remove('on'), 2000); }
+function tween(el, to, fmt) { const from = +el.dataset.v || 0; el.dataset.v = to; const t0 = performance.now(); const f = (n) => { const k = Math.min(1, (n - t0) / 700), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+const weekDate = (i) => { const d = new Date(S.data.start); d.setDate(d.getDate() + 7 * i); return d; };
+const short = (d) => d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+
+// ---------- overview ----------
+function renderOverview() {
+  const m = MODEL; if (!m) return;
+  const n = S.data.y.length, last = Math.min(52, n), sl = (a) => a.slice(n - last);
+  const rev = sl(S.data.y).reduce((a, b) => a + b, 0), spend = m.channels.reduce((s, c) => s + sl(S.data.spend[c]).reduce((a, b) => a + b, 0), 0);
+  const media = m.channels.reduce((s, c) => s + sl(m.contrib[c]).reduce((a, b) => a + b, 0), 0);
+  $('#oTitle').textContent = S.data.name || 'Where revenue comes from';
+  $('#oLede').textContent = `${n} weeks of revenue and spend across ${m.channels.length} channels. The model explains ${(m.r2 * 100).toFixed(1)}% of week-to-week movement.` + (Object.keys(S.tests).length ? ` Calibrated with ${Object.keys(S.tests).length} lift test${Object.keys(S.tests).length > 1 ? 's' : ''}.` : '');
+  const k = $('#kpis');
+  if (!k.children.length) k.innerHTML = `<div class="kpi"><span>Revenue, last 52 weeks</span><b data-k="a"></b><small>all sources</small></div><div class="kpi"><span>Media spend</span><b data-k="b"></b><small data-k="bs"></small></div><div class="kpi"><span>Driven by media</span><b data-k="c"></b><small>of revenue would not have happened without ads</small></div><div class="kpi"><span>Blended ROI</span><b data-k="d"></b><small>revenue caused per ₹1 of media</small></div>`;
+  tween($('[data-k=a]', k), rev, inr); tween($('[data-k=b]', k), spend, inr); $('[data-k=bs]', k).textContent = `${((spend / rev) * 100).toFixed(1)}% of revenue`;
+  tween($('[data-k=c]', k), (media / rev) * 100, (x) => x.toFixed(1) + '%'); tween($('[data-k=d]', k), media / spend, (x) => '₹' + x.toFixed(2));
+  // stacked area
+  const W0 = 820, H0 = 330, Lm = 56, R = 8, T = 10, B = 292;
+  const layers = [['Baseline', m.baseline.map((v) => Math.max(0, v)), '#d9dde3']].concat(m.channels.map((c) => [c, m.contrib[c], color(c)]));
+  const tot = S.data.y.map((_, t) => layers.reduce((s, l) => s + l[1][t], 0)), max = Math.max(...tot, ...S.data.y) * 1.05;
+  const Xp = (t) => Lm + (t / (n - 1)) * (W0 - Lm - R), Yp = (v) => B - (v / max) * (B - T);
+  let acc = new Array(n).fill(0), g = '';
+  for (let j = 0; j <= 4; j++) { const v = (max * j) / 4; g += `<line x1="${Lm}" x2="${W0 - R}" y1="${Yp(v)}" y2="${Yp(v)}" stroke="#eef0f3"/><text x="${Lm - 6}" y="${Yp(v) + 4}" text-anchor="end" font-size="10" fill="#868d9b">${inr(v).replace('₹', '')}</text>`; }
+  for (let t = 0; t < n; t += 26) g += `<text x="${Xp(t)}" y="${B + 18}" text-anchor="middle" font-size="10" fill="#868d9b">${short(weekDate(t))}</text>`;
+  const areas = layers.map(([name, vals, col], j) => { const lo = acc.slice(); acc = acc.map((v, t) => v + vals[t]); const up = acc.map((v, t) => `${Xp(t).toFixed(1)},${Yp(v).toFixed(1)}`).join(' '), dn = lo.map((v, t) => `${Xp(t).toFixed(1)},${Yp(v).toFixed(1)}`).reverse().join(' ');
+    return `<polygon class="area" points="${up} ${dn}" fill="${col}" fill-opacity="${j ? 0.88 : 1}" style="animation-delay:${j * 0.08}s"/>`; }).join('');
+  const act = S.data.y.map((v, t) => `${t ? 'L' : 'M'}${Xp(t).toFixed(1)} ${Yp(v).toFixed(1)}`).join('');
+  $('#stack').innerHTML = g + areas + `<path d="${act}" pathLength="1" class="draw" fill="none" stroke="#1d2433" stroke-width="1.3" style="animation-delay:.5s"/><line id="hov" y1="${T}" y2="${B}" stroke="#1d2433" stroke-dasharray="3 3" opacity="0"/><rect x="${Lm}" y="${T}" width="${W0 - Lm - R}" height="${B - T}" fill="transparent" id="hit"/>`;
+  $('#stackLeg').innerHTML = layers.map(([nm, , c]) => `<span><i style="background:${c}"></i>${esc(nm)}</span>`).join('') + '<span><i style="background:#1d2433;height:2px"></i>Actual revenue</span>';
+  const svg = $('#stack'), tip = $('#tip');
+  $('#hit').onmousemove = (ev) => { const r = svg.getBoundingClientRect(), x = ((ev.clientX - r.left) / r.width) * W0, t = Math.round(((x - Lm) / (W0 - Lm - R)) * (n - 1)); if (t < 0 || t >= n) return;
+    $('#hov').setAttribute('x1', Xp(t)); $('#hov').setAttribute('x2', Xp(t)); $('#hov').setAttribute('opacity', 1);
+    tip.style.opacity = 1; tip.style.left = Math.min(r.width - 190, ev.clientX - r.left + 30) + 'px'; tip.style.top = '70px';
+    tip.innerHTML = `<b>Week of ${weekDate(t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</b><br>Actual ${inr(S.data.y[t])}<br>` + layers.slice().reverse().map(([nm, v, c]) => `<span style="color:${c === '#d9dde3' ? '#d9dde3' : c}">■</span> ${esc(nm)} ${inr(v[t])}`).join('<br>'); };
+  $('#hit').onmouseleave = () => { tip.style.opacity = 0; $('#hov').setAttribute('opacity', 0); };
+  // roi bars
+  const rois = m.channels.map((c) => [c, m.ch[c].roi, CI && CI[c]]).sort((a, b) => b[1] - a[1]);
+  const mx = Math.max(...rois.map((r) => (r[2] ? r[2].hi : r[1])), 1) * 1.1, Xr = (v) => 120 + (v / mx) * 270;
+  $('#roiHint').textContent = CI ? 'Revenue caused per ₹1. whiskers = 90% range from 40 resampled histories.' : 'Revenue caused per ₹1 over the whole period. add ranges to see how sure the model is.';
+  $('#roi').innerHTML = `<line x1="${Xr(1)}" x2="${Xr(1)}" y1="0" y2="${rois.length * 52}" stroke="#b4472f" stroke-dasharray="4 4"/><text x="${Xr(1) + 4}" y="${rois.length * 52 + 12}" font-size="10" fill="#b4472f">break-even ₹1</text>` +
+    rois.map(([c, v, ci], i) => { const y = 10 + i * 52; return `<text x="112" y="${y + 18}" text-anchor="end" font-size="11.5" fill="#1d2433" style="font-family:var(--b);font-weight:700">${esc(c)}</text><rect x="120" y="${y + 4}" height="22" rx="6" width="${Xr(v) - 120}" fill="${color(c)}" style="transform-origin:120px 0;animation:gx .9s var(--ease) ${i * 0.07}s both"/>${ci ? `<line x1="${Xr(ci.lo)}" x2="${Xr(ci.hi)}" y1="${y + 15}" y2="${y + 15}" stroke="#1d2433" stroke-width="2"/><line x1="${Xr(ci.lo)}" x2="${Xr(ci.lo)}" y1="${y + 9}" y2="${y + 21}" stroke="#1d2433" stroke-width="2"/><line x1="${Xr(ci.hi)}" x2="${Xr(ci.hi)}" y1="${y + 9}" y2="${y + 21}" stroke="#1d2433" stroke-width="2"/>` : ''}<text x="${Math.max(Xr(v), ci ? Xr(ci.hi) : 0) + 6}" y="${y + 20}" font-size="11.5" fill="#1d2433">₹${v.toFixed(2)}${ci ? ` <tspan fill="#868d9b">(${ci.lo.toFixed(2)}–${ci.hi.toFixed(2)})</tspan>` : ''}</text>`; }).join('') + '<style>@keyframes gx{from{transform:scaleX(0)}to{transform:none}}</style>';
+  $('#roi').setAttribute('viewBox', `0 0 420 ${rois.length * 52 + 20}`);
+}
+
+// ---------- channels ----------
+$('#truth').onchange = () => renderChannels();
+function renderChannels() {
+  const m = MODEL; if (!m) return;
+  const tr = $('#truth').checked ? truth() : null; $('#truthWrap').style.display = S.data.demo ? 'flex' : 'none';
+  const n = S.data.y.length;
+  $('#chgrid').innerHTML = m.channels.map((c, j) => {
+    const ch = m.ch[c], recent = X.mean(S.data.spend[c].slice(-13)), maxSp = Math.max(...S.data.spend[c]) * 1.4, W0 = 300, H0 = 150;
+    const xs = [...Array(60)].map((_, i) => (maxSp * i) / 59), ys = xs.map((x) => X.response(ch, x)), tys = tr ? xs.map((x) => tr[c].beta * X.hill(x, tr[c].K, tr[c].s)) : null;
+    const ymax = Math.max(...ys, ...(tys || [0]), 1) * 1.1, Xp = (x) => 6 + (x / maxSp) * (W0 - 12), Yp = (y) => H0 - 18 - (y / ymax) * (H0 - 30);
+    const path = (a) => a.map((y, i) => `${i ? 'L' : 'M'}${Xp(xs[i]).toFixed(1)} ${Yp(y).toFixed(1)}`).join('');
+    const sat = X.hill(recent, ch.K, ch.s), half = ch.theta > 0 ? Math.log(0.5) / Math.log(ch.theta) : 0, mroi = X.marginal(ch, recent);
+    return `<div class="card ch" style="animation-delay:${j * 0.06}s"><div class="top"><b><span class="dot" style="background:${color(c)}"></span>${esc(c)}</b><span class="pill ${ch.roi >= 1 ? 'm' : 'c'}">ROI ₹${ch.roi.toFixed(2)}${tr ? ` · true ₹${tr[c].roi.toFixed(2)}` : ''}</span></div>
+      <svg viewBox="0 0 ${W0} ${H0}" style="width:100%"><path d="${path(ys)} L${Xp(maxSp)} ${H0 - 18} L6 ${H0 - 18}Z" fill="${color(c)}" opacity=".1"/>${tys ? `<path d="${path(tys)}" fill="none" stroke="#1d2433" stroke-dasharray="4 3" stroke-width="1.4"/>` : ''}<path pathLength="1" class="draw" d="${path(ys)}" fill="none" stroke="${color(c)}" stroke-width="2.6" style="animation-delay:${j * 0.08}s"/>
+      <line x1="${Xp(recent)}" x2="${Xp(recent)}" y1="10" y2="${H0 - 18}" stroke="#1d2433" stroke-dasharray="2 3"/><circle cx="${Xp(recent)}" cy="${Yp(X.response(ch, recent))}" r="5.5" fill="#fff" stroke="#1d2433" stroke-width="2.5"/>
+      <text x="${Xp(recent) + 6}" y="20" font-size="9.5" fill="#1d2433">now ${inr(recent)}/wk</text><text x="6" y="${H0 - 4}" font-size="9" fill="#868d9b">weekly spend →</text><text x="${W0 - 6}" y="${H0 - 4}" text-anchor="end" font-size="9" fill="#868d9b">${inr(maxSp)}</text></svg>
+      <div class="mini"><div><span>Next ₹1 returns</span><b style="color:${mroi >= 1 ? 'var(--mint)' : 'var(--coral)'}">₹${mroi.toFixed(2)}</b></div><div><span>Saturation now</span><b>${Math.round(sat * 100)}%</b></div><div><span>Effect half-life</span><b>${half < 0.5 ? '< 1 wk' : half.toFixed(1) + ' wk'}</b></div></div></div>`;
+  }).join('');
+}
+
+// ---------- budget ----------
+function nowSpend() { return Object.fromEntries(MODEL.channels.map((c) => [c, X.mean(S.data.spend[c].slice(-13))])); }
+function limits() { const m = MODEL, out = {}; for (const c of m.channels) { const l = S.lims[c] || {}; out[c] = [l.min || 0, l.max != null ? l.max : 2 * Math.max(...S.data.spend[c].slice(-26))]; } return out; }
+let fr = null;
+function renderBudget() {
+  const m = MODEL; if (!m) return;
+  const now = nowSpend(), nowTot = Object.values(now).reduce((a, b) => a + b, 0);
+  if (!S.budget) S.budget = Math.round(nowTot / 1000) * 1000;
+  const sl = $('#bSl'), lo = nowTot * 0.25, hi = nowTot * 3;
+  sl.value = ((S.budget - lo) / (hi - lo)) * 1000; sl.style.setProperty('--p', sl.value / 10 + '%');
+  sl.oninput = () => { S.budget = Math.round((lo + (hi - lo) * (+sl.value / 1000)) / 1000) * 1000; sl.style.setProperty('--p', sl.value / 10 + '%'); save(); clearTimeout(window.__b); window.__b = setTimeout(drawPlan, 30); $('#bLab').textContent = inr(S.budget) + ' / week'; };
+  $('#bLab').textContent = inr(S.budget) + ' / week';
+  drawPlan(true);
+}
+function drawPlan(full) {
+  const m = MODEL, now = nowSpend(), lim = limits();
+  let o; try { o = X.optimise(m.ch, S.budget, lim, { steps: 800 }); } catch (e) { $('#alloc').innerHTML = `<p class="pill c">${esc(e.message)}</p>`; return; }
+  const rNow = X.totalResponse(m.ch, now), nowTot = Object.values(now).reduce((a, b) => a + b, 0);
+  const mx = Math.max(...m.channels.map((c) => Math.max(now[c], o.alloc[c]))) || 1;
+  const box = $('#alloc');
+  if (full || !box.children.length || box.children.length !== m.channels.length) {
+    box.innerHTML = m.channels.map((c) => `<div class="arow" data-c="${esc(c)}"><div><div class="nm"><span class="dot" style="background:${color(c)}"></span>${esc(c)}</div><div class="lims"><input data-l="min" placeholder="min" value="${S.lims[c] && S.lims[c].min ? S.lims[c].min : ''}" title="Minimum per week"><input data-l="max" placeholder="max" value="${S.lims[c] && S.lims[c].max != null ? S.lims[c].max : ''}" title="Maximum per week"></div></div><div class="bars"><i class="now" style="width:0"></i><i class="rec" style="width:0;background:${color(c)}"></i></div><div class="v"><b></b><span></span></div></div>`).join('');
+    $$('.arow input', box).forEach((inp) => (inp.onchange = () => { const c = inp.closest('.arow').dataset.c; S.lims[c] = S.lims[c] || {}; const v = parseFloat(inp.value); if (isFinite(v)) S.lims[c][inp.dataset.l] = v; else delete S.lims[c][inp.dataset.l]; save(); drawPlan(); }));
+  }
+  requestAnimationFrame(() => m.channels.forEach((c) => {
+    const row = $(`.arow[data-c="${CSS.escape(c)}"]`, box); if (!row) return;
+    $('.now', row).style.width = (now[c] / mx) * 100 + '%'; $('.rec', row).style.width = (o.alloc[c] / mx) * 100 + '%';
+    const d = o.alloc[c] - now[c]; $('.v b', row).textContent = inr(o.alloc[c]); $('.v span', row).innerHTML = `<span style="color:${d >= 0 ? 'var(--mint)' : 'var(--coral)'}">${d >= 0 ? '+' : ''}${inr(d)}</span> vs now`;
+  }));
+  const k = $('#bK');
+  if (!k.children.length) k.innerHTML = `<div class="kpi"><span>Media revenue / week</span><b data-k="r"></b><small data-k="rs"></small></div><div class="kpi"><span>ROI on this plan</span><b data-k="o"></b><small data-k="os"></small></div>`;
+  tween($('[data-k=r]', k), o.total, inr); $('[data-k=rs]', k).textContent = `now ${inr(rNow)} on ${inr(nowTot)}`;
+  tween($('[data-k=o]', k), o.total / S.budget, (x) => '₹' + x.toFixed(2)); const same = X.optimise(m.ch, nowTot, lim, { steps: 600 });
+  $('[data-k=os]', k).textContent = `same spend, better split: +${inr(same.total - rNow)}/week`;
+  window.__plan = o;
+  // frontier
+  if (!fr || fr.key !== JSON.stringify(lim) + MODEL.sse) {
+    const pts = []; for (let i = 1; i <= 24; i++) { const B = nowTot * 0.25 + ((nowTot * 2.75) * i) / 24; try { pts.push([B, X.optimise(m.ch, B, lim, { steps: 300 }).total]); } catch (e) {} }
+    fr = { key: JSON.stringify(lim) + MODEL.sse, pts };
+  }
+  const P = fr.pts, xm = Math.max(...P.map((p) => p[0])), ym = Math.max(...P.map((p) => p[1])) * 1.1, Xf = (x) => 46 + (x / xm) * 360, Yf = (y) => 200 - (y / ym) * 185;
+  $('#frontier').innerHTML = `<line x1="46" x2="406" y1="200" y2="200" stroke="#e4e6ea"/><text x="46" y="220" font-size="10" fill="#868d9b">${inr(P[0][0])}</text><text x="406" y="220" text-anchor="end" font-size="10" fill="#868d9b">${inr(xm)} / week</text><text x="40" y="${Yf(ym / 1.1) + 4}" text-anchor="end" font-size="10" fill="#868d9b">${inr(ym / 1.1).replace('₹', '')}</text>
+    <path d="${P.map((p, i) => `${i ? 'L' : 'M'}${Xf(p[0]).toFixed(1)} ${Yf(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="#1f4e79" stroke-width="2.5" pathLength="1" class="draw"/>
+    <line x1="${Xf(S.budget)}" x2="${Xf(S.budget)}" y1="${Yf(o.total)}" y2="200" stroke="#1f4e79" stroke-dasharray="3 3"/><circle cx="${Xf(S.budget)}" cy="${Yf(o.total)}" r="7" fill="#b4472f" stroke="#fff" stroke-width="3"/>
+    <circle cx="${Xf(nowTot)}" cy="${Yf(rNow)}" r="5" fill="#1d2433"/><text x="${Xf(nowTot) + 8}" y="${Yf(rNow) + 14}" font-size="10" fill="#1d2433">today</text>`;
+  renderScen();
+}
+function renderScen() {
+  $('#scen').innerHTML = S.scen.length ? `<table><thead><tr><th>Scenario</th><th class="n">Budget/wk</th><th class="n">Revenue/wk</th><th class="n">ROI</th><th></th></tr></thead><tbody>${S.scen.map((s, i) => `<tr><td>${esc(s.name)}</td><td class="n">${inr(s.budget)}</td><td class="n">${inr(s.total)}</td><td class="n">₹${(s.total / s.budget).toFixed(2)}</td><td><button class="btn ghost sm" data-load="${i}">Load</button> <button class="btn ghost sm" data-del="${i}">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="hint" style="margin:0">Save a plan to compare it later.</p>';
+  $$('[data-load]').forEach((b) => (b.onclick = () => { const s = S.scen[+b.dataset.load]; S.budget = s.budget; S.lims = JSON.parse(JSON.stringify(s.lims)); save(); renderBudget(); }));
+  $$('[data-del]').forEach((b) => (b.onclick = () => { S.scen.splice(+b.dataset.del, 1); save(); renderScen(); }));
+}
+$('#saveScen').onclick = () => { if (!window.__plan) return; S.scen.push({ name: `Plan ${S.scen.length + 1} · ${inr(S.budget)}`, budget: S.budget, total: window.__plan.total, lims: JSON.parse(JSON.stringify(S.lims)), alloc: window.__plan.alloc }); save(); renderScen(); toast('Scenario saved'); };
+$('#csvPlan').onclick = () => { const o = window.__plan, now = nowSpend(); if (!o) return; dl('budget-plan.csv', [['channel', 'now_per_week', 'recommended_per_week', 'change', 'expected_revenue_per_week']].concat(MODEL.channels.map((c) => [c, Math.round(now[c]), Math.round(o.alloc[c]), Math.round(o.alloc[c] - now[c]), Math.round(X.response(MODEL.ch[c], o.alloc[c]))]))); };
+function dl(name, rows) { const csv = rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = name; a.click(); }
+
+// ---------- calibrate ----------
+function renderCal() {
+  const m = MODEL; if (!m) return;
+  $('#tCh').innerHTML = m.channels.map((c) => `<option>${esc(c)}</option>`).join('');
+  const T = Object.entries(S.tests);
+  $('#tests').innerHTML = T.length ? `<table><thead><tr><th>Channel</th><th class="n">Measured ROI</th><th class="n">± error</th><th class="n">Model now</th><th></th></tr></thead><tbody>${T.map(([c, t]) => `<tr><td><span class="dot" style="background:${color(c)}"></span>${esc(c)}</td><td class="n">₹${t.roi.toFixed(2)}</td><td class="n">±${t.se.toFixed(2)}</td><td class="n">₹${m.ch[c].roi.toFixed(2)}</td><td><button class="btn ghost sm" data-rm="${esc(c)}">Remove</button></td></tr>`).join('')}</tbody></table>` : `<p class="hint">No tests yet.${S.data.demo ? ' The demo brand ran a 6-week geo holdout on influencers that measured ₹1.75 ± 0.30 per ₹1; try adding it.' : ''}</p>`;
+  $$('[data-rm]').forEach((b) => (b.onclick = () => { delete S.tests[b.dataset.rm]; save(); refit(); }));
+  const p = PLAIN || m, mx = Math.max(...m.channels.flatMap((c) => [p.ch[c].roi, m.ch[c].roi, S.tests[c] ? S.tests[c].roi + S.tests[c].se : 0])) * 1.15;
+  const Xc = (v) => 112 + (v / mx) * 290;
+  $('#calChart').setAttribute('viewBox', `0 0 420 ${m.channels.length * 48 + 30}`);
+  $('#calChart').innerHTML = m.channels.map((c, i) => { const y = 10 + i * 48, t = S.tests[c]; return `<text x="104" y="${y + 20}" text-anchor="end" font-size="11" fill="#1d2433" style="font-family:var(--b);font-weight:700">${esc(c)}</text><rect x="112" y="${y + 4}" height="11" rx="5" width="${Xc(p.ch[c].roi) - 112}" fill="#d2d6dd" style="transform-origin:112px 0;animation:gx .8s var(--ease) both"/><rect x="112" y="${y + 18}" height="11" rx="5" width="${Xc(m.ch[c].roi) - 112}" fill="${color(c)}" style="transform-origin:112px 0;animation:gx .8s var(--ease) .15s both"/>${t ? `<rect x="${Xc(t.roi - t.se)}" y="${y}" width="${Xc(t.roi + t.se) - Xc(t.roi - t.se)}" height="33" fill="#b4472f" opacity=".15" rx="4"/><line x1="${Xc(t.roi)}" x2="${Xc(t.roi)}" y1="${y}" y2="${y + 33}" stroke="#b4472f" stroke-width="2"/>` : ''}<text x="${Xc(Math.max(p.ch[c].roi, m.ch[c].roi)) + 6}" y="${y + 26}" font-size="10" fill="#4a5263">${p.ch[c].roi.toFixed(2)} → ${m.ch[c].roi.toFixed(2)}</text>`; }).join('') +
+    `<g transform="translate(112,${m.channels.length * 48 + 18})"><rect width="10" height="8" fill="#d2d6dd"/><text x="14" y="8" font-size="10" fill="#868d9b">history only</text><rect x="110" width="10" height="8" fill="#1f4e79"/><text x="124" y="8" font-size="10" fill="#868d9b">with tests</text><rect x="210" width="10" height="8" fill="#b4472f" opacity=".5"/><text x="224" y="8" font-size="10" fill="#868d9b">test ± error</text></g>`;
+}
+$('#tAdd').onclick = () => { const c = $('#tCh').value, roi = parseFloat($('#tRoi').value), se = parseFloat($('#tSe').value); if (!isFinite(roi) || !(se > 0)) return toast('Enter ROI and a positive error'); S.tests[c] = { roi, se }; save(); refit(); };
+
+// ---------- fit ----------
+function renderFit() {
+  const m = MODEL; if (!m || !HOLD) return;
+  const n = S.data.y.length, h = HOLD.h, y = S.data.y;
+  const hm = X.mean(y.slice(n - h).map((v, i) => Math.abs(v - HOLD.pred[n - h + i]) / v)) * 100;
+  const k = $('#fK');
+  if (!k.children.length) k.innerHTML = `<div class="kpi"><span>R²</span><b data-k="a"></b><small>share of weekly movement explained</small></div><div class="kpi"><span>In-sample error</span><b data-k="b"></b><small>mean absolute % error</small></div><div class="kpi"><span>Holdout error</span><b data-k="c"></b><small data-k="cs"></small></div><div class="kpi"><span>Weeks of data</span><b data-k="d"></b><small>${m.channels.length} channels</small></div>`;
+  tween($('[data-k=a]', k), m.r2, (x) => x.toFixed(3)); tween($('[data-k=b]', k), m.mape, (x) => x.toFixed(1) + '%'); tween($('[data-k=c]', k), hm, (x) => x.toFixed(1) + '%'); $('[data-k=cs]', k).textContent = `last ${h} weeks, never seen in fitting`; tween($('[data-k=d]', k), n, Math.round);
+  const W0 = 900, Lm = 56, R = 8, T = 10, B = 262, all = [...y, ...m.fitted, ...HOLD.pred.slice(n - h)], mx = Math.max(...all) * 1.05, mn = Math.min(...all) * 0.9;
+  const Xp = (t) => Lm + (t / (n - 1)) * (W0 - Lm - R), Yp = (v) => B - ((v - mn) / (mx - mn)) * (B - T);
+  const path = (a, off = 0) => a.map((v, i) => `${i ? 'L' : 'M'}${Xp(off + i).toFixed(1)} ${Yp(v).toFixed(1)}`).join('');
+  let g = ''; for (let j = 0; j <= 4; j++) { const v = mn + ((mx - mn) * j) / 4; g += `<line x1="${Lm}" x2="${W0 - R}" y1="${Yp(v)}" y2="${Yp(v)}" stroke="#eef0f3"/><text x="${Lm - 6}" y="${Yp(v) + 4}" text-anchor="end" font-size="10" fill="#868d9b">${inr(v).replace('₹', '')}</text>`; }
+  for (let t = 0; t < n; t += 26) g += `<text x="${Xp(t)}" y="${B + 18}" text-anchor="middle" font-size="10" fill="#868d9b">${short(weekDate(t))}</text>`;
+  $('#fitChart').innerHTML = g + `<rect x="${Xp(n - h)}" y="${T}" width="${Xp(n - 1) - Xp(n - h)}" height="${B - T}" fill="#b4472f" opacity=".08"/><path d="${path(y)}" fill="none" stroke="#1d2433" stroke-width="1.4" pathLength="1" class="draw"/><path d="${path(m.fitted)}" fill="none" stroke="#1f4e79" stroke-width="1.8" pathLength="1" class="draw" style="animation-delay:.25s"/><path d="${path(HOLD.pred.slice(n - h), n - h)}" fill="none" stroke="#b4472f" stroke-width="2.6" pathLength="1" class="draw" style="animation-delay:.6s"/>`;
+}
+
+// ---------- data ----------
+function renderData() {
+  const d = S.data, ch = Object.keys(d.spend), ctr = Object.keys(d.controls || {}), n = d.y.length;
+  $('#dTitle').textContent = d.name; $('#dHint').textContent = `${n} weeks from ${weekDate(0).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ${ch.length} channels${ctr.length ? ' · controls: ' + ctr.join(', ') : ''}${d.demo ? ' · simulated with known effects' : ''}`;
+  $('#dTable').innerHTML = `<thead><tr><th>Week</th><th class="n">Revenue</th>${ch.map((c) => `<th class="n">${esc(c)}</th>`).join('')}${ctr.map((c) => `<th class="n">${esc(c)}</th>`).join('')}</tr></thead><tbody>${[...Array(n)].map((_, i) => n - 1 - i).slice(0, 60).map((t) => `<tr style="animation:none"><td>${weekDate(t).toISOString().slice(0, 10)}</td><td class="n">${inr(d.y[t])}</td>${ch.map((c) => `<td class="n">${inr(d.spend[c][t])}</td>`).join('')}${ctr.map((c) => `<td class="n">${d.controls[c][t]}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add('on'); }));
+['dragleave', 'drop'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove('on'); }));
+drop.addEventListener('drop', (ev) => ev.dataTransfer.files[0] && load(ev.dataTransfer.files[0]));
+$('#file').onchange = (e) => e.target.files[0] && load(e.target.files[0]);
+function load(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const lines = rd.result.split(/\r?\n/).filter((l) => l.trim()), head = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
+    const wi = head.findIndex((h) => /^week|date$/i.test(h)), ri = head.findIndex((h) => /^revenue|sales$/i.test(h));
+    if (wi < 0 || ri < 0) return toast('Need week and revenue columns');
+    const rows = lines.slice(1).map((l) => l.split(',').map((x) => x.trim().replace(/"/g, ''))).filter((r) => r[wi]).sort((a, b) => Date.parse(a[wi]) - Date.parse(b[wi]));
+    if (rows.length < 52) return toast('Need at least 52 weeks');
+    const spend = {}, controls = {};
+    head.forEach((h, j) => { if (j === wi || j === ri) return; const v = rows.map((r) => parseFloat(r[j]) || 0); if (/^ctrl:/i.test(h)) controls[h.slice(5).trim()] = v; else spend[h] = v; });
+    if (!Object.keys(spend).length) return toast('No spend columns found');
+    S.data = { name: file.name.replace(/\.csv$/i, ''), start: new Date(Date.parse(rows[0][wi])).toISOString().slice(0, 10), y: rows.map((r) => parseFloat(r[ri]) || 0), spend, controls, demo: false };
+    S.tests = {}; S.lims = {}; S.budget = null; S.scen = []; save(); toast(`${rows.length} weeks loaded`); refit(); renderData();
+  };
+  rd.readAsText(file);
+}
+$('#sample').onclick = () => { const d = S.data, ch = Object.keys(d.spend), ctr = Object.keys(d.controls || {}); dl('marketing-data.csv', [['week', 'revenue', ...ch, ...ctr.map((c) => 'ctrl:' + c)]].concat(d.y.map((v, t) => [weekDate(t).toISOString().slice(0, 10), v, ...ch.map((c) => d.spend[c][t]), ...ctr.map((c) => d.controls[c][t])]))); };
+$('#reset').onclick = () => { S = { data: demoData(), tests: {}, scen: [], view: S.view, budget: null, lims: {} }; save(); refit(); renderData(); toast('Demo reloaded'); };
+
+// ---------- bench ----------
+function renderBench() {
+  const b = BENCH; if (!b) return;
+  const r = b.recovery.summary, pct = (x) => (x * 100).toFixed(1) + '%';
+  $('#bkK').innerHTML = `<div class="kpi"><span>Simulated brands</span><b>${r.brands}</b><small>${r.channelFits} channels with known truth</small></div><div class="kpi"><span>Median ROI error</span><b>${pct(r.medianRoiError.map)}</b><small>history only</small></div><div class="kpi"><span>With one lift test</span><b>${pct(r.medianRoiError.withOneLiftTest)}</b><small>median ROI error, all channels</small></div><div class="kpi"><span>Fit vs scipy</span><b>${b.fit.engine_as_good_or_better}/${b.fit.brands}</b><small>as good as the best of 12 Powell starts</small></div>`;
+  $('#recHint').textContent = `Each brand: 3 years of weekly data, 3 to 5 channels with random carry-over, saturation, flighting and festival bursts, 3–8% noise. The test channel is each brand's smallest, measured with a 20% standard error.`;
+  $('#recT').innerHTML = `<thead><tr><th>Measure</th><th class="n">Result</th></tr></thead><tbody>
+    <tr><td>Median ROI error, plain least squares</td><td class="n">${pct(r.medianRoiError.leastSquares)}</td></tr>
+    <tr><td>Median ROI error, with shape priors (the default)</td><td class="n">${pct(r.medianRoiError.map)}</td></tr>
+    <tr><td>Median ROI error, plus one lift test per brand</td><td class="n">${pct(r.medianRoiError.withOneLiftTest)}</td></tr>
+    <tr><td>Smallest channel, without its test → with it</td><td class="n">${pct(r.smallestChannel.median)} → ${pct(r.smallestChannel.withLiftTest)}</td></tr>
+    <tr><td>Error in share of media revenue, median / 90th percentile</td><td class="n">${r.shareErrorPoints.median.toFixed(1)} / ${r.shareErrorPoints.p90.toFixed(1)} pts</td></tr>
+    <tr><td>90% ranges that contain the true ROI</td><td class="n">${r.interval90Coverage != null ? pct(r.interval90Coverage) + ` of ${r.intervalChannels}` : '–'}</td></tr>
+    <tr><td>Median R²</td><td class="n">${r.medianR2.toFixed(3)}</td></tr></tbody>`;
+  $('#chkT').innerHTML = `<thead><tr><th>Check</th><th class="n">Result</th></tr></thead><tbody>
+    <tr><td>Model fit re-implemented in numpy/scipy (NNLS + Powell, 12 starts) on ${b.fit.brands} brands: engine as good or better</td><td class="n">${b.fit.engine_as_good_or_better}/${b.fit.brands}</td></tr>
+    <tr><td>Worst gap to scipy's best objective</td><td class="n">${b.fit.engine_vs_scipy_worst.toExponential(1)}</td></tr>
+    <tr><td>Budget optimiser vs scipy SLSQP (20 starts), ${b.optim.cases} random curve sets: within 0.1%</td><td class="n">${b.optim.within_0_1pct}/${b.optim.cases}</td></tr>
+    <tr><td>Median / worst gap to SLSQP's best</td><td class="n">${[b.optim.median_gap, b.optim.worst_gap].map((g) => (Math.abs(g) < 1e-5 ? '0.000%' : (g * 100).toFixed(3) + '%')).join(' / ')}</td></tr>
+    <tr><td>Cases where the engine beat every SLSQP start</td><td class="n">${b.optim.engine_better}</td></tr></tbody>`;
+}
+
+function render() {
+  $('#sideNote').textContent = MODEL ? `${S.data.name} · ${S.data.y.length} weeks` : '';
+  if (S.view === 'overview') renderOverview();
+  if (S.view === 'channels') renderChannels();
+  if (S.view === 'budget') renderBudget();
+  if (S.view === 'calibrate') renderCal();
+  if (S.view === 'fit') renderFit();
+  if (S.view === 'data') renderData();
+  if (S.view === 'bench') renderBench();
+}
+go(S.view || 'overview');
+refit();
+})();
+</script>
+</body>
+</html>

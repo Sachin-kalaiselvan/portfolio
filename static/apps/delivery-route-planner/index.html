@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delivery Route Planner</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d3b3f'/%3E%3Cpath d='M7 22c5-11 13 1 18-10' stroke='%23ffc93c' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a dispatcher's desk at 7 am: brisk, practical, numbers first.
+   IDEA: the day's run sheet: every order is a dot with a slot, every rider a coloured line, the clock drives everything.
+   COLOUR and TYPE: deep teal desk, warm paper panels, safety-yellow for the live clock and actions. Bricolage Grotesque headings, Figtree text, JetBrains Mono figures.
+   LAYOUT: map left, run sheet right; other views are full-width sheets. */
+:root{--desk:#14231f;--desk2:#ffffff;--paper:#ffffff;--paper2:#f2f3f0;--ink:#14231f;--mute:#5f6b66;--line:#e1e4df;--sun:#e0a92e;--sun2:#c99320;--red:#c0392b;--ok:#2f7f55;
+--r:14px;--ease:cubic-bezier(.2,.8,.2,1)}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%}
+body{background:#f6f7f4;color:var(--ink);font:15px/1.5 Figtree,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.brand{font-family:"Bricolage Grotesque",Figtree,sans-serif;letter-spacing:-.01em}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit}
+header{display:flex;align-items:center;gap:18px;padding:0 20px;height:62px;background:#fff;color:var(--ink);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.brand{font-weight:700;font-size:17px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.brand svg{flex:none}
+nav{display:flex;gap:2px;margin-left:auto;overflow-x:auto;scrollbar-width:none;align-self:stretch}
+nav a{color:var(--mute);text-decoration:none;font-weight:500;padding:0 14px;display:flex;align-items:center;white-space:nowrap;box-shadow:inset 0 -2px 0 transparent;transition:box-shadow .3s var(--ease),color .2s}
+nav a:hover{color:var(--ink)}
+nav a.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+ .clock{font-family:"JetBrains Mono";color:var(--mute);font-size:14px;white-space:nowrap}
+main{position:relative}
+.view{display:none;animation:in .45s var(--ease)}
+.view.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* Plan view */
+.plan{display:grid;grid-template-columns:minmax(0,1fr) 400px;height:calc(100vh - 62px)}
+.mapwrap{position:relative;overflow:hidden;background:#eef0eb}
+#map{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+#map.drag{cursor:grabbing}
+.hud{position:absolute;left:16px;top:16px;display:flex;gap:10px;flex-wrap:wrap;pointer-events:none}
+.chip{pointer-events:auto;background:rgba(255,255,255,.94);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.chip b{display:block;font-family:"Bricolage Grotesque";font-size:20px;line-height:1.1;color:var(--ink)}
+.chip small{color:var(--mute);font-size:12px}
+.playbar{position:absolute;left:16px;right:16px;bottom:16px;display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.playbar input[type=range]{flex:1;accent-color:var(--ink)}
+.legend{position:absolute;right:16px;top:16px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--mute);background:rgba(255,255,255,.94);border:1px solid var(--line);padding:10px 12px;border-radius:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+aside{background:#fff;display:flex;flex-direction:column;overflow:hidden;border-left:1px solid var(--line)}
+.side-head{padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+.side-head h2{margin:0 0 4px;font-size:19px}
+.side-head p{margin:0;color:var(--mute);font-size:13.5px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line)}
+.btn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:0 13px;min-height:36px;font-weight:600;cursor:pointer;transition:transform .15s var(--ease),background .2s,border-color .2s}
+.btn:hover{border-color:var(--ink)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#26382f}
+.btn.dark{background:var(--desk);color:#fff;border-color:var(--desk)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.progress{height:4px;background:var(--paper2);position:relative;overflow:hidden}
+.progress i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);width:0;transition:width .2s linear}
+.routes{overflow:auto;flex:1;padding:8px 10px 18px}
+.route{border:1px solid var(--line);background:#fff;border-radius:8px;margin:8px;padding:10px 12px;cursor:pointer;transition:border-color .2s,box-shadow .25s,transform .25s var(--ease);animation:in .4s var(--ease) both}
+.route:hover{border-color:#b9b09a;transform:translateY(-1px)}
+.route.sel{border-color:var(--ink);box-shadow:0 8px 24px -14px #0008}
+.route .top{display:flex;align-items:center;gap:10px}
+.route .sw{width:14px;height:14px;border-radius:4px;flex:none}
+.route h3{margin:0;font-size:15.5px;flex:1}
+.route .meta{display:flex;gap:14px;color:var(--mute);font-size:12.5px;margin-top:6px;flex-wrap:wrap}
+.bar{height:6px;border-radius:6px;background:var(--paper2);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px}
+.stops{display:none;margin:10px 0 0;padding:0;list-style:none;font-size:13px}
+.route.sel .stops{display:block}
+.stops li{display:grid;grid-template-columns:52px 1fr auto;gap:8px;padding:5px 0;border-top:1px dashed var(--line)}
+.stops li .late{color:var(--red);font-weight:700}
+.empty{padding:28px 20px;color:var(--mute);text-align:center}
+
+/* Sheets */
+.sheet{max-width:1200px;margin:0 auto;padding:30px 24px 80px;color:var(--ink)}
+.sheet h1{font-size:clamp(24px,3vw,30px);margin:0 0 6px;color:var(--ink)}
+.sheet .lead{color:var(--mute);max-width:70ch;margin:0 0 22px;font-size:15px}
+.card{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:18px 20px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card h2{margin:0 0 10px;font-size:16px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--mute);font-weight:600}
+label.f input,label.f select{border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:#fff;color:var(--ink);font-weight:500}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--mute);font-weight:600;position:sticky;top:0;background:#fafbf9}
+td.num,th.num{text-align:right}
+.tablewrap{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
+tr{transition:background .2s}
+tbody tr:hover{background:#f6f7f4}
+.pill{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:600;color:#fff}
+.big{font-family:"Bricolage Grotesque";font-size:28px;font-weight:700;line-height:1.1}
+.kpi{display:grid;gap:4px}
+.kpi small{color:var(--mute)}
+.win{color:var(--ok);font-weight:700}
+.loss{color:var(--red);font-weight:700}
+.gantt{overflow-x:auto}
+.gantt svg{display:block}
+.note{font-size:13px;color:var(--mute)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);opacity:0;background:var(--ink);color:#fff;padding:11px 16px;border-radius:12px;transition:.35s var(--ease);z-index:99;pointer-events:none}
+.toast.on{transform:translate(-50%,0);opacity:1}
+.compare-bars{display:grid;gap:10px;margin-top:12px}
+.cb{display:grid;grid-template-columns:110px 1fr 120px;align-items:center;gap:10px;font-size:13.5px}
+.cb .track{height:12px;background:var(--paper2);border-radius:3px;overflow:hidden}
+.cb .track i{display:block;height:100%;border-radius:3px;width:0;transition:width .9s var(--ease)}
+.how p{color:#45524d;max-width:74ch}
+.how h2{color:var(--ink);margin-top:30px;font-size:19px}
+.how code{background:var(--paper2);padding:2px 6px;border-radius:4px;color:var(--ink)}
+@media (max-width:900px){
+ .plan{grid-template-columns:1fr;height:auto}
+ .mapwrap{height:62vh}
+ aside{border-left:0}
+ .clock{display:none}
+ header{gap:10px;padding:0 12px}
+ .brand span{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#14231f"/><path d="M7 22c5-11 13 1 18-10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg><span>Delivery Route Planner</span></div>
+  <div class="clock" id="clock">--:--</div>
+  <nav id="nav">
+    <a href="#plan" class="on">Plan</a><a href="#orders">Orders</a><a href="#fleet">Fleet</a><a href="#schedule">Schedule</a><a href="#benchmark">Benchmark</a><a href="#how">How it works</a>
+  </nav>
+</header>
+<main>
+<!-- PLAN -->
+<section class="view on" id="v-plan">
+  <div class="plan">
+    <div class="mapwrap">
+      <canvas id="map"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="legend" id="legend"></div>
+      <div class="playbar">
+        <button class="btn primary" id="play" aria-label="Play the day">Play the day</button>
+        <input type="range" id="time" min="0" max="1440" value="480" aria-label="Time of day">
+        <span class="mono" id="tlabel">08:00</span>
+      </div>
+    </div>
+    <aside>
+      <div class="side-head"><h2 id="dayTitle">Today's run sheet</h2><p id="daySub">Hit plan routes and it'll sort out who goes where.</p></div>
+      <div class="actions">
+        <button class="btn primary" id="solve">Plan routes</button>
+        <button class="btn" id="newday">New day of orders</button>
+        <button class="btn" id="export" disabled>Driver sheets (CSV)</button>
+      </div>
+      <div class="progress"><i id="prog"></i></div>
+      <div class="routes" id="routes"><div class="empty">No plan yet. Press <b>Plan routes</b>.</div></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ORDERS -->
+<section class="view" id="v-orders"><div class="sheet">
+  <h1>Orders</h1>
+  <p class="lead">Every drop for the day. Where it's going, how heavy, which slot the customer picked. Bring your own csv or let it generate a believable day around the city.</p>
+  <div class="card">
+    <div class="row" style="margin-bottom:14px">
+      <label class="f">Orders to generate<input type="number" id="genN" min="10" max="400" value="120"></label>
+      <button class="btn dark" id="gen">Generate</button>
+      <label class="btn" style="display:inline-flex;align-items:center">Import CSV<input type="file" id="csv" accept=".csv,text/csv" hidden></label>
+      <button class="btn" id="dlorders">Download CSV</button>
+      <span class="note">CSV columns: <span class="mono">id, area, lat, lon, kg, slot_start, slot_end</span> (slots as HH:MM)</span>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>#</th><th>Area</th><th class="num">kg</th><th>Slot</th><th class="num">Lat</th><th class="num">Lon</th><th></th></tr></thead><tbody id="otable"></tbody></table></div>
+  </div>
+</div></section>
+
+<!-- FLEET -->
+<section class="view" id="v-fleet"><div class="sheet">
+  <h1>Fleet</h1>
+  <p class="lead">What the day costs depends on what you send out. Punch in your real costs, then pit bikes vs vans vs fleet sizes on today's orders.</p>
+  <div class="grid g2">
+    <div class="card"><h2>Bike riders</h2><div class="grid g3" id="bikeF"></div></div>
+    <div class="card"><h2>Vans</h2><div class="grid g3" id="vanF"></div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="row"><label class="f">Plan with<select id="mode"><option value="bike">Bike riders</option><option value="van">Vans</option></select></label>
+      <label class="f">Depot opens<input type="time" id="open" value="08:00"></label><label class="f">Depot closes<input type="time" id="close" value="22:00"></label>
+      <label class="f">Road factor<input type="number" id="circ" step="0.05" min="1" max="2" value="1.35"></label>
+      <label class="f">Longest shift (h)<input type="number" id="shift" step="0.5" min="2" max="16" value="10"></label>
+      <button class="btn dark" id="cmp">Compare bikes and vans</button></div>
+    <p class="note">Road factor = straight-line distance → actual road distance. 1.35 is about right for a city, tune it off your own trip logs if you've got them.</p>
+    <div id="cmpOut"></div>
+  </div>
+</div></section>
+
+<!-- SCHEDULE -->
+<section class="view" id="v-schedule"><div class="sheet">
+  <h1>Schedule</h1>
+  <p class="lead">One row per rider/van. Amber = driving, white = a drop, hatched = sitting around waiting for a slot to open, teal = reloading at the warehouse. The tick over each drop is when its slot closes.</p>
+  <div class="card gantt" id="gantt"><div class="empty">Plan the routes first.</div></div>
+</div></section>
+
+<!-- BENCHMARK -->
+<section class="view" id="v-benchmark"><div class="sheet">
+  <h1>Benchmark</h1>
+  <p class="lead">Ran it on all 56 solomon benchmark problems (100 customers each, capacity + time windows) head to head with pyvrp, which is basically the open-source state of the art. Same fleet limit, both minimising total distance.</p>
+  <div class="grid g3" id="bkpi"></div>
+  <div class="card" style="margin-top:16px"><h2>Gap to PyVRP by problem</h2><div id="bchart"></div></div>
+  <div class="card" style="margin-top:16px"><div class="tablewrap"><table><thead><tr><th>Problem</th><th class="num">This planner</th><th class="num">Vehicles</th><th class="num">PyVRP</th><th class="num">Vehicles</th><th class="num">Gap</th></tr></thead><tbody id="btable"></tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><h2>Run one yourself</h2>
+    <div class="row"><label class="f">Problem<select id="bsel"></select></label><button class="btn dark" id="brun">Solve in the browser</button><span class="mono" id="bres"></span></div>
+  </div>
+</div></section>
+
+<!-- HOW -->
+<section class="view" id="v-how"><div class="sheet how">
+  <h1>How it works</h1>
+  <p class="lead">A last-mile day is a vehicle routing problem with capacities and time windows. Every order lands inside its slot, nothing carries more than it can hold, fleet is limited. Find the cheapest day that does all that.</p>
+  <h2>The search</h2>
+  <p>First pass is regret insertion, so whichever order would hurt most to leave for later goes in first. Then ALNS (ropke & pisinger 2006) keeps ripping chunks of the plan out and putting them back. 4 ways to remove (random, priciest, related groups, whole short routes) and 4 ways to reinsert all compete, whichever finds wins gets picked more. Sometimes it keeps a worse plan on purpose (simulated annealing) so it doesn't get stuck. Every new best gets polished by shuffling single orders between routes and swapping route tails.</p>
+  <h2>Checking time windows fast</h2>
+  <p>Each route tracks the earliest every stop can start and the latest it can start without making something after it late. With those two numbers "does this order fit here?" is O(1) (savelsbergh 1992). That's the whole reason tens of thousands of rebuilds finish in seconds.</p>
+  <h2>Independent check</h2>
+  <p>Before any plan shows up, separate code re-checks it from scratch. Every order once, nobody over capacity, no drop outside its slot, everyone back before the depot closes.</p>
+  <h2>What it does not model</h2>
+  <p>Distances are straight line × road factor, not real roads. No traffic changes through the day (yeah, i know, bengaluru). One vehicle type per plan. Deliveries only, no pickups or returns.</p>
+  <h2>Several trips per rider</h2>
+  <p>A bike does ~20 kg so riders head back to reload a few times a day. The search plans trips, each leaves as late as its slots allow, then trips get handed out so a rider grabs the next one they can make after a 10 min reload. Going in departure order and giving each trip to whoever freed up most recently uses the fewest riders possible for those times.</p>
+</div></section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// Delivery Route Planner core: vehicle routing with capacity and time windows.
+// Adaptive large neighbourhood search (Ropke and Pisinger 2006) with regret insertion,
+// simulated annealing acceptance and a route-elimination phase. Plain JS, no dependencies,
+// runs in the browser and in Node.
+(function (root) {
+  'use strict';
+
+  // ---------- random numbers (seeded, so runs can be repeated) ----------
+  function rng(seed) {
+    let s = (seed >>> 0) || 1;
+    return function () {
+      s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0;
+      return s / 4294967296;
+    };
+  }
+
+  // ---------- problem ----------
+  // nodes[0] is the depot. Each node: {x, y, demand, ready, due, service}.
+  // opts: capacity, maxVehicles, fixedCost (per vehicle used), costPerUnit (per distance unit),
+  //       distance (optional matrix), travelFactor (time per distance unit, default 1).
+  function makeProblem(nodes, opts) {
+    const n = nodes.length;
+    const D = new Float64Array(n * n);
+    if (opts.distance) {
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) D[i * n + j] = opts.distance[i][j];
+    } else {
+      const k = opts.circuity || 1;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+        D[i * n + j] = Math.sqrt(dx * dx + dy * dy) * k;
+      }
+    }
+    const tf = opts.travelFactor || 1;
+    const T = new Float64Array(n * n);
+    for (let i = 0; i < n * n; i++) T[i] = D[i] * tf;
+    return {
+      n, nodes, D, T,
+      q: Float64Array.from(nodes, (v) => v.demand || 0),
+      a: Float64Array.from(nodes, (v) => v.ready || 0),
+      b: Float64Array.from(nodes, (v) => (v.due == null ? 1e15 : v.due)),
+      s: Float64Array.from(nodes, (v) => v.service || 0),
+      Q: opts.capacity,
+      maxV: opts.maxVehicles || n,
+      fixed: opts.fixedCost || 0,
+      perUnit: opts.costPerUnit == null ? 1 : opts.costPerUnit,
+      perMin: opts.costPerMinute || 0, // cost of driver time, from leaving the depot (as late as possible) to returning
+    };
+  }
+
+  // ---------- route bookkeeping ----------
+  // A route is an array of customer indices (depot excluded). For each route we keep
+  // forward earliest start times and backward latest start times so an insertion can be
+  // checked in O(1) (Savelsbergh 1992).
+  function routeInfo(P, r) {
+    const { n, T, a, b, s, q } = P;
+    const m = r.length;
+    const start = new Float64Array(m + 2), latest = new Float64Array(m + 2);
+    let load = 0, prev = 0, t = a[0], dist = 0;
+    start[0] = a[0];
+    for (let k = 0; k < m; k++) {
+      const v = r[k];
+      t = Math.max(a[v], t + s[prev] + T[prev * n + v]);
+      start[k + 1] = t;
+      load += q[v];
+      dist += P.D[prev * n + v];
+      prev = v;
+    }
+    dist += P.D[prev * n];
+    const end = t + s[prev] + T[prev * n];
+    start[m + 1] = end;
+    latest[m + 1] = b[0];
+    let nxt = 0, lt = b[0];
+    for (let k = m - 1; k >= 0; k--) {
+      const v = r[k];
+      lt = Math.min(b[v], lt - T[v * n + nxt] - s[v]);
+      latest[k + 1] = lt;
+      nxt = v;
+    }
+    latest[0] = Math.min(b[0], lt - T[nxt] - s[0]);
+    const feasible = load <= P.Q + 1e-9 && end <= b[0] + 1e-9 && start.every((v, i) => i === 0 || i === m + 1 || v <= b[r[i - 1]] + 1e-9);
+    let duration = 0;
+    if (P.perMin && m) {
+      // leave as late as the slots allow, then measure the time away from the depot
+      const dep = Math.max(a[0], latest[0]);
+      let tt = dep, pv = 0;
+      for (let k = 0; k < m; k++) { const v = r[k]; tt = Math.max(a[v], (k ? tt + s[pv] : tt) + T[pv * n + v]); pv = v; }
+      duration = tt + s[pv] + T[pv * n] - dep;
+    }
+    return { start, latest, load, dist, end, feasible, duration };
+  }
+
+  function routeCost(P, info) { return P.fixed + P.perUnit * info.dist + P.perMin * info.duration; }
+
+  // Best place to put customer u in route r (given its info). Returns {cost, pos} or null.
+  function bestInsert(P, r, info, u) {
+    if (info.load + P.q[u] > P.Q + 1e-9) return null;
+    const { n, D, T, a, b, s } = P;
+    let best = Infinity, pos = -1;
+    for (let k = 0; k <= r.length; k++) {
+      const i = k === 0 ? 0 : r[k - 1];
+      const j = k === r.length ? 0 : r[k];
+      const tu = Math.max(a[u], info.start[k] + s[i] + T[i * n + u]);
+      if (tu > b[u] + 1e-9) {
+        // arrivals only get later further along the route
+        if (info.start[k] + s[i] + T[i * n + u] > b[u]) break;
+        continue;
+      }
+      if (tu + s[u] + T[u * n + j] > info.latest[k + 1] + 1e-9) continue;
+      let delta = (D[i * n + u] + D[u * n + j] - D[i * n + j]) * P.perUnit;
+      if (P.perMin) {
+        // estimate of extra driver time: the detour plus any wait for u's slot to open
+        const wait = Math.max(0, a[u] - (info.start[k] + s[i] + T[i * n + u]));
+        delta += P.perMin * (T[i * n + u] + s[u] + T[u * n + j] - T[i * n + j] + wait);
+      }
+      if (delta < best) { best = delta; pos = k; }
+    }
+    return pos < 0 ? null : { cost: best, pos };
+  }
+
+  // ---------- solution ----------
+  function Solution(P, routes) {
+    this.P = P;
+    this.routes = routes.map((r) => r.slice());
+    this.info = this.routes.map((r) => routeInfo(P, r));
+    this.unassigned = [];
+  }
+  Solution.prototype.clone = function () {
+    const c = Object.create(Solution.prototype);
+    c.P = this.P;
+    c.routes = this.routes.map((r) => r.slice());
+    c.info = this.info.slice();
+    c.unassigned = this.unassigned.slice();
+    return c;
+  };
+  Solution.prototype.refresh = function (k) { this.info[k] = routeInfo(this.P, this.routes[k]); };
+  Solution.prototype.distance = function () { let d = 0; for (const i of this.info) d += i.dist; return d; };
+  Solution.prototype.cost = function () {
+    let c = 0;
+    for (const i of this.info) c += routeCost(this.P, i);
+    return c + this.unassigned.length * UNASSIGNED;
+  };
+  Solution.prototype.compact = function () {
+    for (let k = this.routes.length - 1; k >= 0; k--) if (!this.routes[k].length) { this.routes.splice(k, 1); this.info.splice(k, 1); }
+  };
+  const UNASSIGNED = 1e7;
+
+  // ---------- repair: regret-k insertion ----------
+  function regretInsert(sol, customers, k, rand, noise) {
+    const P = sol.P;
+    const pending = customers.slice();
+    const cache = new Map(); // u -> per-route insertion results
+    const ensureCache = (u) => {
+      let c = cache.get(u);
+      if (!c) { c = sol.routes.map((r, ri) => bestInsert(P, r, sol.info[ri], u)); cache.set(u, c); }
+      return c;
+    };
+    while (pending.length) {
+      let pickIdx = -1, pickScore = -Infinity, pickRoute = -1, pickPos = -1, pickCost = 0;
+      for (let pi = 0; pi < pending.length; pi++) {
+        const u = pending[pi];
+        const c = ensureCache(u);
+        const opts = [];
+        for (let ri = 0; ri < c.length; ri++) if (c[ri]) opts.push([c[ri].cost, ri, c[ri].pos]);
+        // a new route is an option while the fleet allows it
+        if (sol.routes.length < P.maxV) {
+          const nr = [u];
+          const inf = routeInfo(P, nr);
+          if (inf.feasible) opts.push([routeCost(P, inf), -1, 0]);
+        }
+        if (!opts.length) continue;
+        opts.sort((x, y) => x[0] - y[0]);
+        let score;
+        if (k <= 1) score = -opts[0][0];
+        else {
+          score = 0;
+          for (let h = 1; h < k; h++) score += (opts[Math.min(h, opts.length - 1)][0] - opts[0][0]);
+          if (opts.length < k) score += 1e6 * (k - opts.length); // few options left: place it now
+        }
+        if (noise) score += (rand() - 0.5) * noise;
+        if (score > pickScore) { pickScore = score; pickIdx = pi; pickRoute = opts[0][1]; pickPos = opts[0][2]; pickCost = opts[0][0]; }
+      }
+      if (pickIdx < 0) { sol.unassigned.push(...pending); return; }
+      const u = pending[pickIdx];
+      pending.splice(pickIdx, 1);
+      cache.delete(u);
+      let ri = pickRoute;
+      if (ri === -1) { sol.routes.push([u]); sol.info.push(routeInfo(P, [u])); ri = sol.routes.length - 1; for (const [v, c] of cache) c.push(bestInsert(P, sol.routes[ri], sol.info[ri], v)); }
+      else {
+        sol.routes[ri].splice(pickPos, 0, u);
+        sol.refresh(ri);
+        for (const [v, c] of cache) c[ri] = bestInsert(P, sol.routes[ri], sol.info[ri], v);
+      }
+      void pickCost;
+    }
+  }
+
+  // ---------- destroy operators ----------
+  function where(sol) {
+    const loc = new Int32Array(sol.P.n).fill(-1);
+    sol.routes.forEach((r, ri) => r.forEach((v) => { loc[v] = ri; }));
+    return loc;
+  }
+  function removeSet(sol, set) {
+    const touched = new Set();
+    const loc = where(sol);
+    for (const v of set) { const ri = loc[v]; if (ri >= 0) { const r = sol.routes[ri]; r.splice(r.indexOf(v), 1); touched.add(ri); } }
+    for (const ri of touched) sol.refresh(ri);
+    sol.compact();
+  }
+  function allCustomers(sol) { const out = []; for (const r of sol.routes) out.push(...r); return out; }
+
+  const destroyOps = {
+    random(sol, q, rand) {
+      const c = allCustomers(sol);
+      for (let i = c.length - 1; i > 0; i--) { const j = (rand() * (i + 1)) | 0; [c[i], c[j]] = [c[j], c[i]]; }
+      const pick = c.slice(0, q); removeSet(sol, pick); return pick;
+    },
+    worst(sol, q, rand) {
+      const P = sol.P, { n, D } = P;
+      const gains = [];
+      sol.routes.forEach((r) => r.forEach((v, k) => {
+        const i = k ? r[k - 1] : 0, j = k < r.length - 1 ? r[k + 1] : 0;
+        gains.push([D[i * n + v] + D[v * n + j] - D[i * n + j], v]);
+      }));
+      gains.sort((x, y) => y[0] - x[0]);
+      const pick = [];
+      while (pick.length < q && gains.length) { const idx = Math.floor(Math.pow(rand(), 4) * gains.length); pick.push(gains.splice(idx, 1)[0][1]); }
+      removeSet(sol, pick); return pick;
+    },
+    related(sol, q, rand) {
+      // Shaw removal: customers close in space, time and size get removed together
+      const P = sol.P, { n, D, a, q: dem } = P;
+      const c = allCustomers(sol);
+      if (!c.length) return [];
+      const pick = [c[(rand() * c.length) | 0]];
+      const rest = new Set(c); rest.delete(pick[0]);
+      while (pick.length < q && rest.size) {
+        const ref = pick[(rand() * pick.length) | 0];
+        const scored = [];
+        for (const v of rest) scored.push([D[ref * n + v] / 100 + Math.abs(a[ref] - a[v]) / 400 + Math.abs(dem[ref] - dem[v]) / 40, v]);
+        scored.sort((x, y) => x[0] - y[0]);
+        const v = scored[Math.floor(Math.pow(rand(), 6) * scored.length)][1];
+        pick.push(v); rest.delete(v);
+      }
+      removeSet(sol, pick); return pick;
+    },
+    route(sol, q, rand) {
+      // remove a whole short route, plus a few random customers: this is how vehicles get dropped
+      if (!sol.routes.length) return [];
+      const order = sol.routes.map((r, i) => [r.length + rand() * 2, i]).sort((x, y) => x[0] - y[0]);
+      const ri = order[0][1];
+      const pick = sol.routes[ri].slice();
+      removeSet(sol, pick);
+      if (pick.length < q) pick.push(...destroyOps.random(sol, Math.min(q - pick.length, 5), rand));
+      return pick;
+    },
+  };
+  const repairOps = {
+    greedy: (sol, cs, rand) => regretInsert(sol, cs, 1, rand, 0),
+    regret2: (sol, cs, rand) => regretInsert(sol, cs, 2, rand, 0),
+    regret3: (sol, cs, rand) => regretInsert(sol, cs, 3, rand, 0),
+    noisyGreedy: (sol, cs, rand) => regretInsert(sol, cs, 1, rand, 8),
+  };
+
+  // ---------- local search: relocate and 2-opt* between routes, run on new best solutions ----------
+  function localSearch(sol) {
+    const P = sol.P;
+    let improved = true, guard = 0;
+    while (improved && guard++ < 50) {
+      improved = false;
+      // relocate each customer to its best feasible place
+      for (let ri = 0; ri < sol.routes.length && !improved; ri++) {
+        const r = sol.routes[ri];
+        for (let k = 0; k < r.length && !improved; k++) {
+          const v = r[k];
+          const before = routeCost(P, sol.info[ri]);
+          const r2 = r.slice(); r2.splice(k, 1);
+          const inf2 = routeInfo(P, r2);
+          const saving = before - (r2.length ? routeCost(P, inf2) : 0);
+          for (let rj = 0; rj < sol.routes.length; rj++) {
+            if (rj === ri) continue;
+            const ins = bestInsert(P, sol.routes[rj], sol.info[rj], v);
+            if (ins && ins.cost < saving - 1e-7) {
+              sol.routes[ri] = r2; sol.info[ri] = inf2;
+              sol.routes[rj].splice(ins.pos, 0, v); sol.refresh(rj);
+              sol.compact(); improved = true; break;
+            }
+          }
+          if (!improved) {
+            const ins = bestInsert(P, r2, inf2, v);
+            if (ins && ins.cost < saving - P.fixed - 1e-7) { r2.splice(ins.pos, 0, v); sol.routes[ri] = r2; sol.refresh(ri); improved = true; }
+          }
+        }
+      }
+      // 2-opt*: swap the tails of two routes
+      for (let ri = 0; ri < sol.routes.length && !improved; ri++) for (let rj = ri + 1; rj < sol.routes.length && !improved; rj++) {
+        const A = sol.routes[ri], B = sol.routes[rj];
+        const base = routeCost(P, sol.info[ri]) + routeCost(P, sol.info[rj]);
+        for (let x = 0; x <= A.length && !improved; x++) for (let y = 0; y <= B.length; y++) {
+          const nA = A.slice(0, x).concat(B.slice(y)), nB = B.slice(0, y).concat(A.slice(x));
+          const iA = routeInfo(P, nA); if (!iA.feasible) continue;
+          const iB = routeInfo(P, nB); if (!iB.feasible) continue;
+          const c = (nA.length ? routeCost(P, iA) : 0) + (nB.length ? routeCost(P, iB) : 0);
+          if (c < base - 1e-7) { sol.routes[ri] = nA; sol.routes[rj] = nB; sol.info[ri] = iA; sol.info[rj] = iB; sol.compact(); improved = true; break; }
+        }
+      }
+    }
+    return sol;
+  }
+
+  // ---------- main search ----------
+  function initial(P, rand) {
+    const sol = new Solution(P, []);
+    const cs = []; for (let i = 1; i < P.n; i++) cs.push(i);
+    regretInsert(sol, cs, 2, rand, 0);
+    return sol;
+  }
+
+  function check(P, routes) {
+    // independent of the search: rebuild every route from scratch
+    const seen = new Int32Array(P.n); let dist = 0; const errors = [];
+    routes.forEach((r, ri) => {
+      let t = P.a[0], load = 0, prev = 0;
+      for (const v of r) {
+        seen[v]++; load += P.q[v];
+        t = Math.max(P.a[v], t + P.s[prev] + P.T[prev * P.n + v]);
+        if (t > P.b[v] + 1e-6) errors.push(`route ${ri + 1}: customer ${v} served at ${t.toFixed(1)} after window closes at ${P.b[v]}`);
+        dist += P.D[prev * P.n + v]; prev = v;
+      }
+      dist += P.D[prev * P.n];
+      if (t + P.s[prev] + P.T[prev * P.n] > P.b[0] + 1e-6) errors.push(`route ${ri + 1} returns late`);
+      if (load > P.Q + 1e-6) errors.push(`route ${ri + 1} overloaded: ${load} > ${P.Q}`);
+    });
+    for (let v = 1; v < P.n; v++) if (seen[v] !== 1) errors.push(`customer ${v} visited ${seen[v]} times`);
+    if (routes.length > P.maxV) errors.push(`${routes.length} routes but only ${P.maxV} vehicles`);
+    return { ok: errors.length === 0, errors, distance: dist };
+  }
+
+  function solve(P, opt = {}) {
+    const rand = rng(opt.seed || 1);
+    const iterations = opt.iterations || 20000;
+    const timeLimit = opt.timeLimitMs || Infinity;
+    const t0 = Date.now();
+    let cur = initial(P, rand);
+    localSearch(cur);
+    let best = cur.clone();
+    const dNames = Object.keys(destroyOps), rNames = Object.keys(repairOps);
+    const dW = dNames.map(() => 1), rW = rNames.map(() => 1), dS = dNames.map(() => 0), rS = rNames.map(() => 0), dN = dNames.map(() => 0), rN = rNames.map(() => 0);
+    const pickW = (w) => { let s = 0; for (const x of w) s += x; let r = rand() * s; for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) return i; } return w.length - 1; };
+    const startCost = cur.cost();
+    const T0 = (0.05 * startCost) / Math.log(2) / Math.max(1, P.n / 10);
+    let T = T0; const Tend = T0 / 400;
+    const alpha = Math.pow(Tend / T0, 1 / iterations);
+    const history = [];
+    let it = 0;
+    for (; it < iterations; it++) {
+      if ((it & 63) === 0 && Date.now() - t0 > timeLimit) break;
+      const q = Math.max(4, Math.min(P.n - 1, Math.round((0.05 + 0.35 * rand()) * (P.n - 1) * 0.6)));
+      const di = pickW(dW), ri = pickW(rW);
+      const cand = cur.clone();
+      const removed = destroyOps[dNames[di]](cand, q, rand);
+      const reinsert = cand.unassigned.concat(removed); cand.unassigned = [];
+      repairOps[rNames[ri]](cand, reinsert, rand);
+      const cc = cand.cost(), uc = cur.cost();
+      let score = 0;
+      if (cc < best.cost() - 1e-7) { localSearch(cand); best = cand.clone(); cur = cand; score = 33; }
+      else if (cc < uc - 1e-7) { cur = cand; score = 9; }
+      else if (rand() < Math.exp(-(cc - uc) / T)) { cur = cand; score = 13; }
+      dS[di] += score; rS[ri] += score; dN[di]++; rN[ri]++;
+      if ((it + 1) % 100 === 0) {
+        for (let i = 0; i < dW.length; i++) { if (dN[i]) dW[i] = 0.8 * dW[i] + 0.2 * dS[i] / dN[i]; dW[i] = Math.max(dW[i], 0.05); dS[i] = 0; dN[i] = 0; }
+        for (let i = 0; i < rW.length; i++) { if (rN[i]) rW[i] = 0.8 * rW[i] + 0.2 * rS[i] / rN[i]; rW[i] = Math.max(rW[i], 0.05); rS[i] = 0; rN[i] = 0; }
+      }
+      T *= alpha;
+      if (opt.onProgress && (it % 250 === 0)) {
+        history.push([it, best.cost()]);
+        opt.onProgress({ iteration: it, best, current: cur, temperature: T });
+      }
+    }
+    return {
+      routes: best.routes.map((r) => r.slice()),
+      unassigned: best.unassigned.slice(),
+      distance: best.distance(),
+      cost: best.cost(),
+      vehicles: best.routes.length,
+      iterations: it,
+      ms: Date.now() - t0,
+      history,
+    };
+  }
+
+  // Route schedule for display: arrival, wait, start, leave per stop.
+  function schedule(P, r) {
+    const out = []; let t = P.a[0], prev = 0, load = 0, dist = 0;
+    for (const v of r) {
+      const arrive = t + P.s[prev] + P.T[prev * P.n + v];
+      const begin = Math.max(P.a[v], arrive);
+      load += P.q[v]; dist += P.D[prev * P.n + v];
+      out.push({ node: v, arrive, wait: begin - arrive, begin, leave: begin + P.s[v], load, dist, slack: P.b[v] - begin });
+      t = begin; prev = v;
+    }
+    const back = t + P.s[prev] + P.T[prev * P.n];
+    dist += P.D[prev * P.n];
+    return { stops: out, start: P.a[0], end: back, load, dist };
+  }
+
+  // Latest time a route can leave the depot and still make every slot, and its schedule
+  // when it leaves then (least waiting). Used to chain several trips into one driver's day.
+  function latestDeparture(P, r) { return Math.max(P.a[0], routeInfo(P, r).latest[0]); }
+  function scheduleFrom(P, r, depart) {
+    const out = []; let t = depart, prev = 0, load = 0, dist = 0, first = true;
+    for (const v of r) {
+      const arrive = (first ? depart : t + P.s[prev]) + P.T[prev * P.n + v];
+      const begin = Math.max(P.a[v], arrive);
+      load += P.q[v]; dist += P.D[prev * P.n + v];
+      out.push({ node: v, arrive, wait: begin - arrive, begin, leave: begin + P.s[v], load, dist, slack: P.b[v] - begin });
+      t = begin; prev = v; first = false;
+    }
+    const back = (first ? depart : t + P.s[prev]) + P.T[prev * P.n];
+    dist += P.D[prev * P.n];
+    return { stops: out, start: depart, end: back, load, dist };
+  }
+  // Chain trips into drivers' days. Trips are taken in order of latest departure and each goes
+  // to the driver who is free soonest before it must leave (interval partitioning), so the
+  // number of drivers is the fewest possible for these departure times.
+  function chainTrips(P, routes, reload, maxShift = Infinity) {
+    const trips = routes.map((r, i) => { const L = latestDeparture(P, r); return { i, route: r, depart: L, sched: scheduleFrom(P, r, L) }; })
+      .sort((x, y) => x.depart - y.depart);
+    const drivers = [];
+    for (const t of trips) {
+      let best = -1, bestFree = -Infinity;
+      drivers.forEach((d, k) => { if (d.free + reload <= t.depart + 1e-9 && t.sched.end - d.start <= maxShift && d.free > bestFree) { bestFree = d.free; best = k; } });
+      if (best < 0) { drivers.push({ trips: [], free: 0, start: t.sched.start }); best = drivers.length - 1; }
+      drivers[best].trips.push(t); drivers[best].free = t.sched.end;
+    }
+    return drivers.map((d) => ({ trips: d.trips, start: d.trips[0].sched.start, end: d.trips[d.trips.length - 1].sched.end, dist: d.trips.reduce((s, t) => s + t.sched.dist, 0), drops: d.trips.reduce((s, t) => s + t.route.length, 0) }));
+  }
+
+  const api = { latestDeparture, scheduleFrom, chainTrips, rng, makeProblem, routeInfo, bestInsert, solve, check, schedule, localSearch, Solution, initial };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Routing = api;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+const BENCH = {"ours":{"C101":{"distance":828.94,"vehicles":10,"ok":true,"ms":7799},"C102":{"distance":828.94,"vehicles":10,"ok":true,"ms":9183},"C103":{"distance":828.06,"vehicles":10,"ok":true,"ms":9830},"C104":{"distance":824.78,"vehicles":10,"ok":true,"ms":9890},"C105":{"distance":828.94,"vehicles":10,"ok":true,"ms":8383},"C106":{"distance":828.94,"vehicles":10,"ok":true,"ms":8831},"C107":{"distance":828.94,"vehicles":10,"ok":true,"ms":8914},"C108":{"distance":828.94,"vehicles":10,"ok":true,"ms":10573},"C109":{"distance":828.94,"vehicles":10,"ok":true,"ms":13502},"C201":{"distance":591.56,"vehicles":3,"ok":true,"ms":14240},"C202":{"distance":591.56,"vehicles":3,"ok":true,"ms":14979},"C203":{"distance":591.17,"vehicles":3,"ok":true,"ms":13023},"C204":{"distance":590.6,"vehicles":3,"ok":true,"ms":16396},"C205":{"distance":588.88,"vehicles":3,"ok":true,"ms":12681},"C206":{"distance":588.49,"vehicles":3,"ok":true,"ms":11111},"C207":{"distance":588.29,"vehicles":3,"ok":true,"ms":12003},"C208":{"distance":588.32,"vehicles":3,"ok":true,"ms":14264},"R101":{"distance":1642.88,"vehicles":20,"ok":true,"ms":12861},"R102":{"distance":1473.99,"vehicles":18,"ok":true,"ms":8971},"R103":{"distance":1222.68,"vehicles":15,"ok":true,"ms":16490},"R104":{"distance":990.25,"vehicles":11,"ok":true,"ms":9301},"R105":{"distance":1361.39,"vehicles":15,"ok":true,"ms":10831},"R106":{"distance":1255.87,"vehicles":13,"ok":true,"ms":7808},"R107":{"distance":1090.09,"vehicles":12,"ok":true,"ms":10158},"R108":{"distance":960.78,"vehicles":11,"ok":true,"ms":10351},"R109":{"distance":1162.06,"vehicles":13,"ok":true,"ms":9417},"R110":{"distance":1086.96,"vehicles":12,"ok":true,"ms":9351},"R111":{"distance":1053.5,"vehicles":12,"ok":true,"ms":9300},"R112":{"distance":966.46,"vehicles":10,"ok":true,"ms":12068},"R201":{"distance":1152.26,"vehicles":8,"ok":true,"ms":16014},"R202":{"distance":1061.79,"vehicles":5,"ok":true,"ms":17126},"R203":{"distance":920.74,"vehicles":5,"ok":true,"ms":13812},"R204":{"distance":766.02,"vehicles":3,"ok":true,"ms":14098},"R205":{"distance":957.8,"vehicles":5,"ok":true,"ms":18391},"R206":{"distance":888.37,"vehicles":5,"ok":true,"ms":13178},"R207":{"distance":821.77,"vehicles":4,"ok":true,"ms":13068},"R208":{"distance":742.1,"vehicles":4,"ok":true,"ms":10580},"R209":{"distance":877.69,"vehicles":5,"ok":true,"ms":12693},"R210":{"distance":930.4,"vehicles":5,"ok":true,"ms":17502},"R211":{"distance":786.82,"vehicles":3,"ok":true,"ms":12614},"RC101":{"distance":1646.53,"vehicles":16,"ok":true,"ms":6635},"RC102":{"distance":1482.62,"vehicles":15,"ok":true,"ms":7353},"RC103":{"distance":1312.03,"vehicles":12,"ok":true,"ms":9684},"RC104":{"distance":1163.29,"vehicles":11,"ok":true,"ms":8497},"RC105":{"distance":1532.65,"vehicles":16,"ok":true,"ms":7775},"RC106":{"distance":1377.35,"vehicles":13,"ok":true,"ms":8849},"RC107":{"distance":1231.87,"vehicles":12,"ok":true,"ms":8105},"RC108":{"distance":1117.53,"vehicles":11,"ok":true,"ms":8970},"RC201":{"distance":1293.06,"vehicles":8,"ok":true,"ms":10420},"RC202":{"distance":1140.14,"vehicles":6,"ok":true,"ms":13823},"RC203":{"distance":951.95,"vehicles":5,"ok":true,"ms":14068},"RC204":{"distance":807.62,"vehicles":4,"ok":true,"ms":14363},"RC205":{"distance":1221.11,"vehicles":6,"ok":true,"ms":12214},"RC206":{"distance":1160.34,"vehicles":4,"ok":true,"ms":12156},"RC207":{"distance":1002.9,"vehicles":5,"ok":true,"ms":9818},"RC208":{"distance":840.63,"vehicles":3,"ok":true,"ms":12250}},"ref":{"C101":{"distance":828.94,"vehicles":10,"feasible":true},"C102":{"distance":828.94,"vehicles":10,"feasible":true},"C103":{"distance":828.07,"vehicles":10,"feasible":true},"C104":{"distance":824.78,"vehicles":10,"feasible":true},"C105":{"distance":828.94,"vehicles":10,"feasible":true},"C106":{"distance":828.94,"vehicles":10,"feasible":true},"C107":{"distance":828.94,"vehicles":10,"feasible":true},"C108":{"distance":828.94,"vehicles":10,"feasible":true},"C109":{"distance":828.94,"vehicles":10,"feasible":true},"C201":{"distance":591.55,"vehicles":3,"feasible":true},"C202":{"distance":591.55,"vehicles":3,"feasible":true},"C203":{"distance":591.17,"vehicles":3,"feasible":true},"C204":{"distance":590.6,"vehicles":3,"feasible":true},"C205":{"distance":588.88,"vehicles":3,"feasible":true},"C206":{"distance":588.49,"vehicles":3,"feasible":true},"C207":{"distance":588.29,"vehicles":3,"feasible":true},"C208":{"distance":588.32,"vehicles":3,"feasible":true},"R101":{"distance":1642.87,"vehicles":20,"feasible":true},"R102":{"distance":1472.81,"vehicles":18,"feasible":true},"R103":{"distance":1213.62,"vehicles":14,"feasible":true},"R104":{"distance":976.6,"vehicles":11,"feasible":true},"R105":{"distance":1360.78,"vehicles":15,"feasible":true},"R106":{"distance":1239.37,"vehicles":13,"feasible":true},"R107":{"distance":1072.12,"vehicles":11,"feasible":true},"R108":{"distance":944.44,"vehicles":10,"feasible":true},"R109":{"distance":1151.84,"vehicles":13,"feasible":true},"R110":{"distance":1072.41,"vehicles":12,"feasible":true},"R111":{"distance":1053.49,"vehicles":12,"feasible":true},"R112":{"distance":958.69,"vehicles":10,"feasible":true},"R201":{"distance":1147.81,"vehicles":8,"feasible":true},"R202":{"distance":1034.35,"vehicles":8,"feasible":true},"R203":{"distance":874.87,"vehicles":6,"feasible":true},"R204":{"distance":737.06,"vehicles":4,"feasible":true},"R205":{"distance":954.16,"vehicles":5,"feasible":true},"R206":{"distance":879.89,"vehicles":5,"feasible":true},"R207":{"distance":797.99,"vehicles":4,"feasible":true},"R208":{"distance":705.33,"vehicles":4,"feasible":true},"R209":{"distance":859.38,"vehicles":5,"feasible":true},"R210":{"distance":915.24,"vehicles":6,"feasible":true},"R211":{"distance":755.95,"vehicles":4,"feasible":true},"RC101":{"distance":1623.58,"vehicles":15,"feasible":true},"RC102":{"distance":1477.2,"vehicles":14,"feasible":true},"RC103":{"distance":1262.01,"vehicles":11,"feasible":true},"RC104":{"distance":1135.52,"vehicles":10,"feasible":true},"RC105":{"distance":1518.58,"vehicles":16,"feasible":true},"RC106":{"distance":1377.0,"vehicles":13,"feasible":true},"RC107":{"distance":1212.83,"vehicles":12,"feasible":true},"RC108":{"distance":1135.74,"vehicles":11,"feasible":true},"RC201":{"distance":1266.11,"vehicles":9,"feasible":true},"RC202":{"distance":1095.65,"vehicles":8,"feasible":true},"RC203":{"distance":937.45,"vehicles":5,"feasible":true},"RC204":{"distance":788.66,"vehicles":4,"feasible":true},"RC205":{"distance":1157.55,"vehicles":7,"feasible":true},"RC206":{"distance":1054.61,"vehicles":7,"feasible":true},"RC207":{"distance":969.8,"vehicles":6,"feasible":true},"RC208":{"distance":779.31,"vehicles":4,"feasible":true}},"instances":{"C101":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,912,967,90],[45,70,30,825,870,90],[42,66,10,65,146,90],[42,68,10,727,782,90],[42,65,10,15,67,90],[40,69,20,621,702,90],[40,66,20,170,225,90],[38,68,20,255,324,90],[38,70,10,534,605,90],[35,66,10,357,410,90],[35,69,10,448,505,90],[25,85,20,652,721,90],[22,75,30,30,92,90],[22,85,10,567,620,90],[20,80,40,384,429,90],[20,85,40,475,528,90],[18,75,20,99,148,90],[15,75,20,179,254,90],[15,80,10,278,345,90],[30,50,10,10,73,90],[30,52,20,914,965,90],[28,52,20,812,883,90],[28,55,10,732,777,90],[25,50,10,65,144,90],[25,52,40,169,224,90],[25,55,10,622,701,90],[23,52,10,261,316,90],[23,55,20,546,593,90],[20,50,10,358,405,90],[20,55,10,449,504,90],[10,35,20,200,237,90],[10,40,30,31,100,90],[8,40,40,87,158,90],[8,45,20,751,816,90],[5,35,10,283,344,90],[5,45,10,665,716,90],[2,40,20,383,434,90],[0,40,30,479,522,90],[0,45,20,567,624,90],[35,30,10,264,321,90],[35,32,10,166,235,90],[33,32,20,68,149,90],[33,35,10,16,80,90],[32,30,10,359,412,90],[30,30,10,541,600,90],[30,32,30,448,509,90],[30,35,10,1054,1127,90],[28,30,10,632,693,90],[28,35,10,1001,1066,90],[26,32,10,815,880,90],[25,30,10,725,786,90],[25,35,10,912,969,90],[44,5,20,286,347,90],[42,10,40,186,257,90],[42,15,10,95,158,90],[40,5,30,385,436,90],[40,15,40,35,87,90],[38,5,30,471,534,90],[38,15,10,651,740,90],[35,5,20,562,629,90],[50,30,10,531,610,90],[50,35,20,262,317,90],[50,40,50,171,218,90],[48,30,10,632,693,90],[48,40,10,76,129,90],[47,35,10,826,875,90],[47,40,10,12,77,90],[45,30,10,734,777,90],[45,35,10,916,969,90],[95,30,30,387,456,90],[95,35,20,293,360,90],[53,30,10,450,505,90],[92,30,10,478,551,90],[53,35,50,353,412,90],[45,65,20,997,1068,90],[90,35,10,203,260,90],[88,30,10,574,643,90],[88,35,20,109,170,90],[87,30,10,668,731,90],[85,25,10,769,820,90],[85,35,30,47,124,90],[75,55,20,369,420,90],[72,55,10,265,338,90],[70,58,20,458,523,90],[68,60,30,555,612,90],[66,55,10,173,238,90],[65,55,20,85,144,90],[65,60,30,645,708,90],[63,58,10,737,802,90],[60,55,10,20,84,90],[60,60,10,836,889,90],[67,85,20,368,441,90],[65,85,40,475,518,90],[65,82,10,285,336,90],[62,80,30,196,239,90],[60,80,10,95,156,90],[60,85,30,561,622,90],[58,75,20,30,84,90],[55,80,10,743,820,90],[55,85,20,647,726,90]]},"C102":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,0,1127,90],[45,70,30,0,1125,90],[42,66,10,0,1129,90],[42,68,10,727,782,90],[42,65,10,0,1130,90],[40,69,20,621,702,90],[40,66,20,0,1130,90],[38,68,20,255,324,90],[38,70,10,534,605,90],[35,66,10,357,410,90],[35,69,10,448,505,90],[25,85,20,0,1107,90],[22,75,30,30,92,90],[22,85,10,567,620,90],[20,80,40,384,429,90],[20,85,40,475,528,90],[18,75,20,99,148,90],[15,75,20,179,254,90],[15,80,10,278,345,90],[30,50,10,10,73,90],[30,52,20,0,1135,90],[28,52,20,812,883,90],[28,55,10,732,777,90],[25,50,10,65,144,90],[25,52,40,169,224,90],[25,55,10,0,1130,90],[23,52,10,261,316,90],[23,55,20,546,593,90],[20,50,10,358,405,90],[20,55,10,449,504,90],[10,35,20,0,1112,90],[10,40,30,31,100,90],[8,40,40,87,158,90],[8,45,20,0,1113,90],[5,35,10,283,344,90],[5,45,10,665,716,90],[2,40,20,0,1106,90],[0,40,30,479,522,90],[0,45,20,567,624,90],[35,30,10,264,321,90],[35,32,10,166,235,90],[33,32,20,68,149,90],[33,35,10,16,80,90],[32,30,10,359,412,90],[30,30,10,541,600,90],[30,32,30,448,509,90],[30,35,10,1054,1127,90],[28,30,10,0,1122,90],[28,35,10,1001,1066,90],[26,32,10,0,1123,90],[25,30,10,725,786,90],[25,35,10,0,1124,90],[44,5,20,286,347,90],[42,10,40,186,257,90],[42,15,10,95,158,90],[40,5,30,385,436,90],[40,15,40,35,87,90],[38,5,30,471,534,90],[38,15,10,0,1110,90],[35,5,20,562,629,90],[50,30,10,531,610,90],[50,35,20,262,317,90],[50,40,50,171,218,90],[48,30,10,632,693,90],[48,40,10,76,129,90],[47,35,10,826,875,90],[47,40,10,12,77,90],[45,30,10,734,777,90],[45,35,10,916,969,90],[95,30,30,387,456,90],[95,35,20,293,360,90],[53,30,10,0,1122,90],[92,30,10,478,551,90],[53,35,50,353,412,90],[45,65,20,0,1130,90],[90,35,10,203,260,90],[88,30,10,574,643,90],[88,35,20,109,170,90],[87,30,10,668,731,90],[85,25,10,769,820,90],[85,35,30,47,124,90],[75,55,20,0,1110,90],[72,55,10,0,1113,90],[70,58,20,458,523,90],[68,60,30,0,1116,90],[66,55,10,173,238,90],[65,55,20,85,144,90],[65,60,30,645,708,90],[63,58,10,737,802,90],[60,55,10,20,84,90],[60,60,10,0,1123,90],[67,85,20,368,441,90],[65,85,40,475,518,90],[65,82,10,0,1105,90],[62,80,30,0,1108,90],[60,80,10,0,1109,90],[60,85,30,561,622,90],[58,75,20,0,1115,90],[55,80,10,743,820,90],[55,85,20,647,726,90]]},"C103":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,0,1127,90],[45,70,30,0,1125,90],[42,66,10,0,1129,90],[42,68,10,727,782,90],[42,65,10,0,1130,90],[40,69,20,621,702,90],[40,66,20,0,1130,90],[38,68,20,255,324,90],[38,70,10,534,605,90],[35,66,10,357,410,90],[35,69,10,448,505,90],[25,85,20,0,1107,90],[22,75,30,30,92,90],[22,85,10,0,1106,90],[20,80,40,384,429,90],[20,85,40,0,1105,90],[18,75,20,99,148,90],[15,75,20,0,1110,90],[15,80,10,0,1106,90],[30,50,10,0,1136,90],[30,52,20,0,1135,90],[28,52,20,812,883,90],[28,55,10,732,777,90],[25,50,10,0,1131,90],[25,52,40,169,224,90],[25,55,10,0,1130,90],[23,52,10,261,316,90],[23,55,20,0,1128,90],[20,50,10,0,1126,90],[20,55,10,449,504,90],[10,35,20,0,1112,90],[10,40,30,0,1114,90],[8,40,40,87,158,90],[8,45,20,0,1113,90],[5,35,10,283,344,90],[5,45,10,665,716,90],[2,40,20,0,1106,90],[0,40,30,479,522,90],[0,45,20,567,624,90],[35,30,10,264,321,90],[35,32,10,166,235,90],[33,32,20,68,149,90],[33,35,10,0,1129,90],[32,30,10,359,412,90],[30,30,10,541,600,90],[30,32,30,0,1125,90],[30,35,10,0,1127,90],[28,30,10,0,1122,90],[28,35,10,1001,1066,90],[26,32,10,0,1123,90],[25,30,10,0,1121,90],[25,35,10,0,1124,90],[44,5,20,286,347,90],[42,10,40,0,1105,90],[42,15,10,95,158,90],[40,5,30,385,436,90],[40,15,40,0,1111,90],[38,5,30,471,534,90],[38,15,10,0,1110,90],[35,5,20,0,1100,90],[50,30,10,0,1123,90],[50,35,20,262,317,90],[50,40,50,0,1131,90],[48,30,10,632,693,90],[48,40,10,76,129,90],[47,35,10,826,875,90],[47,40,10,12,77,90],[45,30,10,734,777,90],[45,35,10,916,969,90],[95,30,30,387,456,90],[95,35,20,0,1088,90],[53,30,10,0,1122,90],[92,30,10,0,1090,90],[53,35,50,353,412,90],[45,65,20,0,1130,90],[90,35,10,203,260,90],[88,30,10,574,643,90],[88,35,20,109,170,90],[87,30,10,668,731,90],[85,25,10,769,820,90],[85,35,30,0,1098,90],[75,55,20,0,1110,90],[72,55,10,0,1113,90],[70,58,20,458,523,90],[68,60,30,0,1116,90],[66,55,10,0,1119,90],[65,55,20,85,144,90],[65,60,30,645,708,90],[63,58,10,0,1121,90],[60,55,10,0,1125,90],[60,60,10,0,1123,90],[67,85,20,368,441,90],[65,85,40,475,518,90],[65,82,10,0,1105,90],[62,80,30,0,1108,90],[60,80,10,0,1109,90],[60,85,30,0,1105,90],[58,75,20,0,1115,90],[55,80,10,743,820,90],[55,85,20,647,726,90]]},"C104":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,0,1127,90],[45,70,30,0,1125,90],[42,66,10,0,1129,90],[42,68,10,727,782,90],[42,65,10,0,1130,90],[40,69,20,0,1127,90],[40,66,20,0,1130,90],[38,68,20,255,324,90],[38,70,10,534,605,90],[35,66,10,0,1129,90],[35,69,10,448,505,90],[25,85,20,0,1107,90],[22,75,30,30,92,90],[22,85,10,0,1106,90],[20,80,40,384,429,90],[20,85,40,0,1105,90],[18,75,20,0,1112,90],[15,75,20,0,1110,90],[15,80,10,0,1106,90],[30,50,10,0,1136,90],[30,52,20,0,1135,90],[28,52,20,0,1133,90],[28,55,10,732,777,90],[25,50,10,0,1131,90],[25,52,40,169,224,90],[25,55,10,0,1130,90],[23,52,10,0,1128,90],[23,55,20,0,1128,90],[20,50,10,0,1126,90],[20,55,10,0,1125,90],[10,35,20,0,1112,90],[10,40,30,0,1114,90],[8,40,40,0,1112,90],[8,45,20,0,1113,90],[5,35,10,0,1107,90],[5,45,10,0,1110,90],[2,40,20,0,1106,90],[0,40,30,479,522,90],[0,45,20,0,1105,90],[35,30,10,0,1125,90],[35,32,10,0,1127,90],[33,32,20,0,1126,90],[33,35,10,0,1129,90],[32,30,10,359,412,90],[30,30,10,0,1123,90],[30,32,30,0,1125,90],[30,35,10,0,1127,90],[28,30,10,0,1122,90],[28,35,10,0,1126,90],[26,32,10,0,1123,90],[25,30,10,0,1121,90],[25,35,10,0,1124,90],[44,5,20,286,347,90],[42,10,40,0,1105,90],[42,15,10,95,158,90],[40,5,30,0,1101,90],[40,15,40,0,1111,90],[38,5,30,471,534,90],[38,15,10,0,1110,90],[35,5,20,0,1100,90],[50,30,10,0,1123,90],[50,35,20,262,317,90],[50,40,50,0,1131,90],[48,30,10,0,1124,90],[48,40,10,0,1133,90],[47,35,10,0,1129,90],[47,40,10,12,77,90],[45,30,10,0,1125,90],[45,35,10,916,969,90],[95,30,30,0,1087,90],[95,35,20,0,1088,90],[53,30,10,0,1122,90],[92,30,10,0,1090,90],[53,35,50,353,412,90],[45,65,20,0,1130,90],[90,35,10,203,260,90],[88,30,10,574,643,90],[88,35,20,0,1095,90],[87,30,10,668,731,90],[85,25,10,0,1094,90],[85,35,30,0,1098,90],[75,55,20,0,1110,90],[72,55,10,0,1113,90],[70,58,20,458,523,90],[68,60,30,0,1116,90],[66,55,10,0,1119,90],[65,55,20,85,144,90],[65,60,30,0,1119,90],[63,58,10,0,1121,90],[60,55,10,0,1125,90],[60,60,10,0,1123,90],[67,85,20,368,441,90],[65,85,40,0,1102,90],[65,82,10,0,1105,90],[62,80,30,0,1108,90],[60,80,10,0,1109,90],[60,85,30,0,1105,90],[58,75,20,0,1115,90],[55,80,10,743,820,90],[55,85,20,647,726,90]]},"C105":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,885,994,90],[45,70,30,802,893,90],[42,66,10,25,186,90],[42,68,10,699,810,90],[42,65,10,15,120,90],[40,69,20,580,743,90],[40,66,20,142,253,90],[38,68,20,220,359,90],[38,70,10,499,640,90],[35,66,10,331,436,90],[35,69,10,420,533,90],[25,85,20,617,756,90],[22,75,30,30,155,90],[22,85,10,541,646,90],[20,80,40,362,451,90],[20,85,40,448,555,90],[18,75,20,75,172,90],[15,75,20,142,291,90],[15,80,10,244,379,90],[30,50,10,10,137,90],[30,52,20,888,991,90],[28,52,20,776,919,90],[28,55,10,709,800,90],[25,50,10,25,184,90],[25,52,40,142,251,90],[25,55,10,582,741,90],[23,52,10,234,343,90],[23,55,20,523,616,90],[20,50,10,335,428,90],[20,55,10,422,531,90],[10,35,20,181,256,90],[10,40,30,31,170,90],[8,40,40,52,193,90],[8,45,20,719,848,90],[5,35,10,252,375,90],[5,45,10,639,742,90],[2,40,20,357,460,90],[0,40,30,457,544,90],[0,45,20,538,653,90],[35,30,10,236,349,90],[35,32,10,132,269,90],[33,32,20,27,190,90],[33,35,10,16,144,90],[32,30,10,332,439,90],[30,30,10,512,629,90],[30,32,30,417,540,90],[30,35,10,982,1127,90],[28,30,10,601,724,90],[28,35,10,969,1098,90],[26,32,10,783,912,90],[25,30,10,695,816,90],[25,35,10,883,998,90],[44,5,20,255,378,90],[42,10,40,150,293,90],[42,15,10,63,190,90],[40,5,30,359,462,90],[40,15,40,35,140,90],[38,5,30,439,566,90],[38,15,10,607,784,90],[35,5,20,529,662,90],[50,30,10,491,650,90],[50,35,20,235,344,90],[50,40,50,147,242,90],[48,30,10,601,724,90],[48,40,10,50,155,90],[47,35,10,802,899,90],[47,40,10,12,143,90],[45,30,10,712,799,90],[45,35,10,889,996,90],[95,30,30,353,490,90],[95,35,20,260,393,90],[53,30,10,422,533,90],[92,30,10,442,587,90],[53,35,50,323,442,90],[45,65,20,962,1103,90],[90,35,10,175,288,90],[88,30,10,539,678,90],[88,35,20,78,201,90],[87,30,10,636,763,90],[85,25,10,744,845,90],[85,35,30,47,201,90],[75,55,20,344,445,90],[72,55,10,228,375,90],[70,58,20,425,556,90],[68,60,30,527,640,90],[66,55,10,141,270,90],[65,55,20,56,173,90],[65,60,30,614,739,90],[63,58,10,705,834,90],[60,55,10,20,148,90],[60,60,10,809,916,90],[67,85,20,331,478,90],[65,85,40,453,540,90],[65,82,10,260,361,90],[62,80,30,174,261,90],[60,80,10,64,187,90],[60,85,30,531,652,90],[58,75,20,30,139,90],[55,80,10,705,858,90],[55,85,20,608,765,90]]},"C106":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,890,989,90],[45,70,30,816,879,90],[42,66,10,55,156,90],[42,68,10,703,806,90],[42,65,10,15,60,90],[40,69,20,559,764,90],[40,66,20,172,223,90],[38,68,20,250,329,90],[38,70,10,489,650,90],[35,66,10,361,406,90],[35,69,10,450,503,90],[25,85,20,647,726,90],[22,75,30,30,95,90],[22,85,10,571,616,90],[20,80,40,392,421,90],[20,85,40,478,525,90],[18,75,20,105,142,90],[15,75,20,172,261,90],[15,80,10,274,349,90],[30,50,10,10,77,90],[30,52,20,918,961,90],[28,52,20,806,889,90],[28,55,10,739,770,90],[25,50,10,55,154,90],[25,52,40,172,221,90],[25,55,10,612,711,90],[23,52,10,264,313,90],[23,55,20,553,586,90],[20,50,10,365,398,90],[20,55,10,452,501,90],[10,35,20,204,233,90],[10,40,30,31,189,90],[8,40,40,42,203,90],[8,45,20,715,852,90],[5,35,10,251,376,90],[5,45,10,648,733,90],[2,40,20,365,452,90],[0,40,30,474,527,90],[0,45,20,541,650,90],[35,30,10,240,345,90],[35,32,10,123,278,90],[33,32,20,19,225,90],[33,35,10,16,153,90],[32,30,10,338,433,90],[30,30,10,513,628,90],[30,32,30,415,542,90],[30,35,10,872,1127,90],[28,30,10,599,726,90],[28,35,10,917,1126,90],[26,32,10,779,916,90],[25,30,10,695,816,90],[25,35,10,857,1024,90],[44,5,20,221,412,90],[42,10,40,96,347,90],[42,15,10,35,233,90],[40,5,30,347,474,90],[40,15,40,35,172,90],[38,5,30,403,602,90],[38,15,10,521,870,90],[35,5,20,487,704,90],[50,30,10,422,719,90],[50,35,20,217,362,90],[50,40,50,142,247,90],[48,30,10,567,758,90],[48,40,10,34,171,90],[47,35,10,794,907,90],[47,40,10,12,226,90],[45,30,10,716,795,90],[45,35,10,873,1012,90],[95,30,30,266,577,90],[95,35,20,181,472,90],[53,30,10,402,553,90],[92,30,10,345,684,90],[53,35,50,294,471,90],[45,65,20,951,1114,90],[90,35,10,153,310,90],[88,30,10,450,767,90],[88,35,20,50,237,90],[87,30,10,567,832,90],[85,25,10,713,876,90],[85,35,30,47,331,90],[75,55,20,311,478,90],[72,55,10,127,476,90],[70,58,20,349,632,90],[68,60,30,476,691,90],[66,55,10,67,344,90],[65,55,20,25,256,90],[65,60,30,546,807,90],[63,58,10,630,909,90],[60,55,10,20,293,90],[60,60,10,769,956,90],[67,85,20,229,580,90],[65,85,40,442,551,90],[65,82,10,227,394,90],[62,80,30,163,272,90],[60,80,10,36,291,90],[60,85,30,469,714,90],[58,75,20,30,227,90],[55,80,10,595,968,90],[55,85,20,493,880,90]]},"C107":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,850,1030,90],[45,70,30,758,938,90],[42,66,10,16,196,90],[42,68,10,665,845,90],[42,65,10,15,195,90],[40,69,20,572,752,90],[40,66,20,108,288,90],[38,68,20,200,380,90],[38,70,10,480,660,90],[35,66,10,294,474,90],[35,69,10,387,567,90],[25,85,20,597,777,90],[22,75,30,30,210,90],[22,85,10,504,684,90],[20,80,40,317,497,90],[20,85,40,412,592,90],[18,75,20,34,214,90],[15,75,20,127,307,90],[15,80,10,222,402,90],[30,50,10,10,190,90],[30,52,20,850,1030,90],[28,52,20,758,938,90],[28,55,10,665,845,90],[25,50,10,15,195,90],[25,52,40,107,287,90],[25,55,10,572,752,90],[23,52,10,199,379,90],[23,55,20,480,660,90],[20,50,10,292,472,90],[20,55,10,387,567,90],[10,35,20,129,309,90],[10,40,30,31,211,90],[8,40,40,33,213,90],[8,45,20,694,874,90],[5,35,10,224,404,90],[5,45,10,601,781,90],[2,40,20,319,499,90],[0,40,30,411,591,90],[0,45,20,506,686,90],[35,30,10,203,383,90],[35,32,10,111,291,90],[33,32,20,19,199,90],[33,35,10,16,196,90],[32,30,10,296,476,90],[30,30,10,481,661,90],[30,32,30,389,569,90],[30,35,10,947,1127,90],[28,30,10,573,753,90],[28,35,10,944,1124,90],[26,32,10,758,938,90],[25,30,10,666,846,90],[25,35,10,851,1031,90],[44,5,20,227,407,90],[42,10,40,132,312,90],[42,15,10,37,217,90],[40,5,30,321,501,90],[40,15,40,35,215,90],[38,5,30,413,593,90],[38,15,10,606,786,90],[35,5,20,506,686,90],[50,30,10,481,661,90],[50,35,20,200,380,90],[50,40,50,105,285,90],[48,30,10,573,753,90],[48,40,10,13,193,90],[47,35,10,761,941,90],[47,40,10,12,192,90],[45,30,10,666,846,90],[45,35,10,853,1033,90],[95,30,30,332,512,90],[95,35,20,237,417,90],[53,30,10,388,568,90],[92,30,10,425,605,90],[53,35,50,293,473,90],[45,65,20,943,1123,90],[90,35,10,142,322,90],[88,30,10,519,699,90],[88,35,20,50,230,90],[87,30,10,610,790,90],[85,25,10,705,885,90],[85,35,30,47,227,90],[75,55,20,305,485,90],[72,55,10,212,392,90],[70,58,20,401,581,90],[68,60,30,494,674,90],[66,55,10,116,296,90],[65,55,20,25,205,90],[65,60,30,587,767,90],[63,58,10,680,860,90],[60,55,10,20,200,90],[60,60,10,773,953,90],[67,85,20,315,495,90],[65,85,40,407,587,90],[65,82,10,221,401,90],[62,80,30,128,308,90],[60,80,10,36,216,90],[60,85,30,502,682,90],[58,75,20,30,210,90],[55,80,10,692,872,90],[55,85,20,597,777,90]]},"C108":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,830,1049,90],[45,70,30,756,939,90],[42,66,10,16,336,90],[42,68,10,643,866,90],[42,65,10,15,226,90],[40,69,20,499,824,90],[40,66,20,87,308,90],[38,68,20,150,429,90],[38,70,10,429,710,90],[35,66,10,279,488,90],[35,69,10,363,590,90],[25,85,20,547,826,90],[22,75,30,30,280,90],[22,85,10,489,698,90],[20,80,40,318,495,90],[20,85,40,394,609,90],[18,75,20,33,226,90],[15,75,20,68,365,90],[15,80,10,176,447,90],[30,50,10,10,265,90],[30,52,20,836,1043,90],[28,52,20,704,991,90],[28,55,10,664,845,90],[25,50,10,15,333,90],[25,52,40,88,305,90],[25,55,10,502,821,90],[23,52,10,179,398,90],[23,55,20,476,663,90],[20,50,10,288,475,90],[20,55,10,368,585,90],[10,35,20,144,293,90],[10,40,30,31,309,90],[8,40,40,33,313,90],[8,45,20,655,912,90],[5,35,10,191,436,90],[5,45,10,588,793,90],[2,40,20,305,512,90],[0,40,30,414,587,90],[0,45,20,481,710,90],[35,30,10,180,405,90],[35,32,10,63,338,90],[33,32,20,19,345,90],[33,35,10,16,273,90],[32,30,10,278,493,90],[30,30,10,453,688,90],[30,32,30,355,602,90],[30,35,10,837,1127,90],[28,30,10,539,786,90],[28,35,10,867,1126,90],[26,32,10,719,976,90],[25,30,10,635,876,90],[25,35,10,825,1056,90],[44,5,20,193,440,90],[42,10,40,78,365,90],[42,15,10,35,287,90],[40,5,30,308,513,90],[40,15,40,35,246,90],[38,5,30,376,629,90],[38,15,10,519,872,90],[35,5,20,463,728,90],[50,30,10,412,729,90],[50,35,20,181,398,90],[50,40,50,100,289,90],[48,30,10,539,786,90],[48,40,10,12,223,90],[47,35,10,753,948,90],[47,40,10,12,275,90],[45,30,10,669,842,90],[45,35,10,836,1049,90],[95,30,30,284,559,90],[95,35,20,194,459,90],[53,30,10,367,588,90],[92,30,10,370,659,90],[53,35,50,263,502,90],[45,65,20,847,1130,90],[90,35,10,119,344,90],[88,30,10,469,748,90],[88,35,20,50,295,90],[87,30,10,573,826,90],[85,25,10,694,895,90],[85,35,30,47,356,90],[75,55,20,293,496,90],[72,55,10,154,449,90],[70,58,20,360,621,90],[68,60,30,470,697,90],[66,55,10,76,335,90],[65,55,20,25,260,90],[65,60,30,551,802,90],[63,58,10,640,899,90],[60,55,10,20,276,90],[60,60,10,756,969,90],[67,85,20,257,552,90],[65,85,40,409,584,90],[65,82,10,209,412,90],[62,80,30,130,305,90],[60,80,10,36,283,90],[60,85,30,470,713,90],[58,75,20,30,248,90],[55,80,10,628,935,90],[55,85,20,530,843,90]]},"C109":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,1236,0],[45,68,10,760,1120,90],[45,70,30,668,1028,90],[42,66,10,16,376,90],[42,68,10,575,935,90],[42,65,10,15,375,90],[40,69,20,482,842,90],[40,66,20,18,378,90],[38,68,20,110,470,90],[38,70,10,390,750,90],[35,66,10,204,564,90],[35,69,10,297,657,90],[25,85,20,507,867,90],[22,75,30,30,390,90],[22,85,10,414,774,90],[20,80,40,227,587,90],[20,85,40,322,682,90],[18,75,20,33,393,90],[15,75,20,37,397,90],[15,80,10,132,492,90],[30,50,10,10,370,90],[30,52,20,760,1120,90],[28,52,20,668,1028,90],[28,55,10,575,935,90],[25,50,10,15,375,90],[25,52,40,17,377,90],[25,55,10,482,842,90],[23,52,10,109,469,90],[23,55,20,390,750,90],[20,50,10,202,562,90],[20,55,10,297,657,90],[10,35,20,39,399,90],[10,40,30,31,391,90],[8,40,40,33,393,90],[8,45,20,604,964,90],[5,35,10,134,494,90],[5,45,10,511,871,90],[2,40,20,229,589,90],[0,40,30,321,681,90],[0,45,20,416,776,90],[35,30,10,113,473,90],[35,32,10,21,381,90],[33,32,20,19,379,90],[33,35,10,16,376,90],[32,30,10,206,566,90],[30,30,10,391,751,90],[30,32,30,299,659,90],[30,35,10,767,1127,90],[28,30,10,483,843,90],[28,35,10,766,1126,90],[26,32,10,668,1028,90],[25,30,10,576,936,90],[25,35,10,761,1121,90],[44,5,20,137,497,90],[42,10,40,42,402,90],[42,15,10,35,395,90],[40,5,30,231,591,90],[40,15,40,35,395,90],[38,5,30,323,683,90],[38,15,10,516,876,90],[35,5,20,416,776,90],[50,30,10,391,751,90],[50,35,20,110,470,90],[50,40,50,15,375,90],[48,30,10,483,843,90],[48,40,10,12,372,90],[47,35,10,671,1031,90],[47,40,10,12,372,90],[45,30,10,576,936,90],[45,35,10,763,1123,90],[95,30,30,242,602,90],[95,35,20,147,507,90],[53,30,10,298,658,90],[92,30,10,335,695,90],[53,35,50,203,563,90],[45,65,20,770,1130,90],[90,35,10,52,412,90],[88,30,10,429,789,90],[88,35,20,50,410,90],[87,30,10,520,880,90],[85,25,10,615,975,90],[85,35,30,47,407,90],[75,55,20,215,575,90],[72,55,10,122,482,90],[70,58,20,311,671,90],[68,60,30,404,764,90],[66,55,10,26,386,90],[65,55,20,25,385,90],[65,60,30,497,857,90],[63,58,10,590,950,90],[60,55,10,20,380,90],[60,60,10,683,1043,90],[67,85,20,225,585,90],[65,85,40,317,677,90],[65,82,10,131,491,90],[62,80,30,38,398,90],[60,80,10,36,396,90],[60,85,30,412,772,90],[58,75,20,30,390,90],[55,80,10,602,962,90],[55,85,20,507,867,90]]},"C201":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,311,471,90],[45,70,30,213,373,90],[62,69,10,1167,1327,90],[60,66,10,1261,1421,90],[42,65,10,25,185,90],[16,42,20,497,657,90],[58,70,20,1073,1233,90],[34,60,20,2887,3047,90],[28,70,10,2601,2761,90],[35,66,10,2791,2951,90],[35,69,10,2698,2858,90],[25,85,20,2119,2279,90],[22,75,30,2405,2565,90],[22,85,10,2026,2186,90],[20,80,40,2216,2376,90],[20,85,40,1934,2094,90],[18,75,20,2311,2471,90],[15,75,20,1742,1902,90],[15,80,10,1837,1997,90],[30,50,10,10,170,90],[30,56,20,2983,3143,90],[28,52,20,22,182,90],[14,66,10,1643,1803,90],[25,50,10,116,276,90],[22,66,40,2504,2664,90],[8,62,10,1545,1705,90],[23,52,10,209,369,90],[4,55,20,1447,1607,90],[20,50,10,398,558,90],[20,55,10,303,463,90],[10,35,20,781,941,90],[10,40,30,593,753,90],[8,40,40,685,845,90],[8,45,20,1346,1506,90],[5,35,10,876,1036,90],[5,45,10,1253,1413,90],[2,40,20,971,1131,90],[0,40,30,1063,1223,90],[0,45,20,1158,1318,90],[36,18,10,1819,1979,90],[35,32,10,2758,2918,90],[33,32,20,2666,2826,90],[33,35,10,2573,2733,90],[32,20,10,1913,2073,90],[30,30,10,2105,2265,90],[34,25,30,2009,2169,90],[30,35,10,2480,2640,90],[36,40,10,2856,3016,90],[48,20,10,967,1127,90],[26,32,10,2292,2452,90],[25,30,10,2200,2360,90],[25,35,10,2385,2545,90],[44,5,20,1256,1416,90],[42,10,40,1160,1320,90],[42,15,10,1065,1225,90],[40,5,30,1350,1510,90],[38,15,40,1725,1885,90],[38,5,30,1442,1602,90],[38,10,10,1630,1790,90],[35,5,20,1535,1695,90],[50,30,10,401,561,90],[50,35,20,120,280,90],[50,40,50,25,185,90],[48,30,10,493,653,90],[44,25,10,871,1031,90],[47,35,10,588,748,90],[47,40,10,12,172,90],[42,30,10,776,936,90],[45,35,10,680,840,90],[95,30,30,2321,2481,90],[95,35,20,2226,2386,90],[53,30,10,308,468,90],[92,30,10,2414,2574,90],[53,35,50,213,373,90],[45,65,20,118,278,90],[90,35,10,2131,2291,90],[72,45,10,2900,3060,90],[78,40,20,2802,2962,90],[87,30,10,2608,2768,90],[85,25,10,2513,2673,90],[85,35,30,2703,2863,90],[75,55,20,1925,2085,90],[72,55,10,1832,1992,90],[70,58,20,1641,1801,90],[86,46,30,2029,2189,90],[66,55,10,1736,1896,90],[64,46,20,3097,3257,90],[65,60,30,1546,1706,90],[56,64,10,1355,1515,90],[60,55,10,3119,3279,90],[60,60,10,1451,1611,90],[67,85,20,694,854,90],[42,58,40,8,168,90],[65,82,10,788,948,90],[62,80,30,881,1041,90],[62,40,10,3001,3161,90],[60,85,30,597,757,90],[58,75,20,978,1138,90],[55,80,10,407,567,90],[55,85,20,502,662,90]]},"C202":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,0,3272,90],[45,70,30,0,3279,90],[62,69,10,0,3270,90],[60,66,10,1261,1421,90],[42,65,10,0,3284,90],[16,42,20,497,657,90],[58,70,20,0,3273,90],[34,60,20,2887,3047,90],[28,70,10,2601,2761,90],[35,66,10,2791,2951,90],[35,69,10,2698,2858,90],[25,85,20,0,3261,90],[22,75,30,2405,2565,90],[22,85,10,2026,2186,90],[20,80,40,2216,2376,90],[20,85,40,1934,2094,90],[18,75,20,2311,2471,90],[15,75,20,1742,1902,90],[15,80,10,1837,1997,90],[30,50,10,10,170,90],[30,56,20,0,3288,90],[28,52,20,22,182,90],[14,66,10,1643,1803,90],[25,50,10,116,276,90],[22,66,40,2504,2664,90],[8,62,10,0,3265,90],[23,52,10,209,369,90],[4,55,20,1447,1607,90],[20,50,10,398,558,90],[20,55,10,303,463,90],[10,35,20,0,3266,90],[10,40,30,593,753,90],[8,40,40,685,845,90],[8,45,20,0,3267,90],[5,35,10,876,1036,90],[5,45,10,1253,1413,90],[2,40,20,0,3260,90],[0,40,30,1063,1223,90],[0,45,20,1158,1318,90],[36,18,10,1819,1979,90],[35,32,10,2758,2918,90],[33,32,20,2666,2826,90],[33,35,10,2573,2733,90],[32,20,10,1913,2073,90],[30,30,10,2105,2265,90],[34,25,30,2009,2169,90],[30,35,10,2480,2640,90],[36,40,10,0,3289,90],[48,20,10,967,1127,90],[26,32,10,0,3277,90],[25,30,10,2200,2360,90],[25,35,10,0,3278,90],[44,5,20,1256,1416,90],[42,10,40,1160,1320,90],[42,15,10,1065,1225,90],[40,5,30,1350,1510,90],[38,15,40,1725,1885,90],[38,5,30,1442,1602,90],[38,10,10,0,3259,90],[35,5,20,1535,1695,90],[50,30,10,401,561,90],[50,35,20,120,280,90],[50,40,50,25,185,90],[48,30,10,493,653,90],[44,25,10,871,1031,90],[47,35,10,588,748,90],[47,40,10,12,172,90],[42,30,10,776,936,90],[45,35,10,680,840,90],[95,30,30,2321,2481,90],[95,35,20,2226,2386,90],[53,30,10,0,3276,90],[92,30,10,2414,2574,90],[53,35,50,213,373,90],[45,65,20,0,3284,90],[90,35,10,2131,2291,90],[72,45,10,2900,3060,90],[78,40,20,2802,2962,90],[87,30,10,2608,2768,90],[85,25,10,2513,2673,90],[85,35,30,2703,2863,90],[75,55,20,0,3264,90],[72,55,10,0,3267,90],[70,58,20,1641,1801,90],[86,46,30,0,3253,90],[66,55,10,1736,1896,90],[64,46,20,3097,3257,90],[65,60,30,1546,1706,90],[56,64,10,1355,1515,90],[60,55,10,3119,3279,90],[60,60,10,0,3277,90],[67,85,20,694,854,90],[42,58,40,8,168,90],[65,82,10,0,3259,90],[62,80,30,0,3262,90],[62,40,10,0,3275,90],[60,85,30,597,757,90],[58,75,20,0,3269,90],[55,80,10,407,567,90],[55,85,20,502,662,90]]},"C203":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,0,3272,90],[45,70,30,0,3279,90],[62,69,10,0,3270,90],[60,66,10,1261,1421,90],[42,65,10,0,3284,90],[16,42,20,497,657,90],[58,70,20,0,3273,90],[34,60,20,2887,3047,90],[28,70,10,2601,2761,90],[35,66,10,2791,2951,90],[35,69,10,2698,2858,90],[25,85,20,0,3261,90],[22,75,30,2405,2565,90],[22,85,10,0,3260,90],[20,80,40,2216,2376,90],[20,85,40,0,3259,90],[18,75,20,2311,2471,90],[15,75,20,0,3264,90],[15,80,10,0,3260,90],[30,50,10,0,3290,90],[30,56,20,0,3288,90],[28,52,20,22,182,90],[14,66,10,1643,1803,90],[25,50,10,0,3285,90],[22,66,40,2504,2664,90],[8,62,10,0,3265,90],[23,52,10,209,369,90],[4,55,20,0,3263,90],[20,50,10,0,3280,90],[20,55,10,303,463,90],[10,35,20,0,3266,90],[10,40,30,0,3268,90],[8,40,40,685,845,90],[8,45,20,0,3267,90],[5,35,10,876,1036,90],[5,45,10,1253,1413,90],[2,40,20,0,3260,90],[0,40,30,1063,1223,90],[0,45,20,1158,1318,90],[36,18,10,1819,1979,90],[35,32,10,2758,2918,90],[33,32,20,2666,2826,90],[33,35,10,0,3283,90],[32,20,10,1913,2073,90],[30,30,10,2105,2265,90],[34,25,30,0,3274,90],[30,35,10,0,3281,90],[36,40,10,0,3289,90],[48,20,10,967,1127,90],[26,32,10,0,3277,90],[25,30,10,0,3275,90],[25,35,10,0,3278,90],[44,5,20,1256,1416,90],[42,10,40,0,3259,90],[42,15,10,1065,1225,90],[40,5,30,1350,1510,90],[38,15,40,0,3264,90],[38,5,30,1442,1602,90],[38,10,10,0,3259,90],[35,5,20,0,3254,90],[50,30,10,0,3277,90],[50,35,20,120,280,90],[50,40,50,0,3285,90],[48,30,10,493,653,90],[44,25,10,871,1031,90],[47,35,10,588,748,90],[47,40,10,12,172,90],[42,30,10,776,936,90],[45,35,10,680,840,90],[95,30,30,2321,2481,90],[95,35,20,0,3242,90],[53,30,10,0,3276,90],[92,30,10,0,3244,90],[53,35,50,213,373,90],[45,65,20,0,3284,90],[90,35,10,2131,2291,90],[72,45,10,2900,3060,90],[78,40,20,2802,2962,90],[87,30,10,2608,2768,90],[85,25,10,2513,2673,90],[85,35,30,0,3252,90],[75,55,20,0,3264,90],[72,55,10,0,3267,90],[70,58,20,1641,1801,90],[86,46,30,0,3253,90],[66,55,10,0,3273,90],[64,46,20,3097,3257,90],[65,60,30,1546,1706,90],[56,64,10,0,3278,90],[60,55,10,0,3279,90],[60,60,10,0,3277,90],[67,85,20,694,854,90],[42,58,40,8,168,90],[65,82,10,0,3259,90],[62,80,30,0,3262,90],[62,40,10,0,3275,90],[60,85,30,0,3259,90],[58,75,20,0,3269,90],[55,80,10,407,567,90],[55,85,20,502,662,90]]},"C204":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,0,3272,90],[45,70,30,0,3279,90],[62,69,10,0,3270,90],[60,66,10,1261,1421,90],[42,65,10,0,3284,90],[16,42,20,0,3274,90],[58,70,20,0,3273,90],[34,60,20,2887,3047,90],[28,70,10,2601,2761,90],[35,66,10,0,3283,90],[35,69,10,2698,2858,90],[25,85,20,0,3261,90],[22,75,30,2405,2565,90],[22,85,10,0,3260,90],[20,80,40,2216,2376,90],[20,85,40,0,3259,90],[18,75,20,0,3266,90],[15,75,20,0,3264,90],[15,80,10,0,3260,90],[30,50,10,0,3290,90],[30,56,20,0,3288,90],[28,52,20,0,3287,90],[14,66,10,1643,1803,90],[25,50,10,0,3285,90],[22,66,40,2504,2664,90],[8,62,10,0,3265,90],[23,52,10,0,3282,90],[4,55,20,0,3263,90],[20,50,10,0,3280,90],[20,55,10,0,3279,90],[10,35,20,0,3266,90],[10,40,30,0,3268,90],[8,40,40,0,3266,90],[8,45,20,0,3267,90],[5,35,10,0,3261,90],[5,45,10,0,3264,90],[2,40,20,0,3260,90],[0,40,30,1063,1223,90],[0,45,20,0,3259,90],[36,18,10,0,3267,90],[35,32,10,0,3281,90],[33,32,20,0,3280,90],[33,35,10,0,3283,90],[32,20,10,1913,2073,90],[30,30,10,0,3277,90],[34,25,30,0,3274,90],[30,35,10,0,3281,90],[36,40,10,0,3289,90],[48,20,10,0,3268,90],[26,32,10,0,3277,90],[25,30,10,0,3275,90],[25,35,10,0,3278,90],[44,5,20,1256,1416,90],[42,10,40,0,3259,90],[42,15,10,1065,1225,90],[40,5,30,0,3255,90],[38,15,40,0,3264,90],[38,5,30,1442,1602,90],[38,10,10,0,3259,90],[35,5,20,0,3254,90],[50,30,10,0,3277,90],[50,35,20,120,280,90],[50,40,50,0,3285,90],[48,30,10,0,3278,90],[44,25,10,0,3274,90],[47,35,10,0,3283,90],[47,40,10,12,172,90],[42,30,10,0,3279,90],[45,35,10,680,840,90],[95,30,30,0,3241,90],[95,35,20,0,3242,90],[53,30,10,0,3276,90],[92,30,10,0,3244,90],[53,35,50,213,373,90],[45,65,20,0,3284,90],[90,35,10,2131,2291,90],[72,45,10,2900,3060,90],[78,40,20,0,3260,90],[87,30,10,2608,2768,90],[85,25,10,0,3248,90],[85,35,30,0,3252,90],[75,55,20,0,3264,90],[72,55,10,0,3267,90],[70,58,20,1641,1801,90],[86,46,30,0,3253,90],[66,55,10,0,3273,90],[64,46,20,3097,3257,90],[65,60,30,0,3273,90],[56,64,10,0,3278,90],[60,55,10,0,3279,90],[60,60,10,0,3277,90],[67,85,20,694,854,90],[42,58,40,0,3291,90],[65,82,10,0,3259,90],[62,80,30,0,3262,90],[62,40,10,0,3275,90],[60,85,30,0,3259,90],[58,75,20,0,3269,90],[55,80,10,407,567,90],[55,85,20,502,662,90]]},"C205":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,231,551,90],[45,70,30,133,453,90],[62,69,10,1087,1407,90],[60,66,10,1181,1501,90],[42,65,10,15,335,90],[16,42,20,417,737,90],[58,70,20,993,1313,90],[34,60,20,2807,3127,90],[28,70,10,2521,2841,90],[35,66,10,2711,3031,90],[35,69,10,2618,2938,90],[25,85,20,2039,2359,90],[22,75,30,2325,2645,90],[22,85,10,1946,2266,90],[20,80,40,2136,2456,90],[20,85,40,1854,2174,90],[18,75,20,2231,2551,90],[15,75,20,1662,1982,90],[15,80,10,1757,2077,90],[30,50,10,10,330,90],[30,56,20,2903,3223,90],[28,52,20,12,332,90],[14,66,10,1563,1883,90],[25,50,10,36,356,90],[22,66,40,2424,2744,90],[8,62,10,1465,1785,90],[23,52,10,129,449,90],[4,55,20,1367,1687,90],[20,50,10,318,638,90],[20,55,10,223,543,90],[10,35,20,701,1021,90],[10,40,30,513,833,90],[8,40,40,605,925,90],[8,45,20,1266,1586,90],[5,35,10,796,1116,90],[5,45,10,1173,1493,90],[2,40,20,891,1211,90],[0,40,30,983,1303,90],[0,45,20,1078,1398,90],[36,18,10,1739,2059,90],[35,32,10,2678,2998,90],[33,32,20,2586,2906,90],[33,35,10,2493,2813,90],[32,20,10,1833,2153,90],[30,30,10,2025,2345,90],[34,25,30,1929,2249,90],[30,35,10,2400,2720,90],[36,40,10,2776,3096,90],[48,20,10,887,1207,90],[26,32,10,2212,2532,90],[25,30,10,2120,2440,90],[25,35,10,2305,2625,90],[44,5,20,1176,1496,90],[42,10,40,1080,1400,90],[42,15,10,985,1305,90],[40,5,30,1270,1590,90],[38,15,40,1645,1965,90],[38,5,30,1362,1682,90],[38,10,10,1550,1870,90],[35,5,20,1455,1775,90],[50,30,10,321,641,90],[50,35,20,40,360,90],[50,40,50,14,334,90],[48,30,10,413,733,90],[44,25,10,791,1111,90],[47,35,10,508,828,90],[47,40,10,12,332,90],[42,30,10,696,1016,90],[45,35,10,600,920,90],[95,30,30,2241,2561,90],[95,35,20,2146,2466,90],[53,30,10,228,548,90],[92,30,10,2334,2654,90],[53,35,50,133,453,90],[45,65,20,38,358,90],[90,35,10,2051,2371,90],[72,45,10,2820,3140,90],[78,40,20,2722,3042,90],[87,30,10,2528,2848,90],[85,25,10,2433,2753,90],[85,35,30,2623,2943,90],[75,55,20,1845,2165,90],[72,55,10,1752,2072,90],[70,58,20,1561,1881,90],[86,46,30,1949,2269,90],[66,55,10,1656,1976,90],[64,46,20,2955,3275,90],[65,60,30,1466,1786,90],[56,64,10,1275,1595,90],[60,55,10,2959,3279,90],[60,60,10,1371,1691,90],[67,85,20,614,934,90],[42,58,40,8,328,90],[65,82,10,708,1028,90],[62,80,30,801,1121,90],[62,40,10,2921,3241,90],[60,85,30,517,837,90],[58,75,20,898,1218,90],[55,80,10,327,647,90],[55,85,20,422,742,90]]},"C206":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,213,568,90],[45,70,30,22,563,90],[62,69,10,1030,1463,90],[60,66,10,1154,1527,90],[42,65,10,15,402,90],[16,42,20,331,822,90],[58,70,20,965,1340,90],[34,60,20,2653,3280,90],[28,70,10,2385,2976,90],[35,66,10,2628,3113,90],[35,69,10,2603,2952,90],[25,85,20,1985,2412,90],[22,75,30,2310,2659,90],[22,85,10,1846,2365,90],[20,80,40,2077,2514,90],[20,85,40,1763,2264,90],[18,75,20,2143,2638,90],[15,75,20,1560,2083,90],[15,80,10,1689,2144,90],[30,50,10,10,645,90],[30,56,20,2675,3288,90],[28,52,20,12,505,90],[14,66,10,1519,1926,90],[25,50,10,23,368,90],[22,66,40,2380,2787,90],[8,62,10,1330,1919,90],[23,52,10,93,484,90],[4,55,20,1268,1785,90],[20,50,10,168,787,90],[20,55,10,170,595,90],[10,35,20,585,1136,90],[10,40,30,448,897,90],[8,40,40,499,1030,90],[8,45,20,1190,1661,90],[5,35,10,666,1245,90],[5,45,10,1076,1589,90],[2,40,20,772,1329,90],[0,40,30,890,1395,90],[0,45,20,1036,1439,90],[36,18,10,1612,2185,90],[35,32,10,2599,3076,90],[33,32,20,2529,2962,90],[33,35,10,2463,2842,90],[32,20,10,1745,2240,90],[30,30,10,1932,2437,90],[34,25,30,1884,2293,90],[30,35,10,2348,2771,90],[36,40,10,2715,3156,90],[48,20,10,812,1281,90],[26,32,10,2018,2725,90],[25,30,10,2015,2544,90],[25,35,10,2201,2728,90],[44,5,20,1078,1593,90],[42,10,40,998,1481,90],[42,15,10,897,1392,90],[40,5,30,1199,1660,90],[38,15,40,1552,2057,90],[38,5,30,1263,1780,90],[38,10,10,1498,1921,90],[35,5,20,1325,1904,90],[50,30,10,223,738,90],[50,35,20,18,474,90],[50,40,50,14,360,90],[48,30,10,246,899,90],[44,25,10,704,1197,90],[47,35,10,393,942,90],[47,40,10,12,424,90],[42,30,10,641,1070,90],[45,35,10,534,985,90],[95,30,30,2119,2682,90],[95,35,20,2079,2532,90],[53,30,10,131,644,90],[92,30,10,2169,2818,90],[53,35,50,87,498,90],[45,65,20,15,607,90],[90,35,10,2002,2419,90],[72,45,10,2701,3258,90],[78,40,20,2599,3164,90],[87,30,10,2505,2870,90],[85,25,10,2369,2816,90],[85,35,30,2563,3002,90],[75,55,20,1783,2226,90],[72,55,10,1591,2232,90],[70,58,20,1513,1928,90],[86,46,30,1829,2388,90],[66,55,10,1604,2027,90],[64,46,20,2976,3275,90],[65,60,30,1338,1913,90],[56,64,10,1116,1753,90],[60,55,10,2789,3279,90],[60,60,10,1349,1712,90],[67,85,20,518,1029,90],[42,58,40,8,509,90],[65,82,10,549,1186,90],[62,80,30,744,1177,90],[62,40,10,2713,3275,90],[60,85,30,397,956,90],[58,75,20,839,1276,90],[55,80,10,272,701,90],[55,85,20,373,790,90]]},"C207":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,302,479,90],[45,70,30,157,428,90],[62,69,10,1138,1355,90],[60,66,10,1247,1434,90],[42,65,10,15,208,90],[16,42,20,209,944,90],[58,70,20,1059,1246,90],[34,60,20,2035,3288,90],[28,70,10,2090,3271,90],[35,66,10,2311,3283,90],[35,69,10,2428,3127,90],[25,85,20,1772,2625,90],[22,75,30,2135,2834,90],[22,85,10,1586,2625,90],[20,80,40,1858,2733,90],[20,85,40,1512,2515,90],[18,75,20,1895,2886,90],[15,75,20,1299,2344,90],[15,80,10,1461,2372,90],[30,50,10,10,963,90],[30,56,20,2062,3288,90],[28,52,20,12,752,90],[14,66,10,1316,2129,90],[25,50,10,15,532,90],[22,66,40,2177,2990,90],[8,62,10,1036,2213,90],[23,52,10,17,602,90],[4,55,20,1010,2043,90],[20,50,10,20,948,90],[20,55,10,63,702,90],[10,35,20,309,1412,90],[10,40,30,336,1009,90],[8,40,40,234,1295,90],[8,45,20,954,1897,90],[5,35,10,377,1534,90],[5,45,10,819,1846,90],[2,40,20,494,1607,90],[0,40,30,637,1648,90],[0,45,20,834,1641,90],[36,18,10,1468,2329,90],[35,32,10,2480,3195,90],[33,32,20,2421,3070,90],[33,35,10,2368,2937,90],[32,20,10,1621,2364,90],[30,30,10,1805,2564,90],[34,25,30,1782,2395,90],[30,35,10,2242,2877,90],[36,40,10,2605,3266,90],[48,20,10,812,1281,90],[26,32,10,1842,2901,90],[25,30,10,1883,2676,90],[25,35,10,2070,2859,90],[44,5,20,1078,1593,90],[42,10,40,998,1481,90],[42,15,10,897,1392,90],[40,5,30,1083,1776,90],[38,15,40,1426,2183,90],[38,5,30,1133,1910,90],[38,10,10,1392,2027,90],[35,5,20,1180,2049,90],[50,30,10,223,738,90],[50,35,20,18,474,90],[50,40,50,14,360,90],[48,30,10,246,899,90],[44,25,10,704,1197,90],[47,35,10,393,942,90],[47,40,10,12,424,90],[42,30,10,641,1070,90],[45,35,10,534,985,90],[95,30,30,2119,2682,90],[95,35,20,2192,2419,90],[53,30,10,131,644,90],[92,30,10,2169,2818,90],[53,35,50,87,498,90],[45,65,20,49,346,90],[90,35,10,2106,2315,90],[72,45,10,2701,3258,90],[78,40,20,2599,3164,90],[87,30,10,2505,2870,90],[85,25,10,2369,2816,90],[85,35,30,2563,3002,90],[75,55,20,1894,2115,90],[72,55,10,1751,2072,90],[70,58,20,1617,1824,90],[86,46,30,1969,2248,90],[66,55,10,1710,1921,90],[64,46,20,2976,3275,90],[65,60,30,1482,1769,90],[56,64,10,1275,1594,90],[60,55,10,2789,3279,90],[60,60,10,1440,1621,90],[67,85,20,646,901,90],[42,58,40,8,258,90],[65,82,10,708,1027,90],[62,80,30,852,1069,90],[62,40,10,2713,3275,90],[60,85,30,537,816,90],[58,75,20,948,1167,90],[55,80,10,379,594,90],[55,85,20,477,686,90]]},"C208":{"vehicles":25,"capacity":700,"nodes":[[40,50,0,0,3390,0],[52,75,10,71,711,90],[45,70,30,20,660,90],[62,69,10,927,1567,90],[60,66,10,1021,1661,90],[42,65,10,15,655,90],[16,42,20,257,897,90],[58,70,20,833,1473,90],[34,60,20,2647,3287,90],[28,70,10,2361,3001,90],[35,66,10,2551,3191,90],[35,69,10,2458,3098,90],[25,85,20,1879,2519,90],[22,75,30,2165,2805,90],[22,85,10,1786,2426,90],[20,80,40,1976,2616,90],[20,85,40,1694,2334,90],[18,75,20,2071,2711,90],[15,75,20,1502,2142,90],[15,80,10,1597,2237,90],[30,50,10,10,650,90],[30,56,20,2648,3288,90],[28,52,20,12,652,90],[14,66,10,1403,2043,90],[25,50,10,15,655,90],[22,66,40,2264,2904,90],[8,62,10,1305,1945,90],[23,52,10,17,657,90],[4,55,20,1207,1847,90],[20,50,10,158,798,90],[20,55,10,63,703,90],[10,35,20,541,1181,90],[10,40,30,353,993,90],[8,40,40,445,1085,90],[8,45,20,1106,1746,90],[5,35,10,636,1276,90],[5,45,10,1013,1653,90],[2,40,20,731,1371,90],[0,40,30,823,1463,90],[0,45,20,918,1558,90],[36,18,10,1579,2219,90],[35,32,10,2518,3158,90],[33,32,20,2426,3066,90],[33,35,10,2333,2973,90],[32,20,10,1673,2313,90],[30,30,10,1865,2505,90],[34,25,30,1769,2409,90],[30,35,10,2240,2880,90],[36,40,10,2616,3256,90],[48,20,10,727,1367,90],[26,32,10,2052,2692,90],[25,30,10,1960,2600,90],[25,35,10,2145,2785,90],[44,5,20,1016,1656,90],[42,10,40,920,1560,90],[42,15,10,825,1465,90],[40,5,30,1110,1750,90],[38,15,40,1485,2125,90],[38,5,30,1202,1842,90],[38,10,10,1390,2030,90],[35,5,20,1295,1935,90],[50,30,10,161,801,90],[50,35,20,18,658,90],[50,40,50,14,654,90],[48,30,10,253,893,90],[44,25,10,631,1271,90],[47,35,10,348,988,90],[47,40,10,12,652,90],[42,30,10,536,1176,90],[45,35,10,440,1080,90],[95,30,30,2081,2721,90],[95,35,20,1986,2626,90],[53,30,10,68,708,90],[92,30,10,2174,2814,90],[53,35,50,19,659,90],[45,65,20,15,655,90],[90,35,10,1891,2531,90],[72,45,10,2627,3267,90],[78,40,20,2562,3202,90],[87,30,10,2368,3008,90],[85,25,10,2273,2913,90],[85,35,30,2463,3103,90],[75,55,20,1685,2325,90],[72,55,10,1592,2232,90],[70,58,20,1401,2041,90],[86,46,30,1789,2429,90],[66,55,10,1496,2136,90],[64,46,20,2635,3275,90],[65,60,30,1306,1946,90],[56,64,10,1115,1755,90],[60,55,10,2639,3279,90],[60,60,10,1211,1851,90],[67,85,20,454,1094,90],[42,58,40,8,648,90],[65,82,10,548,1188,90],[62,80,30,641,1281,90],[62,40,10,2635,3275,90],[60,85,30,357,997,90],[58,75,20,738,1378,90],[55,80,10,167,807,90],[55,85,20,262,902,90]]},"R101":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,161,171,10],[35,17,7,50,60,10],[55,45,13,116,126,10],[55,20,19,149,159,10],[15,30,26,34,44,10],[25,30,3,99,109,10],[20,50,5,81,91,10],[10,43,9,95,105,10],[55,60,16,97,107,10],[30,60,16,124,134,10],[20,65,12,67,77,10],[50,35,19,63,73,10],[30,25,23,159,169,10],[15,10,20,32,42,10],[30,5,8,61,71,10],[10,20,19,75,85,10],[5,30,2,157,167,10],[20,40,12,87,97,10],[15,60,17,76,86,10],[45,65,9,126,136,10],[45,20,11,62,72,10],[45,10,18,97,107,10],[55,5,29,68,78,10],[65,35,3,153,163,10],[65,20,6,172,182,10],[45,30,17,132,142,10],[35,40,16,37,47,10],[41,37,16,39,49,10],[64,42,9,63,73,10],[40,60,21,71,81,10],[31,52,27,50,60,10],[35,69,23,141,151,10],[53,52,11,37,47,10],[65,55,14,117,127,10],[63,65,8,143,153,10],[2,60,5,41,51,10],[20,20,8,134,144,10],[5,5,16,83,93,10],[60,12,31,44,54,10],[40,25,9,85,95,10],[42,7,5,97,107,10],[24,12,5,31,41,10],[23,3,7,132,142,10],[11,14,18,69,79,10],[6,38,16,32,42,10],[2,48,1,117,127,10],[8,56,27,51,61,10],[13,52,36,165,175,10],[6,68,30,108,118,10],[47,47,13,124,134,10],[49,58,10,88,98,10],[27,43,9,52,62,10],[37,31,14,95,105,10],[57,29,18,140,150,10],[63,23,2,136,146,10],[53,12,6,130,140,10],[32,12,7,101,111,10],[36,26,18,200,210,10],[21,24,28,18,28,10],[17,34,3,162,172,10],[12,24,13,76,86,10],[24,58,19,58,68,10],[27,69,10,34,44,10],[15,77,9,73,83,10],[62,77,20,51,61,10],[49,73,25,127,137,10],[67,5,25,83,93,10],[56,39,36,142,152,10],[37,47,6,50,60,10],[37,56,5,182,192,10],[57,68,15,77,87,10],[47,16,25,35,45,10],[44,17,9,78,88,10],[46,13,8,149,159,10],[49,11,18,69,79,10],[49,42,13,73,83,10],[53,43,14,179,189,10],[61,52,3,96,106,10],[57,48,23,92,102,10],[56,37,6,182,192,10],[55,54,26,94,104,10],[15,47,16,55,65,10],[14,37,11,44,54,10],[11,31,7,101,111,10],[16,22,41,91,101,10],[4,18,35,94,104,10],[28,18,26,93,103,10],[26,52,9,74,84,10],[26,35,15,176,186,10],[31,67,3,95,105,10],[15,19,1,160,170,10],[22,22,2,18,28,10],[18,24,22,188,198,10],[26,27,27,100,110,10],[25,24,20,39,49,10],[22,27,11,135,145,10],[25,21,12,133,143,10],[19,21,10,58,68,10],[20,26,9,83,93,10],[18,18,17,185,195,10]]},"R102":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,0,204,10],[35,17,7,0,202,10],[55,45,13,0,197,10],[55,20,19,149,159,10],[15,30,26,0,199,10],[25,30,3,99,109,10],[20,50,5,0,198,10],[10,43,9,95,105,10],[55,60,16,97,107,10],[30,60,16,124,134,10],[20,65,12,67,77,10],[50,35,19,0,205,10],[30,25,23,159,169,10],[15,10,20,32,42,10],[30,5,8,61,71,10],[10,20,19,75,85,10],[5,30,2,157,167,10],[20,40,12,87,97,10],[15,60,17,76,86,10],[45,65,9,126,136,10],[45,20,11,0,201,10],[45,10,18,97,107,10],[55,5,29,68,78,10],[65,35,3,153,163,10],[65,20,6,172,182,10],[45,30,17,0,208,10],[35,40,16,37,47,10],[41,37,16,39,49,10],[64,42,9,63,73,10],[40,60,21,71,81,10],[31,52,27,0,202,10],[35,69,23,141,151,10],[53,52,11,37,47,10],[65,55,14,0,183,10],[63,65,8,143,153,10],[2,60,5,41,51,10],[20,20,8,0,198,10],[5,5,16,83,93,10],[60,12,31,44,54,10],[40,25,9,85,95,10],[42,7,5,97,107,10],[24,12,5,31,41,10],[23,3,7,132,142,10],[11,14,18,69,79,10],[6,38,16,32,42,10],[2,48,1,117,127,10],[8,56,27,51,61,10],[13,52,36,0,192,10],[6,68,30,108,118,10],[47,47,13,0,203,10],[49,58,10,88,98,10],[27,43,9,0,208,10],[37,31,14,95,105,10],[57,29,18,140,150,10],[63,23,2,136,146,10],[53,12,6,130,140,10],[32,12,7,101,111,10],[36,26,18,200,210,10],[21,24,28,0,202,10],[17,34,3,162,172,10],[12,24,13,76,86,10],[24,58,19,58,68,10],[27,69,10,34,44,10],[15,77,9,73,83,10],[62,77,20,51,61,10],[49,73,25,127,137,10],[67,5,25,83,93,10],[56,39,36,142,152,10],[37,47,6,50,60,10],[37,56,5,182,192,10],[57,68,15,77,87,10],[47,16,25,0,197,10],[44,17,9,78,88,10],[46,13,8,149,159,10],[49,11,18,0,192,10],[49,42,13,73,83,10],[53,43,14,179,189,10],[61,52,3,96,106,10],[57,48,23,92,102,10],[56,37,6,182,192,10],[55,54,26,94,104,10],[15,47,16,0,196,10],[14,37,11,0,198,10],[11,31,7,101,111,10],[16,22,41,0,196,10],[4,18,35,94,104,10],[28,18,26,93,103,10],[26,52,9,74,84,10],[26,35,15,176,186,10],[31,67,3,95,105,10],[15,19,1,0,194,10],[22,22,2,18,28,10],[18,24,22,188,198,10],[26,27,27,0,207,10],[25,24,20,0,205,10],[22,27,11,0,204,10],[25,21,12,133,143,10],[19,21,10,0,198,10],[20,26,9,83,93,10],[18,18,17,185,195,10]]},"R103":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,0,204,10],[35,17,7,0,202,10],[55,45,13,0,197,10],[55,20,19,149,159,10],[15,30,26,0,199,10],[25,30,3,99,109,10],[20,50,5,0,198,10],[10,43,9,95,105,10],[55,60,16,97,107,10],[30,60,16,124,134,10],[20,65,12,67,77,10],[50,35,19,0,205,10],[30,25,23,159,169,10],[15,10,20,0,187,10],[30,5,8,61,71,10],[10,20,19,0,190,10],[5,30,2,157,167,10],[20,40,12,0,204,10],[15,60,17,0,187,10],[45,65,9,0,188,10],[45,20,11,0,201,10],[45,10,18,97,107,10],[55,5,29,68,78,10],[65,35,3,0,190,10],[65,20,6,172,182,10],[45,30,17,0,208,10],[35,40,16,37,47,10],[41,37,16,0,213,10],[64,42,9,0,190,10],[40,60,21,71,81,10],[31,52,27,0,202,10],[35,69,23,0,186,10],[53,52,11,37,47,10],[65,55,14,0,183,10],[63,65,8,143,153,10],[2,60,5,41,51,10],[20,20,8,0,198,10],[5,5,16,83,93,10],[60,12,31,44,54,10],[40,25,9,85,95,10],[42,7,5,97,107,10],[24,12,5,31,41,10],[23,3,7,0,185,10],[11,14,18,69,79,10],[6,38,16,32,42,10],[2,48,1,0,184,10],[8,56,27,0,185,10],[13,52,36,0,192,10],[6,68,30,108,118,10],[47,47,13,0,203,10],[49,58,10,0,193,10],[27,43,9,0,208,10],[37,31,14,95,105,10],[57,29,18,0,197,10],[63,23,2,136,146,10],[53,12,6,130,140,10],[32,12,7,0,196,10],[36,26,18,200,210,10],[21,24,28,0,202,10],[17,34,3,0,201,10],[12,24,13,0,194,10],[24,58,19,58,68,10],[27,69,10,0,185,10],[15,77,9,73,83,10],[62,77,20,51,61,10],[49,73,25,127,137,10],[67,5,25,83,93,10],[56,39,36,142,152,10],[37,47,6,50,60,10],[37,56,5,182,192,10],[57,68,15,0,180,10],[47,16,25,0,197,10],[44,17,9,0,199,10],[46,13,8,149,159,10],[49,11,18,0,192,10],[49,42,13,73,83,10],[53,43,14,179,189,10],[61,52,3,96,106,10],[57,48,23,92,102,10],[56,37,6,182,192,10],[55,54,26,0,192,10],[15,47,16,0,196,10],[14,37,11,0,198,10],[11,31,7,101,111,10],[16,22,41,0,196,10],[4,18,35,0,184,10],[28,18,26,93,103,10],[26,52,9,74,84,10],[26,35,15,0,211,10],[31,67,3,0,187,10],[15,19,1,0,194,10],[22,22,2,18,28,10],[18,24,22,188,198,10],[26,27,27,0,207,10],[25,24,20,0,205,10],[22,27,11,0,204,10],[25,21,12,0,202,10],[19,21,10,0,198,10],[20,26,9,83,93,10],[18,18,17,185,195,10]]},"R104":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,0,204,10],[35,17,7,0,202,10],[55,45,13,0,197,10],[55,20,19,149,159,10],[15,30,26,0,199,10],[25,30,3,0,208,10],[20,50,5,0,198,10],[10,43,9,95,105,10],[55,60,16,97,107,10],[30,60,16,0,194,10],[20,65,12,67,77,10],[50,35,19,0,205,10],[30,25,23,159,169,10],[15,10,20,0,187,10],[30,5,8,61,71,10],[10,20,19,0,190,10],[5,30,2,0,189,10],[20,40,12,0,204,10],[15,60,17,0,187,10],[45,65,9,0,188,10],[45,20,11,0,201,10],[45,10,18,0,193,10],[55,5,29,68,78,10],[65,35,3,0,190,10],[65,20,6,172,182,10],[45,30,17,0,208,10],[35,40,16,0,215,10],[41,37,16,0,213,10],[64,42,9,0,190,10],[40,60,21,0,194,10],[31,52,27,0,202,10],[35,69,23,0,186,10],[53,52,11,0,195,10],[65,55,14,0,183,10],[63,65,8,0,178,10],[2,60,5,0,178,10],[20,20,8,0,198,10],[5,5,16,83,93,10],[60,12,31,0,186,10],[40,25,9,0,208,10],[42,7,5,0,191,10],[24,12,5,0,194,10],[23,3,7,0,185,10],[11,14,18,69,79,10],[6,38,16,0,190,10],[2,48,1,0,184,10],[8,56,27,0,185,10],[13,52,36,0,192,10],[6,68,30,0,176,10],[47,47,13,0,203,10],[49,58,10,0,193,10],[27,43,9,0,208,10],[37,31,14,95,105,10],[57,29,18,0,197,10],[63,23,2,136,146,10],[53,12,6,0,190,10],[32,12,7,0,196,10],[36,26,18,200,210,10],[21,24,28,0,202,10],[17,34,3,0,201,10],[12,24,13,0,194,10],[24,58,19,58,68,10],[27,69,10,0,185,10],[15,77,9,0,173,10],[62,77,20,0,170,10],[49,73,25,0,179,10],[67,5,25,83,93,10],[56,39,36,0,198,10],[37,47,6,50,60,10],[37,56,5,0,198,10],[57,68,15,0,180,10],[47,16,25,0,197,10],[44,17,9,0,199,10],[46,13,8,149,159,10],[49,11,18,0,192,10],[49,42,13,73,83,10],[53,43,14,179,189,10],[61,52,3,0,188,10],[57,48,23,92,102,10],[56,37,6,0,198,10],[55,54,26,0,192,10],[15,47,16,0,196,10],[14,37,11,0,198,10],[11,31,7,101,111,10],[16,22,41,0,196,10],[4,18,35,0,184,10],[28,18,26,93,103,10],[26,52,9,0,200,10],[26,35,15,0,211,10],[31,67,3,0,187,10],[15,19,1,0,194,10],[22,22,2,18,28,10],[18,24,22,0,199,10],[26,27,27,0,207,10],[25,24,20,0,205,10],[22,27,11,0,204,10],[25,21,12,0,202,10],[19,21,10,0,198,10],[20,26,9,83,93,10],[18,18,17,185,195,10]]},"R105":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,151,181,10],[35,17,7,40,70,10],[55,45,13,106,136,10],[55,20,19,139,169,10],[15,30,26,24,54,10],[25,30,3,89,119,10],[20,50,5,71,101,10],[10,43,9,85,115,10],[55,60,16,87,117,10],[30,60,16,114,144,10],[20,65,12,57,87,10],[50,35,19,53,83,10],[30,25,23,149,179,10],[15,10,20,32,62,10],[30,5,8,51,81,10],[10,20,19,65,95,10],[5,30,2,147,177,10],[20,40,12,77,107,10],[15,60,17,66,96,10],[45,65,9,116,146,10],[45,20,11,52,82,10],[45,10,18,87,117,10],[55,5,29,58,88,10],[65,35,3,143,173,10],[65,20,6,156,186,10],[45,30,17,122,152,10],[35,40,16,27,57,10],[41,37,16,29,59,10],[64,42,9,53,83,10],[40,60,21,61,91,10],[31,52,27,40,70,10],[35,69,23,131,161,10],[53,52,11,27,57,10],[65,55,14,107,137,10],[63,65,8,133,163,10],[2,60,5,41,71,10],[20,20,8,124,154,10],[5,5,16,73,103,10],[60,12,31,34,64,10],[40,25,9,75,105,10],[42,7,5,87,117,10],[24,12,5,25,55,10],[23,3,7,122,152,10],[11,14,18,59,89,10],[6,38,16,29,59,10],[2,48,1,107,137,10],[8,56,27,41,71,10],[13,52,36,155,185,10],[6,68,30,98,128,10],[47,47,13,114,144,10],[49,58,10,78,108,10],[27,43,9,42,72,10],[37,31,14,85,115,10],[57,29,18,130,160,10],[63,23,2,126,156,10],[53,12,6,120,150,10],[32,12,7,91,121,10],[36,26,18,180,210,10],[21,24,28,17,47,10],[17,34,3,152,182,10],[12,24,13,66,96,10],[24,58,19,48,78,10],[27,69,10,34,64,10],[15,77,9,63,93,10],[62,77,20,49,79,10],[49,73,25,117,147,10],[67,5,25,73,103,10],[56,39,36,132,162,10],[37,47,6,40,70,10],[37,56,5,168,198,10],[57,68,15,67,97,10],[47,16,25,25,55,10],[44,17,9,68,98,10],[46,13,8,139,169,10],[49,11,18,59,89,10],[49,42,13,63,93,10],[53,43,14,169,199,10],[61,52,3,86,116,10],[57,48,23,82,112,10],[56,37,6,168,198,10],[55,54,26,84,114,10],[15,47,16,45,75,10],[14,37,11,34,64,10],[11,31,7,91,121,10],[16,22,41,81,111,10],[4,18,35,84,114,10],[28,18,26,83,113,10],[26,52,9,64,94,10],[26,35,15,166,196,10],[31,67,3,85,115,10],[15,19,1,150,180,10],[22,22,2,18,48,10],[18,24,22,169,199,10],[26,27,27,90,120,10],[25,24,20,29,59,10],[22,27,11,125,155,10],[25,21,12,123,153,10],[19,21,10,48,78,10],[20,26,9,73,103,10],[18,18,17,165,195,10]]},"R106":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,0,204,10],[35,17,7,0,202,10],[55,45,13,0,197,10],[55,20,19,139,169,10],[15,30,26,0,199,10],[25,30,3,89,119,10],[20,50,5,0,198,10],[10,43,9,85,115,10],[55,60,16,87,117,10],[30,60,16,114,144,10],[20,65,12,57,87,10],[50,35,19,0,205,10],[30,25,23,149,179,10],[15,10,20,32,62,10],[30,5,8,51,81,10],[10,20,19,65,95,10],[5,30,2,147,177,10],[20,40,12,77,107,10],[15,60,17,66,96,10],[45,65,9,116,146,10],[45,20,11,0,201,10],[45,10,18,87,117,10],[55,5,29,58,88,10],[65,35,3,143,173,10],[65,20,6,156,186,10],[45,30,17,0,208,10],[35,40,16,27,57,10],[41,37,16,29,59,10],[64,42,9,53,83,10],[40,60,21,61,91,10],[31,52,27,0,202,10],[35,69,23,131,161,10],[53,52,11,27,57,10],[65,55,14,0,183,10],[63,65,8,133,163,10],[2,60,5,41,71,10],[20,20,8,0,198,10],[5,5,16,73,103,10],[60,12,31,34,64,10],[40,25,9,75,105,10],[42,7,5,87,117,10],[24,12,5,25,55,10],[23,3,7,122,152,10],[11,14,18,59,89,10],[6,38,16,29,59,10],[2,48,1,107,137,10],[8,56,27,41,71,10],[13,52,36,0,192,10],[6,68,30,98,128,10],[47,47,13,0,203,10],[49,58,10,78,108,10],[27,43,9,0,208,10],[37,31,14,85,115,10],[57,29,18,130,160,10],[63,23,2,126,156,10],[53,12,6,120,150,10],[32,12,7,91,121,10],[36,26,18,180,210,10],[21,24,28,0,202,10],[17,34,3,152,182,10],[12,24,13,66,96,10],[24,58,19,48,78,10],[27,69,10,34,64,10],[15,77,9,63,93,10],[62,77,20,49,79,10],[49,73,25,117,147,10],[67,5,25,73,103,10],[56,39,36,132,162,10],[37,47,6,40,70,10],[37,56,5,168,198,10],[57,68,15,67,97,10],[47,16,25,0,197,10],[44,17,9,68,98,10],[46,13,8,139,169,10],[49,11,18,0,192,10],[49,42,13,63,93,10],[53,43,14,169,199,10],[61,52,3,86,116,10],[57,48,23,82,112,10],[56,37,6,168,198,10],[55,54,26,84,114,10],[15,47,16,0,196,10],[14,37,11,0,198,10],[11,31,7,91,121,10],[16,22,41,0,196,10],[4,18,35,84,114,10],[28,18,26,83,113,10],[26,52,9,64,94,10],[26,35,15,166,196,10],[31,67,3,85,115,10],[15,19,1,0,194,10],[22,22,2,18,48,10],[18,24,22,169,199,10],[26,27,27,0,207,10],[25,24,20,0,205,10],[22,27,11,0,204,10],[25,21,12,123,153,10],[19,21,10,0,198,10],[20,26,9,73,103,10],[18,18,17,165,195,10]]},"R107":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,0,204,10],[35,17,7,0,202,10],[55,45,13,0,197,10],[55,20,19,139,169,10],[15,30,26,0,199,10],[25,30,3,89,119,10],[20,50,5,0,198,10],[10,43,9,85,115,10],[55,60,16,87,117,10],[30,60,16,114,144,10],[20,65,12,57,87,10],[50,35,19,0,205,10],[30,25,23,149,179,10],[15,10,20,0,187,10],[30,5,8,51,81,10],[10,20,19,0,190,10],[5,30,2,147,177,10],[20,40,12,0,204,10],[15,60,17,0,187,10],[45,65,9,0,188,10],[45,20,11,0,201,10],[45,10,18,87,117,10],[55,5,29,58,88,10],[65,35,3,0,190,10],[65,20,6,156,186,10],[45,30,17,0,208,10],[35,40,16,27,57,10],[41,37,16,0,213,10],[64,42,9,0,190,10],[40,60,21,61,91,10],[31,52,27,0,202,10],[35,69,23,0,186,10],[53,52,11,27,57,10],[65,55,14,0,183,10],[63,65,8,133,163,10],[2,60,5,41,71,10],[20,20,8,0,198,10],[5,5,16,73,103,10],[60,12,31,34,64,10],[40,25,9,75,105,10],[42,7,5,87,117,10],[24,12,5,25,55,10],[23,3,7,0,185,10],[11,14,18,59,89,10],[6,38,16,29,59,10],[2,48,1,0,184,10],[8,56,27,0,185,10],[13,52,36,0,192,10],[6,68,30,98,128,10],[47,47,13,0,203,10],[49,58,10,0,193,10],[27,43,9,0,208,10],[37,31,14,85,115,10],[57,29,18,0,197,10],[63,23,2,126,156,10],[53,12,6,120,150,10],[32,12,7,0,196,10],[36,26,18,180,210,10],[21,24,28,0,202,10],[17,34,3,0,201,10],[12,24,13,0,194,10],[24,58,19,48,78,10],[27,69,10,0,185,10],[15,77,9,63,93,10],[62,77,20,49,79,10],[49,73,25,117,147,10],[67,5,25,73,103,10],[56,39,36,132,162,10],[37,47,6,40,70,10],[37,56,5,168,198,10],[57,68,15,0,180,10],[47,16,25,0,197,10],[44,17,9,0,199,10],[46,13,8,139,169,10],[49,11,18,0,192,10],[49,42,13,63,93,10],[53,43,14,169,199,10],[61,52,3,86,116,10],[57,48,23,82,112,10],[56,37,6,168,198,10],[55,54,26,0,192,10],[15,47,16,0,196,10],[14,37,11,0,198,10],[11,31,7,91,121,10],[16,22,41,0,196,10],[4,18,35,0,184,10],[28,18,26,83,113,10],[26,52,9,64,94,10],[26,35,15,0,211,10],[31,67,3,0,187,10],[15,19,1,0,194,10],[22,22,2,18,48,10],[18,24,22,169,199,10],[26,27,27,0,207,10],[25,24,20,0,205,10],[22,27,11,0,204,10],[25,21,12,0,202,10],[19,21,10,0,198,10],[20,26,9,73,103,10],[18,18,17,165,195,10]]},"R108":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,0,204,10],[35,17,7,0,202,10],[55,45,13,0,197,10],[55,20,19,139,169,10],[15,30,26,0,199,10],[25,30,3,0,208,10],[20,50,5,0,198,10],[10,43,9,85,115,10],[55,60,16,87,117,10],[30,60,16,0,194,10],[20,65,12,57,87,10],[50,35,19,0,205,10],[30,25,23,149,179,10],[15,10,20,0,187,10],[30,5,8,51,81,10],[10,20,19,0,190,10],[5,30,2,0,189,10],[20,40,12,0,204,10],[15,60,17,0,187,10],[45,65,9,0,188,10],[45,20,11,0,201,10],[45,10,18,0,193,10],[55,5,29,58,88,10],[65,35,3,0,190,10],[65,20,6,156,186,10],[45,30,17,0,208,10],[35,40,16,0,215,10],[41,37,16,0,213,10],[64,42,9,0,190,10],[40,60,21,0,194,10],[31,52,27,0,202,10],[35,69,23,0,186,10],[53,52,11,0,195,10],[65,55,14,0,183,10],[63,65,8,0,178,10],[2,60,5,0,178,10],[20,20,8,0,198,10],[5,5,16,73,103,10],[60,12,31,0,186,10],[40,25,9,0,208,10],[42,7,5,0,191,10],[24,12,5,0,194,10],[23,3,7,0,185,10],[11,14,18,59,89,10],[6,38,16,0,190,10],[2,48,1,0,184,10],[8,56,27,0,185,10],[13,52,36,0,192,10],[6,68,30,0,176,10],[47,47,13,0,203,10],[49,58,10,0,193,10],[27,43,9,0,208,10],[37,31,14,85,115,10],[57,29,18,0,197,10],[63,23,2,126,156,10],[53,12,6,0,190,10],[32,12,7,0,196,10],[36,26,18,180,210,10],[21,24,28,0,202,10],[17,34,3,0,201,10],[12,24,13,0,194,10],[24,58,19,48,78,10],[27,69,10,0,185,10],[15,77,9,0,173,10],[62,77,20,0,170,10],[49,73,25,0,179,10],[67,5,25,73,103,10],[56,39,36,0,198,10],[37,47,6,40,70,10],[37,56,5,0,198,10],[57,68,15,0,180,10],[47,16,25,0,197,10],[44,17,9,0,199,10],[46,13,8,139,169,10],[49,11,18,0,192,10],[49,42,13,63,93,10],[53,43,14,169,199,10],[61,52,3,0,188,10],[57,48,23,82,112,10],[56,37,6,0,198,10],[55,54,26,0,192,10],[15,47,16,0,196,10],[14,37,11,0,198,10],[11,31,7,91,121,10],[16,22,41,0,196,10],[4,18,35,0,184,10],[28,18,26,83,113,10],[26,52,9,0,200,10],[26,35,15,0,211,10],[31,67,3,0,187,10],[15,19,1,0,194,10],[22,22,2,18,48,10],[18,24,22,0,199,10],[26,27,27,0,207,10],[25,24,20,0,205,10],[22,27,11,0,204,10],[25,21,12,0,202,10],[19,21,10,0,198,10],[20,26,9,73,103,10],[18,18,17,165,195,10]]},"R109":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,133,198,10],[35,17,7,22,87,10],[55,45,13,98,143,10],[55,20,19,123,184,10],[15,30,26,20,93,10],[25,30,3,76,131,10],[20,50,5,61,110,10],[10,43,9,75,124,10],[55,60,16,74,129,10],[30,60,16,107,150,10],[20,65,12,42,101,10],[50,35,19,38,97,10],[30,25,23,131,196,10],[15,10,20,32,114,10],[30,5,8,35,96,10],[10,20,19,52,107,10],[5,30,2,124,189,10],[20,40,12,69,114,10],[15,60,17,52,109,10],[45,65,9,105,156,10],[45,20,11,37,96,10],[45,10,18,76,127,10],[55,5,29,43,102,10],[65,35,3,124,190,10],[65,20,6,121,186,10],[45,30,17,112,161,10],[35,40,16,8,75,10],[41,37,16,11,76,10],[64,42,9,37,98,10],[40,60,21,49,102,10],[31,52,27,24,85,10],[35,69,23,116,175,10],[53,52,11,24,92,10],[65,55,14,96,147,10],[63,65,8,116,178,10],[2,60,5,41,112,10],[20,20,8,113,164,10],[5,5,16,60,115,10],[60,12,31,33,110,10],[40,25,9,65,114,10],[42,7,5,72,131,10],[24,12,5,25,91,10],[23,3,7,111,162,10],[11,14,18,45,102,10],[6,38,16,29,99,10],[2,48,1,92,151,10],[8,56,27,34,105,10],[13,52,36,128,192,10],[6,68,30,93,132,10],[47,47,13,102,155,10],[49,58,10,64,121,10],[27,43,9,26,87,10],[37,31,14,75,124,10],[57,29,18,118,171,10],[63,23,2,111,170,10],[53,12,6,106,163,10],[32,12,7,77,134,10],[36,26,18,147,210,10],[21,24,28,17,100,10],[17,34,3,134,199,10],[12,24,13,55,106,10],[24,58,19,30,95,10],[27,69,10,34,103,10],[15,77,9,48,107,10],[62,77,20,49,113,10],[49,73,25,104,159,10],[67,5,25,59,116,10],[56,39,36,117,176,10],[37,47,6,23,86,10],[37,56,5,123,198,10],[57,68,15,54,109,10],[47,16,25,22,96,10],[44,17,9,56,109,10],[46,13,8,123,184,10],[49,11,18,45,102,10],[49,42,13,52,103,10],[53,43,14,136,200,10],[61,52,3,71,130,10],[57,48,23,72,121,10],[56,37,6,135,198,10],[55,54,26,78,119,10],[15,47,16,29,90,10],[14,37,11,21,89,10],[11,31,7,81,130,10],[16,22,41,70,121,10],[4,18,35,74,123,10],[28,18,26,79,116,10],[26,52,9,50,107,10],[26,35,15,139,211,10],[31,67,3,73,126,10],[15,19,1,132,194,10],[22,22,2,18,88,10],[18,24,22,129,199,10],[26,27,27,81,128,10],[25,24,20,14,78,10],[22,27,11,114,165,10],[25,21,12,115,160,10],[19,21,10,32,93,10],[20,26,9,60,115,10],[18,18,17,123,195,10]]},"R110":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,130,201,10],[35,17,7,20,89,10],[55,45,13,106,135,10],[55,20,19,71,195,10],[15,30,26,20,107,10],[25,30,3,54,153,10],[20,50,5,66,105,10],[10,43,9,61,138,10],[55,60,16,53,150,10],[30,60,16,101,156,10],[20,65,12,33,152,10],[50,35,19,38,97,10],[30,25,23,70,208,10],[15,10,20,32,137,10],[30,5,8,30,154,10],[10,20,19,54,105,10],[5,30,2,51,189,10],[20,40,12,77,106,10],[15,60,17,53,108,10],[45,65,9,109,152,10],[45,20,11,37,96,10],[45,10,18,59,144,10],[55,5,29,36,155,10],[65,35,3,118,190,10],[65,20,6,47,186,10],[45,30,17,117,156,10],[35,40,16,5,156,10],[41,37,16,8,79,10],[64,42,9,37,98,10],[40,60,21,28,123,10],[31,52,27,24,85,10],[35,69,23,116,175,10],[53,52,11,24,179,10],[65,55,14,100,143,10],[63,65,8,50,178,10],[2,60,5,41,178,10],[20,20,8,117,160,10],[5,5,16,42,145,10],[60,12,31,33,186,10],[40,25,9,51,128,10],[42,7,5,44,159,10],[24,12,5,25,172,10],[23,3,7,115,158,10],[11,14,18,31,138,10],[6,38,16,29,189,10],[2,48,1,93,150,10],[8,56,27,34,116,10],[13,52,36,125,192,10],[6,68,30,93,132,10],[47,47,13,105,152,10],[49,58,10,66,119,10],[27,43,9,25,88,10],[37,31,14,62,137,10],[57,29,18,121,168,10],[63,23,2,70,189,10],[53,12,6,81,188,10],[32,12,7,78,133,10],[36,26,18,79,210,10],[21,24,28,17,123,10],[17,34,3,130,201,10],[12,24,13,59,102,10],[24,58,19,25,164,10],[27,69,10,34,112,10],[15,77,9,46,165,10],[62,77,20,49,170,10],[49,73,25,77,179,10],[67,5,25,43,150,10],[56,39,36,82,198,10],[37,47,6,12,142,10],[37,56,5,21,198,10],[57,68,15,57,106,10],[47,16,25,22,110,10],[44,17,9,60,105,10],[46,13,8,73,195,10],[49,11,18,46,101,10],[49,42,13,36,119,10],[53,43,14,65,200,10],[61,52,3,43,158,10],[57,48,23,58,135,10],[56,37,6,69,198,10],[55,54,26,87,110,10],[15,47,16,28,91,10],[14,37,11,21,97,10],[11,31,7,68,143,10],[16,22,41,74,117,10],[4,18,35,79,118,10],[28,18,26,84,111,10],[26,52,9,24,133,10],[26,35,15,128,211,10],[31,67,3,76,123,10],[15,19,1,130,194,10],[22,22,2,18,181,10],[18,24,22,41,199,10],[26,27,27,88,121,10],[25,24,20,14,83,10],[22,27,11,119,160,10],[25,21,12,122,153,10],[19,21,10,32,93,10],[20,26,9,38,137,10],[18,18,17,28,195,10]]},"R111":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,15,204,10],[35,17,7,18,202,10],[55,45,13,54,187,10],[55,20,19,138,169,10],[15,30,26,20,199,10],[25,30,3,76,131,10],[20,50,5,21,170,10],[10,43,9,87,112,10],[55,60,16,88,115,10],[30,60,16,107,150,10],[20,65,12,57,86,10],[50,35,19,15,192,10],[30,25,23,147,180,10],[15,10,20,32,187,10],[30,5,8,50,81,10],[10,20,19,29,139,10],[5,30,2,124,189,10],[20,40,12,47,136,10],[15,60,17,32,146,10],[45,65,9,79,182,10],[45,20,11,18,195,10],[45,10,18,76,127,10],[55,5,29,58,87,10],[65,35,3,58,190,10],[65,20,6,153,186,10],[45,30,17,58,208,10],[35,40,16,8,75,10],[41,37,16,6,136,10],[64,42,9,29,150,10],[40,60,21,49,102,10],[31,52,27,17,198,10],[35,69,23,67,186,10],[53,52,11,24,92,10],[65,55,14,36,183,10],[63,65,8,116,178,10],[2,60,5,41,112,10],[20,20,8,42,198,10],[5,5,16,74,101,10],[60,12,31,33,110,10],[40,25,9,65,114,10],[42,7,5,72,131,10],[24,12,5,25,91,10],[23,3,7,82,185,10],[11,14,18,59,88,10],[6,38,16,29,99,10],[2,48,1,63,180,10],[8,56,27,34,176,10],[13,52,36,27,192,10],[6,68,30,93,132,10],[47,47,13,41,203,10],[49,58,10,36,149,10],[27,43,9,11,195,10],[37,31,14,87,112,10],[57,29,18,90,197,10],[63,23,2,126,155,10],[53,12,6,106,163,10],[32,12,7,48,163,10],[36,26,18,178,210,10],[21,24,28,17,202,10],[17,34,3,70,201,10],[12,24,13,29,132,10],[24,58,19,46,79,10],[27,69,10,34,172,10],[15,77,9,48,107,10],[62,77,20,49,113,10],[49,73,25,104,159,10],[67,5,25,73,102,10],[56,39,36,117,176,10],[37,47,6,39,70,10],[37,56,5,123,198,10],[57,68,15,39,148,10],[47,16,25,22,197,10],[44,17,9,30,135,10],[46,13,8,138,169,10],[49,11,18,27,192,10],[49,42,13,65,90,10],[53,43,14,168,199,10],[61,52,3,71,130,10],[57,48,23,84,109,10],[56,37,6,135,198,10],[55,54,26,57,140,10],[15,47,16,23,196,10],[14,37,11,21,198,10],[11,31,7,93,118,10],[16,22,41,23,177,10],[4,18,35,49,148,10],[28,18,26,88,107,10],[26,52,9,50,107,10],[26,35,15,68,211,10],[31,67,3,46,153,10],[15,19,1,25,194,10],[22,22,2,18,53,10],[18,24,22,129,199,10],[26,27,27,35,174,10],[25,24,20,14,205,10],[22,27,11,51,204,10],[25,21,12,92,183,10],[19,21,10,21,198,10],[20,26,9,74,101,10],[18,18,17,159,195,10]]},"R112":{"vehicles":25,"capacity":200,"nodes":[[35,35,0,0,230,0],[41,49,10,73,204,10],[35,17,7,18,147,10],[55,45,13,76,165,10],[55,20,19,73,195,10],[15,30,26,20,167,10],[25,30,3,49,158,10],[20,50,5,36,135,10],[10,43,9,50,149,10],[55,60,16,47,156,10],[30,60,16,85,172,10],[20,65,12,33,152,10],[50,35,19,15,133,10],[30,25,23,79,208,10],[15,10,20,32,187,10],[30,5,8,30,152,10],[10,20,19,29,139,10],[5,30,2,60,189,10],[20,40,12,47,136,10],[15,60,17,32,146,10],[45,65,9,79,182,10],[45,20,11,18,136,10],[45,10,18,50,153,10],[55,5,29,36,155,10],[65,35,3,58,190,10],[65,20,6,56,186,10],[45,30,17,87,186,10],[35,40,16,5,140,10],[41,37,16,6,136,10],[64,42,9,29,150,10],[40,60,21,25,132,10],[31,52,27,17,138,10],[35,69,23,67,186,10],[53,52,11,24,161,10],[65,55,14,70,173,10],[63,65,8,54,178,10],[2,60,5,41,178,10],[20,20,8,87,190,10],[5,5,16,42,153,10],[60,12,31,33,186,10],[40,25,9,40,139,10],[42,7,5,43,160,10],[24,12,5,25,158,10],[23,3,7,82,185,10],[11,14,18,31,144,10],[6,38,16,29,169,10],[2,48,1,63,180,10],[8,56,27,34,176,10],[13,52,36,65,192,10],[6,68,30,73,152,10],[47,47,13,75,182,10],[49,58,10,36,149,10],[27,43,9,11,133,10],[37,31,14,51,148,10],[57,29,18,90,197,10],[63,23,2,69,189,10],[53,12,6,76,190,10],[32,12,7,48,163,10],[36,26,18,84,210,10],[21,24,28,17,183,10],[17,34,3,70,201,10],[12,24,13,29,132,10],[24,58,19,25,154,10],[27,69,10,34,172,10],[15,77,9,46,165,10],[62,77,20,49,170,10],[49,73,25,68,179,10],[67,5,25,43,156,10],[56,39,36,80,198,10],[37,47,6,12,137,10],[37,56,5,48,198,10],[57,68,15,39,148,10],[47,16,25,22,170,10],[44,17,9,30,135,10],[46,13,8,74,195,10],[49,11,18,27,141,10],[49,42,13,27,128,10],[53,43,14,72,200,10],[61,52,3,42,159,10],[57,48,23,47,146,10],[56,37,6,73,198,10],[55,54,26,57,140,10],[15,47,16,23,146,10],[14,37,11,21,157,10],[11,31,7,57,154,10],[16,22,41,44,147,10],[4,18,35,49,148,10],[28,18,26,61,134,10],[26,52,9,21,136,10],[26,35,15,68,211,10],[31,67,3,46,153,10],[15,19,1,70,194,10],[22,22,2,18,159,10],[18,24,22,60,199,10],[26,27,27,58,151,10],[25,24,20,14,143,10],[22,27,11,89,190,10],[25,21,12,92,183,10],[19,21,10,21,142,10],[20,26,9,33,142,10],[18,18,17,51,195,10]]},"R201":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,707,848,10],[35,17,7,143,282,10],[55,45,13,527,584,10],[55,20,19,678,801,10],[15,30,26,34,209,10],[25,30,3,415,514,10],[20,50,5,331,410,10],[10,43,9,404,481,10],[55,60,16,400,497,10],[30,60,16,577,632,10],[20,65,12,206,325,10],[50,35,19,228,345,10],[30,25,23,690,827,10],[15,10,20,32,243,10],[30,5,8,175,300,10],[10,20,19,272,373,10],[5,30,2,733,870,10],[20,40,12,377,434,10],[15,60,17,269,378,10],[45,65,9,581,666,10],[45,20,11,214,331,10],[45,10,18,409,494,10],[55,5,29,206,325,10],[65,35,3,704,847,10],[65,20,6,817,956,10],[45,30,17,588,667,10],[35,40,16,104,255,10],[41,37,16,114,255,10],[64,42,9,190,313,10],[40,60,21,259,354,10],[31,52,27,152,275,10],[35,69,23,660,777,10],[53,52,11,45,200,10],[65,55,14,529,614,10],[63,65,8,686,813,10],[2,60,5,41,208,10],[20,20,8,606,693,10],[5,5,16,302,405,10],[60,12,31,33,224,10],[40,25,9,360,437,10],[42,7,5,396,511,10],[24,12,5,25,172,10],[23,3,7,620,705,10],[11,14,18,233,340,10],[6,38,16,29,189,10],[2,48,1,515,628,10],[8,56,27,85,250,10],[13,52,36,773,906,10],[6,68,30,501,540,10],[47,47,13,547,642,10],[49,58,10,348,453,10],[27,43,9,174,299,10],[37,31,14,414,489,10],[57,29,18,641,734,10],[63,23,2,620,739,10],[53,12,6,585,692,10],[32,12,7,421,530,10],[36,26,18,849,980,10],[21,24,28,17,229,10],[17,34,3,721,862,10],[12,24,13,290,377,10],[24,58,19,163,302,10],[27,69,10,34,191,10],[15,77,9,214,333,10],[62,77,20,49,188,10],[49,73,25,592,693,10],[67,5,25,294,401,10],[56,39,36,637,752,10],[37,47,6,162,293,10],[37,56,5,788,968,10],[57,68,15,268,367,10],[47,16,25,31,208,10],[44,17,9,308,399,10],[46,13,8,681,802,10],[49,11,18,236,345,10],[49,42,13,290,373,10],[53,43,14,817,952,10],[61,52,3,384,499,10],[57,48,23,388,465,10],[56,37,6,839,968,10],[55,54,26,411,456,10],[15,47,16,162,289,10],[14,37,11,96,249,10],[11,31,7,436,511,10],[16,22,41,376,461,10],[4,18,35,388,465,10],[28,18,26,420,447,10],[26,52,9,279,388,10],[26,35,15,755,920,10],[31,67,3,392,487,10],[15,19,1,739,866,10],[22,22,2,18,181,10],[18,24,22,811,969,10],[26,27,27,436,503,10],[25,24,20,92,231,10],[22,27,11,607,690,10],[25,21,12,612,673,10],[19,21,10,183,306,10],[20,26,9,333,432,10],[18,18,17,798,965,10]]},"R202":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,0,974,10],[35,17,7,0,972,10],[55,45,13,0,967,10],[55,20,19,678,801,10],[15,30,26,0,969,10],[25,30,3,415,514,10],[20,50,5,0,968,10],[10,43,9,404,481,10],[55,60,16,400,497,10],[30,60,16,577,632,10],[20,65,12,206,325,10],[50,35,19,0,975,10],[30,25,23,690,827,10],[15,10,20,32,243,10],[30,5,8,175,300,10],[10,20,19,272,373,10],[5,30,2,733,870,10],[20,40,12,377,434,10],[15,60,17,269,378,10],[45,65,9,581,666,10],[45,20,11,0,971,10],[45,10,18,409,494,10],[55,5,29,206,325,10],[65,35,3,704,847,10],[65,20,6,817,956,10],[45,30,17,0,978,10],[35,40,16,104,255,10],[41,37,16,114,255,10],[64,42,9,190,313,10],[40,60,21,259,354,10],[31,52,27,0,972,10],[35,69,23,660,777,10],[53,52,11,45,200,10],[65,55,14,0,953,10],[63,65,8,686,813,10],[2,60,5,41,208,10],[20,20,8,0,968,10],[5,5,16,302,405,10],[60,12,31,33,224,10],[40,25,9,360,437,10],[42,7,5,396,511,10],[24,12,5,25,172,10],[23,3,7,620,705,10],[11,14,18,233,340,10],[6,38,16,29,189,10],[2,48,1,515,628,10],[8,56,27,85,250,10],[13,52,36,0,962,10],[6,68,30,501,540,10],[47,47,13,0,973,10],[49,58,10,348,453,10],[27,43,9,0,978,10],[37,31,14,414,489,10],[57,29,18,641,734,10],[63,23,2,620,739,10],[53,12,6,585,692,10],[32,12,7,421,530,10],[36,26,18,849,980,10],[21,24,28,0,972,10],[17,34,3,721,862,10],[12,24,13,290,377,10],[24,58,19,163,302,10],[27,69,10,34,191,10],[15,77,9,214,333,10],[62,77,20,49,188,10],[49,73,25,592,693,10],[67,5,25,294,401,10],[56,39,36,637,752,10],[37,47,6,162,293,10],[37,56,5,788,968,10],[57,68,15,268,367,10],[47,16,25,0,967,10],[44,17,9,308,399,10],[46,13,8,681,802,10],[49,11,18,0,962,10],[49,42,13,290,373,10],[53,43,14,817,952,10],[61,52,3,384,499,10],[57,48,23,388,465,10],[56,37,6,839,968,10],[55,54,26,411,456,10],[15,47,16,0,966,10],[14,37,11,0,968,10],[11,31,7,436,511,10],[16,22,41,0,966,10],[4,18,35,388,465,10],[28,18,26,420,447,10],[26,52,9,279,388,10],[26,35,15,755,920,10],[31,67,3,392,487,10],[15,19,1,0,964,10],[22,22,2,18,181,10],[18,24,22,811,969,10],[26,27,27,0,977,10],[25,24,20,0,975,10],[22,27,11,0,974,10],[25,21,12,612,673,10],[19,21,10,0,968,10],[20,26,9,333,432,10],[18,18,17,798,965,10]]},"R203":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,0,974,10],[35,17,7,0,972,10],[55,45,13,0,967,10],[55,20,19,678,801,10],[15,30,26,0,969,10],[25,30,3,415,514,10],[20,50,5,0,968,10],[10,43,9,404,481,10],[55,60,16,400,497,10],[30,60,16,577,632,10],[20,65,12,206,325,10],[50,35,19,0,975,10],[30,25,23,690,827,10],[15,10,20,0,957,10],[30,5,8,175,300,10],[10,20,19,0,960,10],[5,30,2,733,870,10],[20,40,12,0,974,10],[15,60,17,0,957,10],[45,65,9,0,958,10],[45,20,11,0,971,10],[45,10,18,409,494,10],[55,5,29,206,325,10],[65,35,3,0,960,10],[65,20,6,817,956,10],[45,30,17,0,978,10],[35,40,16,104,255,10],[41,37,16,0,983,10],[64,42,9,0,960,10],[40,60,21,259,354,10],[31,52,27,0,972,10],[35,69,23,0,956,10],[53,52,11,45,200,10],[65,55,14,0,953,10],[63,65,8,686,813,10],[2,60,5,41,208,10],[20,20,8,0,968,10],[5,5,16,302,405,10],[60,12,31,33,224,10],[40,25,9,360,437,10],[42,7,5,396,511,10],[24,12,5,25,172,10],[23,3,7,0,955,10],[11,14,18,233,340,10],[6,38,16,29,189,10],[2,48,1,0,954,10],[8,56,27,0,955,10],[13,52,36,0,962,10],[6,68,30,501,540,10],[47,47,13,0,973,10],[49,58,10,0,963,10],[27,43,9,0,978,10],[37,31,14,414,489,10],[57,29,18,0,967,10],[63,23,2,620,739,10],[53,12,6,585,692,10],[32,12,7,0,966,10],[36,26,18,849,980,10],[21,24,28,0,972,10],[17,34,3,0,971,10],[12,24,13,0,964,10],[24,58,19,163,302,10],[27,69,10,0,955,10],[15,77,9,214,333,10],[62,77,20,49,188,10],[49,73,25,592,693,10],[67,5,25,294,401,10],[56,39,36,637,752,10],[37,47,6,162,293,10],[37,56,5,788,968,10],[57,68,15,0,950,10],[47,16,25,0,967,10],[44,17,9,0,969,10],[46,13,8,681,802,10],[49,11,18,0,962,10],[49,42,13,290,373,10],[53,43,14,817,952,10],[61,52,3,384,499,10],[57,48,23,388,465,10],[56,37,6,839,968,10],[55,54,26,0,962,10],[15,47,16,0,966,10],[14,37,11,0,968,10],[11,31,7,436,511,10],[16,22,41,0,966,10],[4,18,35,0,954,10],[28,18,26,420,447,10],[26,52,9,279,388,10],[26,35,15,0,981,10],[31,67,3,0,957,10],[15,19,1,0,964,10],[22,22,2,18,181,10],[18,24,22,811,969,10],[26,27,27,0,977,10],[25,24,20,0,975,10],[22,27,11,0,974,10],[25,21,12,0,972,10],[19,21,10,0,968,10],[20,26,9,333,432,10],[18,18,17,798,965,10]]},"R204":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,0,974,10],[35,17,7,0,972,10],[55,45,13,0,967,10],[55,20,19,678,801,10],[15,30,26,0,969,10],[25,30,3,0,978,10],[20,50,5,0,968,10],[10,43,9,404,481,10],[55,60,16,400,497,10],[30,60,16,0,964,10],[20,65,12,206,325,10],[50,35,19,0,975,10],[30,25,23,690,827,10],[15,10,20,0,957,10],[30,5,8,175,300,10],[10,20,19,0,960,10],[5,30,2,0,959,10],[20,40,12,0,974,10],[15,60,17,0,957,10],[45,65,9,0,958,10],[45,20,11,0,971,10],[45,10,18,0,963,10],[55,5,29,206,325,10],[65,35,3,0,960,10],[65,20,6,817,956,10],[45,30,17,0,978,10],[35,40,16,0,985,10],[41,37,16,0,983,10],[64,42,9,0,960,10],[40,60,21,0,964,10],[31,52,27,0,972,10],[35,69,23,0,956,10],[53,52,11,0,965,10],[65,55,14,0,953,10],[63,65,8,0,948,10],[2,60,5,0,948,10],[20,20,8,0,968,10],[5,5,16,302,405,10],[60,12,31,0,956,10],[40,25,9,0,978,10],[42,7,5,0,961,10],[24,12,5,0,964,10],[23,3,7,0,955,10],[11,14,18,233,340,10],[6,38,16,0,960,10],[2,48,1,0,954,10],[8,56,27,0,955,10],[13,52,36,0,962,10],[6,68,30,0,946,10],[47,47,13,0,973,10],[49,58,10,0,963,10],[27,43,9,0,978,10],[37,31,14,414,489,10],[57,29,18,0,967,10],[63,23,2,620,739,10],[53,12,6,0,960,10],[32,12,7,0,966,10],[36,26,18,849,980,10],[21,24,28,0,972,10],[17,34,3,0,971,10],[12,24,13,0,964,10],[24,58,19,163,302,10],[27,69,10,0,955,10],[15,77,9,0,943,10],[62,77,20,0,940,10],[49,73,25,0,949,10],[67,5,25,294,401,10],[56,39,36,0,968,10],[37,47,6,162,293,10],[37,56,5,0,968,10],[57,68,15,0,950,10],[47,16,25,0,967,10],[44,17,9,0,969,10],[46,13,8,681,802,10],[49,11,18,0,962,10],[49,42,13,290,373,10],[53,43,14,817,952,10],[61,52,3,0,958,10],[57,48,23,388,465,10],[56,37,6,0,968,10],[55,54,26,0,962,10],[15,47,16,0,966,10],[14,37,11,0,968,10],[11,31,7,436,511,10],[16,22,41,0,966,10],[4,18,35,0,954,10],[28,18,26,420,447,10],[26,52,9,0,970,10],[26,35,15,0,981,10],[31,67,3,0,957,10],[15,19,1,0,964,10],[22,22,2,18,181,10],[18,24,22,0,969,10],[26,27,27,0,977,10],[25,24,20,0,975,10],[22,27,11,0,974,10],[25,21,12,0,972,10],[19,21,10,0,968,10],[20,26,9,333,432,10],[18,18,17,798,965,10]]},"R205":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,658,898,10],[35,17,7,93,333,10],[55,45,13,436,676,10],[55,20,19,620,860,10],[15,30,26,20,260,10],[25,30,3,345,585,10],[20,50,5,251,491,10],[10,43,9,323,563,10],[55,60,16,329,569,10],[30,60,16,485,725,10],[20,65,12,146,386,10],[50,35,19,167,407,10],[30,25,23,639,879,10],[15,10,20,32,272,10],[30,5,8,118,358,10],[10,20,19,203,443,10],[5,30,2,682,922,10],[20,40,12,286,526,10],[15,60,17,204,444,10],[45,65,9,504,744,10],[45,20,11,153,393,10],[45,10,18,332,572,10],[55,5,29,146,386,10],[65,35,3,656,896,10],[65,20,6,716,956,10],[45,30,17,508,748,10],[35,40,16,60,300,10],[41,37,16,65,305,10],[64,42,9,132,372,10],[40,60,21,187,427,10],[31,52,27,94,334,10],[35,69,23,599,839,10],[53,52,11,24,264,10],[65,55,14,452,692,10],[63,65,8,630,870,10],[2,60,5,41,281,10],[20,20,8,530,770,10],[5,5,16,234,474,10],[60,12,31,33,273,10],[40,25,9,279,519,10],[42,7,5,334,574,10],[24,12,5,25,265,10],[23,3,7,543,783,10],[11,14,18,167,407,10],[6,38,16,29,269,10],[2,48,1,452,692,10],[8,56,27,48,288,10],[13,52,36,720,960,10],[6,68,30,401,641,10],[47,47,13,475,715,10],[49,58,10,281,521,10],[27,43,9,117,357,10],[37,31,14,332,572,10],[57,29,18,568,808,10],[63,23,2,560,800,10],[53,12,6,519,759,10],[32,12,7,356,596,10],[36,26,18,740,980,10],[21,24,28,17,257,10],[17,34,3,672,912,10],[12,24,13,214,454,10],[24,58,19,113,353,10],[27,69,10,34,274,10],[15,77,9,154,394,10],[62,77,20,49,289,10],[49,73,25,523,763,10],[67,5,25,228,468,10],[56,39,36,575,815,10],[37,47,6,108,348,10],[37,56,5,728,968,10],[57,68,15,198,438,10],[47,16,25,22,262,10],[44,17,9,234,474,10],[46,13,8,622,862,10],[49,11,18,171,411,10],[49,42,13,212,452,10],[53,43,14,730,970,10],[61,52,3,322,562,10],[57,48,23,307,547,10],[56,37,6,728,968,10],[55,54,26,314,554,10],[15,47,16,106,346,10],[14,37,11,53,293,10],[11,31,7,354,594,10],[16,22,41,299,539,10],[4,18,35,307,547,10],[28,18,26,314,554,10],[26,52,9,214,454,10],[26,35,15,718,958,10],[31,67,3,320,560,10],[15,19,1,683,923,10],[22,22,2,18,258,10],[18,24,22,729,969,10],[26,27,27,350,590,10],[25,24,20,42,282,10],[22,27,11,529,769,10],[25,21,12,523,763,10],[19,21,10,125,365,10],[20,26,9,263,503,10],[18,18,17,725,965,10]]},"R206":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,0,974,10],[35,17,7,0,972,10],[55,45,13,0,967,10],[55,20,19,620,860,10],[15,30,26,0,969,10],[25,30,3,345,585,10],[20,50,5,0,968,10],[10,43,9,323,563,10],[55,60,16,329,569,10],[30,60,16,485,725,10],[20,65,12,146,386,10],[50,35,19,0,975,10],[30,25,23,639,879,10],[15,10,20,32,272,10],[30,5,8,118,358,10],[10,20,19,203,443,10],[5,30,2,682,922,10],[20,40,12,286,526,10],[15,60,17,204,444,10],[45,65,9,504,744,10],[45,20,11,0,971,10],[45,10,18,332,572,10],[55,5,29,146,386,10],[65,35,3,656,896,10],[65,20,6,716,956,10],[45,30,17,0,978,10],[35,40,16,60,300,10],[41,37,16,65,305,10],[64,42,9,132,372,10],[40,60,21,187,427,10],[31,52,27,0,972,10],[35,69,23,599,839,10],[53,52,11,24,264,10],[65,55,14,0,953,10],[63,65,8,630,870,10],[2,60,5,41,281,10],[20,20,8,0,968,10],[5,5,16,234,474,10],[60,12,31,33,273,10],[40,25,9,279,519,10],[42,7,5,334,574,10],[24,12,5,25,265,10],[23,3,7,543,783,10],[11,14,18,167,407,10],[6,38,16,29,269,10],[2,48,1,452,692,10],[8,56,27,48,288,10],[13,52,36,0,962,10],[6,68,30,401,641,10],[47,47,13,0,973,10],[49,58,10,281,521,10],[27,43,9,0,978,10],[37,31,14,332,572,10],[57,29,18,568,808,10],[63,23,2,560,800,10],[53,12,6,519,759,10],[32,12,7,356,596,10],[36,26,18,740,980,10],[21,24,28,0,972,10],[17,34,3,672,912,10],[12,24,13,214,454,10],[24,58,19,113,353,10],[27,69,10,34,274,10],[15,77,9,154,394,10],[62,77,20,49,289,10],[49,73,25,523,763,10],[67,5,25,228,468,10],[56,39,36,575,815,10],[37,47,6,108,348,10],[37,56,5,728,968,10],[57,68,15,198,438,10],[47,16,25,0,967,10],[44,17,9,234,474,10],[46,13,8,622,862,10],[49,11,18,0,962,10],[49,42,13,212,452,10],[53,43,14,730,970,10],[61,52,3,322,562,10],[57,48,23,307,547,10],[56,37,6,728,968,10],[55,54,26,314,554,10],[15,47,16,0,966,10],[14,37,11,0,968,10],[11,31,7,354,594,10],[16,22,41,0,966,10],[4,18,35,307,547,10],[28,18,26,314,554,10],[26,52,9,214,454,10],[26,35,15,718,958,10],[31,67,3,320,560,10],[15,19,1,0,964,10],[22,22,2,18,258,10],[18,24,22,729,969,10],[26,27,27,0,977,10],[25,24,20,0,975,10],[22,27,11,0,974,10],[25,21,12,523,763,10],[19,21,10,0,968,10],[20,26,9,263,503,10],[18,18,17,725,965,10]]},"R207":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,0,974,10],[35,17,7,0,972,10],[55,45,13,0,967,10],[55,20,19,620,860,10],[15,30,26,0,969,10],[25,30,3,345,585,10],[20,50,5,0,968,10],[10,43,9,323,563,10],[55,60,16,329,569,10],[30,60,16,485,725,10],[20,65,12,146,386,10],[50,35,19,0,975,10],[30,25,23,639,879,10],[15,10,20,0,957,10],[30,5,8,118,358,10],[10,20,19,0,960,10],[5,30,2,682,922,10],[20,40,12,0,974,10],[15,60,17,0,957,10],[45,65,9,0,958,10],[45,20,11,0,971,10],[45,10,18,332,572,10],[55,5,29,146,386,10],[65,35,3,0,960,10],[65,20,6,716,956,10],[45,30,17,0,978,10],[35,40,16,60,300,10],[41,37,16,0,983,10],[64,42,9,0,960,10],[40,60,21,187,427,10],[31,52,27,0,972,10],[35,69,23,0,956,10],[53,52,11,24,264,10],[65,55,14,0,953,10],[63,65,8,630,870,10],[2,60,5,41,281,10],[20,20,8,0,968,10],[5,5,16,234,474,10],[60,12,31,33,273,10],[40,25,9,279,519,10],[42,7,5,334,574,10],[24,12,5,25,265,10],[23,3,7,0,955,10],[11,14,18,167,407,10],[6,38,16,29,269,10],[2,48,1,0,954,10],[8,56,27,0,955,10],[13,52,36,0,962,10],[6,68,30,401,641,10],[47,47,13,0,973,10],[49,58,10,0,963,10],[27,43,9,0,978,10],[37,31,14,332,572,10],[57,29,18,0,967,10],[63,23,2,560,800,10],[53,12,6,519,759,10],[32,12,7,0,966,10],[36,26,18,740,980,10],[21,24,28,0,972,10],[17,34,3,0,971,10],[12,24,13,0,964,10],[24,58,19,113,353,10],[27,69,10,0,955,10],[15,77,9,154,394,10],[62,77,20,49,289,10],[49,73,25,523,763,10],[67,5,25,228,468,10],[56,39,36,575,815,10],[37,47,6,108,348,10],[37,56,5,728,968,10],[57,68,15,0,950,10],[47,16,25,0,967,10],[44,17,9,0,969,10],[46,13,8,622,862,10],[49,11,18,0,962,10],[49,42,13,212,452,10],[53,43,14,730,970,10],[61,52,3,322,562,10],[57,48,23,307,547,10],[56,37,6,728,968,10],[55,54,26,0,962,10],[15,47,16,0,966,10],[14,37,11,0,968,10],[11,31,7,354,594,10],[16,22,41,0,966,10],[4,18,35,0,954,10],[28,18,26,314,554,10],[26,52,9,214,454,10],[26,35,15,0,981,10],[31,67,3,0,957,10],[15,19,1,0,964,10],[22,22,2,18,258,10],[18,24,22,729,969,10],[26,27,27,0,977,10],[25,24,20,0,975,10],[22,27,11,0,974,10],[25,21,12,0,972,10],[19,21,10,0,968,10],[20,26,9,263,503,10],[18,18,17,725,965,10]]},"R208":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,0,974,10],[35,17,7,0,972,10],[55,45,13,0,967,10],[55,20,19,620,860,10],[15,30,26,0,969,10],[25,30,3,0,978,10],[20,50,5,0,968,10],[10,43,9,323,563,10],[55,60,16,329,569,10],[30,60,16,0,964,10],[20,65,12,146,386,10],[50,35,19,0,975,10],[30,25,23,639,879,10],[15,10,20,0,957,10],[30,5,8,118,358,10],[10,20,19,0,960,10],[5,30,2,0,959,10],[20,40,12,0,974,10],[15,60,17,0,957,10],[45,65,9,0,958,10],[45,20,11,0,971,10],[45,10,18,0,963,10],[55,5,29,146,386,10],[65,35,3,0,960,10],[65,20,6,716,956,10],[45,30,17,0,978,10],[35,40,16,0,985,10],[41,37,16,0,983,10],[64,42,9,0,960,10],[40,60,21,0,964,10],[31,52,27,0,972,10],[35,69,23,0,956,10],[53,52,11,0,965,10],[65,55,14,0,953,10],[63,65,8,0,948,10],[2,60,5,0,948,10],[20,20,8,0,968,10],[5,5,16,234,474,10],[60,12,31,0,956,10],[40,25,9,0,978,10],[42,7,5,0,961,10],[24,12,5,0,964,10],[23,3,7,0,955,10],[11,14,18,167,407,10],[6,38,16,0,960,10],[2,48,1,0,954,10],[8,56,27,0,955,10],[13,52,36,0,962,10],[6,68,30,0,946,10],[47,47,13,0,973,10],[49,58,10,0,963,10],[27,43,9,0,978,10],[37,31,14,332,572,10],[57,29,18,0,967,10],[63,23,2,560,800,10],[53,12,6,0,960,10],[32,12,7,0,966,10],[36,26,18,740,980,10],[21,24,28,0,972,10],[17,34,3,0,971,10],[12,24,13,0,964,10],[24,58,19,113,353,10],[27,69,10,0,955,10],[15,77,9,0,943,10],[62,77,20,0,940,10],[49,73,25,0,949,10],[67,5,25,228,468,10],[56,39,36,0,968,10],[37,47,6,108,348,10],[37,56,5,0,968,10],[57,68,15,0,950,10],[47,16,25,0,967,10],[44,17,9,0,969,10],[46,13,8,622,862,10],[49,11,18,0,962,10],[49,42,13,212,452,10],[53,43,14,730,970,10],[61,52,3,0,958,10],[57,48,23,307,547,10],[56,37,6,0,968,10],[55,54,26,0,962,10],[15,47,16,0,966,10],[14,37,11,0,968,10],[11,31,7,354,594,10],[16,22,41,0,966,10],[4,18,35,0,954,10],[28,18,26,314,554,10],[26,52,9,0,970,10],[26,35,15,0,981,10],[31,67,3,0,957,10],[15,19,1,0,964,10],[22,22,2,18,258,10],[18,24,22,0,969,10],[26,27,27,0,977,10],[25,24,20,0,975,10],[22,27,11,0,974,10],[25,21,12,0,972,10],[19,21,10,0,968,10],[20,26,9,263,503,10],[18,18,17,725,965,10]]},"R209":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,636,919,10],[35,17,7,74,351,10],[55,45,13,498,613,10],[55,20,19,470,965,10],[15,30,26,20,370,10],[25,30,3,266,663,10],[20,50,5,292,449,10],[10,43,9,288,597,10],[55,60,16,254,643,10],[30,60,16,496,713,10],[20,65,12,33,510,10],[50,35,19,170,403,10],[30,25,23,426,978,10],[15,10,20,32,454,10],[30,5,8,30,529,10],[10,20,19,222,423,10],[5,30,2,409,959,10],[20,40,12,349,462,10],[15,60,17,215,432,10],[45,65,9,538,709,10],[45,20,11,156,389,10],[45,10,18,280,623,10],[55,5,29,36,513,10],[65,35,3,633,918,10],[65,20,6,400,956,10],[45,30,17,548,707,10],[35,40,16,5,612,10],[41,37,16,44,325,10],[64,42,9,129,374,10],[40,60,21,115,498,10],[31,52,27,91,336,10],[35,69,23,602,835,10],[53,52,11,24,646,10],[65,55,14,487,656,10],[63,65,8,439,948,10],[2,60,5,41,710,10],[20,20,8,563,736,10],[5,5,16,147,560,10],[60,12,31,33,797,10],[40,25,9,243,554,10],[42,7,5,225,682,10],[24,12,5,25,616,10],[23,3,7,578,747,10],[11,14,18,72,501,10],[6,38,16,29,669,10],[2,48,1,458,685,10],[8,56,27,34,362,10],[13,52,36,694,962,10],[6,68,30,444,597,10],[47,47,13,499,690,10],[49,58,10,296,505,10],[27,43,9,111,362,10],[37,31,14,301,602,10],[57,29,18,595,780,10],[63,23,2,442,917,10],[53,12,6,426,851,10],[32,12,7,366,585,10],[36,26,18,458,980,10],[21,24,28,17,441,10],[17,34,3,651,932,10],[12,24,13,246,421,10],[24,58,19,25,583,10],[27,69,10,34,348,10],[15,77,9,46,523,10],[62,77,20,49,608,10],[49,73,25,440,845,10],[67,5,25,132,563,10],[56,39,36,464,925,10],[37,47,6,12,535,10],[37,56,5,249,968,10],[57,68,15,218,417,10],[47,16,25,22,377,10],[44,17,9,263,444,10],[46,13,8,479,965,10],[49,11,18,182,399,10],[49,42,13,166,497,10],[53,43,14,430,970,10],[61,52,3,212,671,10],[57,48,23,273,580,10],[56,37,6,452,968,10],[55,54,26,388,479,10],[15,47,16,99,352,10],[14,37,11,21,328,10],[11,31,7,323,624,10],[16,22,41,333,504,10],[4,18,35,350,503,10],[28,18,26,380,487,10],[26,52,9,114,553,10],[26,35,15,649,981,10],[31,67,3,345,534,10],[15,19,1,675,930,10],[22,22,2,18,673,10],[18,24,22,339,969,10],[26,27,27,403,536,10],[25,24,20,22,301,10],[22,27,11,565,732,10],[25,21,12,582,703,10],[19,21,10,122,367,10],[20,26,9,185,580,10],[18,18,17,297,965,10]]},"R210":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,190,974,10],[35,17,7,18,792,10],[55,45,13,289,822,10],[55,20,19,679,800,10],[15,30,26,20,906,10],[25,30,3,355,574,10],[20,50,5,72,669,10],[10,43,9,393,492,10],[55,60,16,394,503,10],[30,60,16,517,692,10],[20,65,12,206,325,10],[50,35,19,15,725,10],[30,25,23,694,823,10],[15,10,20,32,694,10],[30,5,8,176,299,10],[10,20,19,102,543,10],[5,30,2,673,930,10],[20,40,12,229,582,10],[15,60,17,95,552,10],[45,65,9,418,829,10],[45,20,11,18,727,10],[45,10,18,349,554,10],[55,5,29,206,325,10],[65,35,3,435,960,10],[65,20,6,826,956,10],[45,30,17,328,927,10],[35,40,16,44,315,10],[41,37,16,6,526,10],[64,42,9,29,513,10],[40,60,21,199,414,10],[31,52,27,17,744,10],[35,69,23,482,955,10],[53,52,11,24,299,10],[65,55,14,265,878,10],[63,65,8,626,873,10],[2,60,5,41,328,10],[20,20,8,339,960,10],[5,5,16,298,409,10],[60,12,31,33,344,10],[40,25,9,300,497,10],[42,7,5,336,571,10],[24,12,5,25,292,10],[23,3,7,458,867,10],[11,14,18,230,343,10],[6,38,16,29,309,10],[2,48,1,338,805,10],[8,56,27,34,602,10],[13,52,36,200,962,10],[6,68,30,441,600,10],[47,47,13,272,917,10],[49,58,10,176,625,10],[27,43,9,11,748,10],[37,31,14,403,500,10],[57,29,18,475,900,10],[63,23,2,620,739,10],[53,12,6,525,752,10],[32,12,7,246,705,10],[36,26,18,854,980,10],[21,24,28,17,972,10],[17,34,3,449,971,10],[12,24,13,126,541,10],[24,58,19,168,297,10],[27,69,10,34,588,10],[15,77,9,154,393,10],[62,77,20,49,308,10],[49,73,25,532,753,10],[67,5,25,291,404,10],[56,39,36,577,812,10],[37,47,6,165,290,10],[37,56,5,668,968,10],[57,68,15,98,537,10],[47,16,25,22,915,10],[44,17,9,143,564,10],[46,13,8,681,802,10],[49,11,18,27,711,10],[49,42,13,281,382,10],[53,43,14,821,948,10],[61,52,3,324,559,10],[57,48,23,377,476,10],[56,37,6,719,968,10],[55,54,26,268,599,10],[15,47,16,23,761,10],[14,37,11,21,842,10],[11,31,7,425,522,10],[16,22,41,110,727,10],[4,18,35,230,623,10],[28,18,26,397,470,10],[26,52,9,219,448,10],[26,35,15,409,981,10],[31,67,3,225,654,10],[15,19,1,222,964,10],[22,22,2,18,159,10],[18,24,22,691,969,10],[26,27,27,190,749,10],[25,24,20,14,793,10],[22,27,11,344,953,10],[25,21,12,462,823,10],[19,21,10,21,748,10],[20,26,9,328,437,10],[18,18,17,821,965,10]]},"R211":{"vehicles":25,"capacity":1000,"nodes":[[35,35,0,0,1000,0],[41,49,10,451,974,10],[35,17,7,18,534,10],[55,45,13,378,733,10],[55,20,19,477,965,10],[15,30,26,20,610,10],[25,30,3,245,684,10],[20,50,5,172,569,10],[10,43,9,245,640,10],[55,60,16,231,666,10],[30,60,16,430,779,10],[20,65,12,33,511,10],[50,35,19,50,523,10],[30,25,23,462,978,10],[15,10,20,32,694,10],[30,5,8,30,519,10],[10,20,19,102,543,10],[5,30,2,444,959,10],[20,40,12,229,582,10],[15,60,17,95,552,10],[45,65,9,418,829,10],[45,20,11,36,509,10],[45,10,18,246,657,10],[55,5,29,36,514,10],[65,35,3,435,960,10],[65,20,6,438,956,10],[45,30,17,428,827,10],[35,40,16,5,548,10],[41,37,16,6,526,10],[64,42,9,29,513,10],[40,60,21,91,522,10],[31,52,27,17,501,10],[35,69,23,482,955,10],[53,52,11,24,575,10],[65,55,14,367,776,10],[63,65,8,453,948,10],[2,60,5,41,615,10],[20,20,8,443,856,10],[5,5,16,130,577,10],[60,12,31,33,655,10],[40,25,9,201,596,10],[42,7,5,219,688,10],[24,12,5,25,560,10],[23,3,7,458,867,10],[11,14,18,59,514,10],[6,38,16,29,589,10],[2,48,1,338,805,10],[8,56,27,34,602,10],[13,52,36,454,962,10],[6,68,30,362,679,10],[47,47,13,379,810,10],[49,58,10,176,625,10],[27,43,9,11,502,10],[37,31,14,256,647,10],[57,29,18,475,900,10],[63,23,2,441,918,10],[53,12,6,412,865,10],[32,12,7,246,705,10],[36,26,18,479,980,10],[21,24,28,17,681,10],[17,34,3,449,971,10],[12,24,13,126,541,10],[24,58,19,25,544,10],[27,69,10,34,588,10],[15,77,9,46,524,10],[62,77,20,49,568,10],[49,73,25,421,864,10],[67,5,25,120,575,10],[56,39,36,459,930,10],[37,47,6,12,513,10],[37,56,5,368,968,10],[57,68,15,98,537,10],[47,16,25,22,617,10],[44,17,9,143,564,10],[46,13,8,482,965,10],[49,11,18,62,519,10],[49,42,13,129,534,10],[53,43,14,460,970,10],[61,52,3,207,676,10],[57,48,23,230,623,10],[56,37,6,470,968,10],[55,54,26,268,599,10],[15,47,16,23,515,10],[14,37,11,21,568,10],[11,31,7,278,669,10],[16,22,41,213,624,10],[4,18,35,230,623,10],[28,18,26,287,580,10],[26,52,9,104,563,10],[26,35,15,409,981,10],[31,67,3,225,654,10],[15,19,1,469,964,10],[22,22,2,18,585,10],[18,24,22,414,969,10],[26,27,27,283,656,10],[25,24,20,14,533,10],[22,27,11,445,852,10],[25,21,12,462,823,10],[19,21,10,21,506,10],[20,26,9,164,601,10],[18,18,17,391,965,10]]},"RC101":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,145,175,10],[22,75,30,50,80,10],[22,85,10,109,139,10],[20,80,40,141,171,10],[20,85,20,41,71,10],[18,75,20,95,125,10],[15,75,20,79,109,10],[15,80,10,91,121,10],[10,35,20,91,121,10],[10,40,30,119,149,10],[8,40,40,59,89,10],[8,45,20,64,94,10],[5,35,10,142,172,10],[5,45,10,35,65,10],[2,40,20,58,88,10],[0,40,20,72,102,10],[0,45,20,149,179,10],[44,5,20,87,117,10],[42,10,40,72,102,10],[42,15,10,122,152,10],[40,5,10,67,97,10],[40,15,40,92,122,10],[38,5,30,65,95,10],[38,15,10,148,178,10],[35,5,20,154,184,10],[95,30,30,115,145,10],[95,35,20,62,92,10],[92,30,10,62,92,10],[90,35,10,67,97,10],[88,30,10,74,104,10],[88,35,20,61,91,10],[87,30,10,131,161,10],[85,25,10,51,81,10],[85,35,30,111,141,10],[67,85,20,139,169,10],[65,85,40,43,73,10],[65,82,10,124,154,10],[62,80,30,75,105,10],[60,80,10,37,67,10],[60,85,30,85,115,10],[58,75,20,92,122,10],[55,80,10,33,63,10],[55,85,20,128,158,10],[55,82,10,64,94,10],[20,82,10,37,67,10],[18,80,10,113,143,10],[2,45,10,45,75,10],[42,5,10,151,181,10],[42,12,10,104,134,10],[72,35,30,116,146,10],[55,20,19,83,113,10],[25,30,3,52,82,10],[20,50,5,91,121,10],[55,60,16,139,169,10],[30,60,16,140,170,10],[50,35,19,130,160,10],[30,25,23,96,126,10],[15,10,20,152,182,10],[10,20,19,42,72,10],[15,60,17,155,185,10],[45,65,9,66,96,10],[65,35,3,52,82,10],[65,20,6,39,69,10],[45,30,17,53,83,10],[35,40,16,11,41,10],[41,37,16,133,163,10],[64,42,9,70,100,10],[40,60,21,144,174,10],[31,52,27,41,71,10],[35,69,23,180,210,10],[65,55,14,65,95,10],[63,65,8,30,60,10],[2,60,5,77,107,10],[20,20,8,141,171,10],[5,5,16,74,104,10],[60,12,31,75,105,10],[23,3,7,150,180,10],[8,56,27,90,120,10],[6,68,30,89,119,10],[47,47,13,192,222,10],[49,58,10,86,116,10],[27,43,9,42,72,10],[37,31,14,35,65,10],[57,29,18,96,126,10],[63,23,2,87,117,10],[21,24,28,87,117,10],[12,24,13,90,120,10],[24,58,19,67,97,10],[67,5,25,144,174,10],[37,47,6,86,116,10],[49,42,13,167,197,10],[53,43,14,14,44,10],[61,52,3,178,208,10],[57,48,23,95,125,10],[56,37,6,34,64,10],[55,54,26,132,162,10],[4,18,35,120,150,10],[26,52,9,46,76,10],[26,35,15,77,107,10],[31,67,3,180,210,10]]},"RC102":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,0,191,10],[22,75,30,0,199,10],[22,85,10,0,190,10],[20,80,40,141,171,10],[20,85,20,0,189,10],[18,75,20,95,125,10],[15,75,20,0,194,10],[15,80,10,91,121,10],[10,35,20,91,121,10],[10,40,30,119,149,10],[8,40,40,59,89,10],[8,45,20,0,197,10],[5,35,10,142,172,10],[5,45,10,35,65,10],[2,40,20,58,88,10],[0,40,20,72,102,10],[0,45,20,149,179,10],[44,5,20,87,117,10],[42,10,40,72,102,10],[42,15,10,122,152,10],[40,5,10,0,185,10],[40,15,40,92,122,10],[38,5,30,65,95,10],[38,15,10,148,178,10],[35,5,20,154,184,10],[95,30,30,0,171,10],[95,35,20,62,92,10],[92,30,10,62,92,10],[90,35,10,67,97,10],[88,30,10,74,104,10],[88,35,20,0,179,10],[87,30,10,131,161,10],[85,25,10,51,81,10],[85,35,30,0,182,10],[67,85,20,139,169,10],[65,85,40,43,73,10],[65,82,10,0,189,10],[62,80,30,75,105,10],[60,80,10,37,67,10],[60,85,30,85,115,10],[58,75,20,92,122,10],[55,80,10,33,63,10],[55,85,20,128,158,10],[55,82,10,64,94,10],[20,82,10,37,67,10],[18,80,10,113,143,10],[2,45,10,45,75,10],[42,5,10,0,184,10],[42,12,10,104,134,10],[72,35,30,0,194,10],[55,20,19,83,113,10],[25,30,3,0,205,10],[20,50,5,91,121,10],[55,60,16,139,169,10],[30,60,16,140,170,10],[50,35,19,130,160,10],[30,25,23,96,126,10],[15,10,20,152,182,10],[10,20,19,0,187,10],[15,60,17,155,185,10],[45,65,9,66,96,10],[65,35,3,52,82,10],[65,20,6,39,69,10],[45,30,17,53,83,10],[35,40,16,11,41,10],[41,37,16,133,163,10],[64,42,9,70,100,10],[40,60,21,144,174,10],[31,52,27,41,71,10],[35,69,23,180,210,10],[65,55,14,65,95,10],[63,65,8,0,202,10],[2,60,5,77,107,10],[20,20,8,141,171,10],[5,5,16,0,172,10],[60,12,31,75,105,10],[23,3,7,150,180,10],[8,56,27,90,120,10],[6,68,30,89,119,10],[47,47,13,192,222,10],[49,58,10,86,116,10],[27,43,9,0,215,10],[37,31,14,0,210,10],[57,29,18,96,126,10],[63,23,2,0,194,10],[21,24,28,87,117,10],[12,24,13,90,120,10],[24,58,19,67,97,10],[67,5,25,144,174,10],[37,47,6,86,116,10],[49,42,13,0,217,10],[53,43,14,14,44,10],[61,52,3,178,208,10],[57,48,23,0,212,10],[56,37,6,0,209,10],[55,54,26,0,214,10],[4,18,35,120,150,10],[26,52,9,0,215,10],[26,35,15,77,107,10],[31,67,3,180,210,10]]},"RC103":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,0,191,10],[22,75,30,0,199,10],[22,85,10,0,190,10],[20,80,40,141,171,10],[20,85,20,0,189,10],[18,75,20,95,125,10],[15,75,20,0,194,10],[15,80,10,91,121,10],[10,35,20,91,121,10],[10,40,30,119,149,10],[8,40,40,59,89,10],[8,45,20,0,197,10],[5,35,10,142,172,10],[5,45,10,0,194,10],[2,40,20,58,88,10],[0,40,20,0,188,10],[0,45,20,149,179,10],[44,5,20,0,184,10],[42,10,40,0,189,10],[42,15,10,0,194,10],[40,5,10,0,185,10],[40,15,40,92,122,10],[38,5,30,65,95,10],[38,15,10,0,194,10],[35,5,20,154,184,10],[95,30,30,0,171,10],[95,35,20,62,92,10],[92,30,10,0,174,10],[90,35,10,0,177,10],[88,30,10,74,104,10],[88,35,20,0,179,10],[87,30,10,0,178,10],[85,25,10,51,81,10],[85,35,30,0,182,10],[67,85,20,139,169,10],[65,85,40,43,73,10],[65,82,10,0,189,10],[62,80,30,75,105,10],[60,80,10,37,67,10],[60,85,30,85,115,10],[58,75,20,92,122,10],[55,80,10,33,63,10],[55,85,20,0,191,10],[55,82,10,64,94,10],[20,82,10,37,67,10],[18,80,10,0,192,10],[2,45,10,0,191,10],[42,5,10,0,184,10],[42,12,10,104,134,10],[72,35,30,0,194,10],[55,20,19,0,196,10],[25,30,3,0,205,10],[20,50,5,91,121,10],[55,60,16,0,211,10],[30,60,16,140,170,10],[50,35,19,130,160,10],[30,25,23,0,203,10],[15,10,20,152,182,10],[10,20,19,0,187,10],[15,60,17,0,203,10],[45,65,9,0,214,10],[65,35,3,52,82,10],[65,20,6,0,190,10],[45,30,17,53,83,10],[35,40,16,11,41,10],[41,37,16,133,163,10],[64,42,9,70,100,10],[40,60,21,144,174,10],[31,52,27,41,71,10],[35,69,23,180,210,10],[65,55,14,0,204,10],[63,65,8,0,202,10],[2,60,5,0,190,10],[20,20,8,141,171,10],[5,5,16,0,172,10],[60,12,31,75,105,10],[23,3,7,150,180,10],[8,56,27,90,120,10],[6,68,30,89,119,10],[47,47,13,192,222,10],[49,58,10,0,217,10],[27,43,9,0,215,10],[37,31,14,0,210,10],[57,29,18,96,126,10],[63,23,2,0,194,10],[21,24,28,0,197,10],[12,24,13,90,120,10],[24,58,19,67,97,10],[67,5,25,0,177,10],[37,47,6,0,225,10],[49,42,13,0,217,10],[53,43,14,14,44,10],[61,52,3,178,208,10],[57,48,23,0,212,10],[56,37,6,0,209,10],[55,54,26,0,214,10],[4,18,35,0,181,10],[26,52,9,0,215,10],[26,35,15,77,107,10],[31,67,3,180,210,10]]},"RC104":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,0,191,10],[22,75,30,0,199,10],[22,85,10,0,190,10],[20,80,40,141,171,10],[20,85,20,0,189,10],[18,75,20,0,196,10],[15,75,20,0,194,10],[15,80,10,91,121,10],[10,35,20,91,121,10],[10,40,30,0,198,10],[8,40,40,59,89,10],[8,45,20,0,197,10],[5,35,10,142,172,10],[5,45,10,0,194,10],[2,40,20,58,88,10],[0,40,20,0,188,10],[0,45,20,0,189,10],[44,5,20,0,184,10],[42,10,40,0,189,10],[42,15,10,0,194,10],[40,5,10,0,185,10],[40,15,40,0,195,10],[38,5,30,65,95,10],[38,15,10,0,194,10],[35,5,20,154,184,10],[95,30,30,0,171,10],[95,35,20,0,172,10],[92,30,10,0,174,10],[90,35,10,0,177,10],[88,30,10,0,178,10],[88,35,20,0,179,10],[87,30,10,0,178,10],[85,25,10,0,178,10],[85,35,30,0,182,10],[67,85,20,0,185,10],[65,85,40,0,186,10],[65,82,10,0,189,10],[62,80,30,75,105,10],[60,80,10,0,193,10],[60,85,30,0,189,10],[58,75,20,0,199,10],[55,80,10,0,196,10],[55,85,20,0,191,10],[55,82,10,64,94,10],[20,82,10,0,192,10],[18,80,10,0,192,10],[2,45,10,0,191,10],[42,5,10,0,184,10],[42,12,10,0,191,10],[72,35,30,0,194,10],[55,20,19,0,196,10],[25,30,3,0,205,10],[20,50,5,91,121,10],[55,60,16,0,211,10],[30,60,16,140,170,10],[50,35,19,0,211,10],[30,25,23,0,203,10],[15,10,20,152,182,10],[10,20,19,0,187,10],[15,60,17,0,203,10],[45,65,9,0,214,10],[65,35,3,52,82,10],[65,20,6,0,190,10],[45,30,17,0,209,10],[35,40,16,0,218,10],[41,37,16,0,216,10],[64,42,9,70,100,10],[40,60,21,0,220,10],[31,52,27,41,71,10],[35,69,23,0,210,10],[65,55,14,0,204,10],[63,65,8,0,202,10],[2,60,5,0,190,10],[20,20,8,141,171,10],[5,5,16,0,172,10],[60,12,31,75,105,10],[23,3,7,150,180,10],[8,56,27,0,197,10],[6,68,30,89,119,10],[47,47,13,0,222,10],[49,58,10,0,217,10],[27,43,9,0,215,10],[37,31,14,0,210,10],[57,29,18,96,126,10],[63,23,2,0,194,10],[21,24,28,0,197,10],[12,24,13,90,120,10],[24,58,19,0,212,10],[67,5,25,0,177,10],[37,47,6,0,225,10],[49,42,13,0,217,10],[53,43,14,14,44,10],[61,52,3,0,208,10],[57,48,23,0,212,10],[56,37,6,0,209,10],[55,54,26,0,214,10],[4,18,35,0,181,10],[26,52,9,0,215,10],[26,35,15,77,107,10],[31,67,3,180,210,10]]},"RC105":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,71,191,10],[22,75,30,30,150,10],[22,85,10,64,184,10],[20,80,40,151,161,10],[20,85,20,40,160,10],[18,75,20,96,123,10],[15,75,20,35,155,10],[15,80,10,101,111,10],[10,35,20,101,111,10],[10,40,30,123,144,10],[8,40,40,69,79,10],[8,45,20,32,152,10],[5,35,10,152,162,10],[5,45,10,35,117,10],[2,40,20,68,78,10],[0,40,20,59,114,10],[0,45,20,147,180,10],[44,5,20,79,124,10],[42,10,40,58,115,10],[42,15,10,111,162,10],[40,5,10,45,165,10],[40,15,40,94,119,10],[38,5,30,75,85,10],[38,15,10,128,194,10],[35,5,20,171,181,10],[95,30,30,58,171,10],[95,35,20,60,93,10],[92,30,10,55,120,10],[90,35,10,52,112,10],[88,30,10,75,102,10],[88,35,20,50,170,10],[87,30,10,116,175,10],[85,25,10,51,85,10],[85,35,30,62,182,10],[67,85,20,138,169,10],[65,85,40,43,78,10],[65,82,10,69,189,10],[62,80,30,85,95,10],[60,80,10,36,74,10],[60,85,30,87,112,10],[58,75,20,92,121,10],[55,80,10,33,66,10],[55,85,20,117,168,10],[55,82,10,74,84,10],[20,82,10,37,72,10],[18,80,10,98,157,10],[2,45,10,38,109,10],[42,5,10,64,184,10],[42,12,10,109,128,10],[72,35,30,71,191,10],[55,20,19,69,126,10],[25,30,3,25,145,10],[20,50,5,101,111,10],[55,60,16,127,180,10],[30,60,16,150,160,10],[50,35,19,130,159,10],[30,25,23,82,139,10],[15,10,20,172,182,10],[10,20,19,42,162,10],[15,60,17,137,202,10],[45,65,9,55,106,10],[65,35,3,62,72,10],[65,20,6,39,108,10],[45,30,17,53,82,10],[35,40,16,11,43,10],[41,37,16,134,161,10],[64,42,9,80,90,10],[40,60,21,144,173,10],[31,52,27,51,61,10],[35,69,23,172,210,10],[65,55,14,52,107,10],[63,65,8,27,147,10],[2,60,5,65,118,10],[20,20,8,151,161,10],[5,5,16,57,172,10],[60,12,31,85,95,10],[23,3,7,163,173,10],[8,56,27,90,119,10],[6,68,30,99,109,10],[47,47,13,190,222,10],[49,58,10,80,121,10],[27,43,9,14,134,10],[37,31,14,19,139,10],[57,29,18,106,116,10],[63,23,2,42,162,10],[21,24,28,77,126,10],[12,24,13,100,110,10],[24,58,19,67,96,10],[67,5,25,105,177,10],[37,47,6,74,127,10],[49,42,13,97,217,10],[53,43,14,15,25,10],[61,52,3,173,208,10],[57,48,23,50,170,10],[56,37,6,20,140,10],[55,54,26,87,207,10],[4,18,35,112,157,10],[26,52,9,14,134,10],[26,35,15,87,97,10],[31,67,3,200,210,10]]},"RC106":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,130,190,10],[22,75,30,35,95,10],[22,85,10,94,154,10],[20,80,40,126,186,10],[20,85,20,40,100,10],[18,75,20,80,140,10],[15,75,20,64,124,10],[15,80,10,76,136,10],[10,35,20,76,136,10],[10,40,30,104,164,10],[8,40,40,44,104,10],[8,45,20,49,109,10],[5,35,10,127,187,10],[5,45,10,35,95,10],[2,40,20,43,103,10],[0,40,20,57,117,10],[0,45,20,129,189,10],[44,5,20,72,132,10],[42,10,40,57,117,10],[42,15,10,107,167,10],[40,5,10,52,112,10],[40,15,40,77,137,10],[38,5,30,50,110,10],[38,15,10,133,193,10],[35,5,20,124,184,10],[95,30,30,100,160,10],[95,35,20,57,117,10],[92,30,10,55,115,10],[90,35,10,52,112,10],[88,30,10,59,119,10],[88,35,20,50,110,10],[87,30,10,116,176,10],[85,25,10,51,111,10],[85,35,30,96,156,10],[67,85,20,124,184,10],[65,85,40,43,103,10],[65,82,10,109,169,10],[62,80,30,60,120,10],[60,80,10,36,96,10],[60,85,30,70,130,10],[58,75,20,77,137,10],[55,80,10,33,93,10],[55,85,20,113,173,10],[55,82,10,49,109,10],[20,82,10,37,97,10],[18,80,10,98,158,10],[2,45,10,38,98,10],[42,5,10,124,184,10],[42,12,10,89,149,10],[72,35,30,101,161,10],[55,20,19,68,128,10],[25,30,3,37,97,10],[20,50,5,76,136,10],[55,60,16,124,184,10],[30,60,16,125,185,10],[50,35,19,115,175,10],[30,25,23,81,141,10],[15,10,20,122,182,10],[10,20,19,42,102,10],[15,60,17,140,200,10],[45,65,9,51,111,10],[65,35,3,37,97,10],[65,20,6,39,99,10],[45,30,17,38,98,10],[35,40,16,11,71,10],[41,37,16,118,178,10],[64,42,9,55,115,10],[40,60,21,129,189,10],[31,52,27,26,86,10],[35,69,23,150,210,10],[65,55,14,50,110,10],[63,65,8,27,87,10],[2,60,5,62,122,10],[20,20,8,126,186,10],[5,5,16,59,119,10],[60,12,31,60,120,10],[23,3,7,120,180,10],[8,56,27,75,135,10],[6,68,30,74,134,10],[47,47,13,162,222,10],[49,58,10,71,131,10],[27,43,9,27,87,10],[37,31,14,20,80,10],[57,29,18,81,141,10],[63,23,2,72,132,10],[21,24,28,72,132,10],[12,24,13,75,135,10],[24,58,19,52,112,10],[67,5,25,117,177,10],[37,47,6,71,131,10],[49,42,13,152,212,10],[53,43,14,14,74,10],[61,52,3,148,208,10],[57,48,23,80,140,10],[56,37,6,20,80,10],[55,54,26,117,177,10],[4,18,35,105,165,10],[26,52,9,31,91,10],[26,35,15,62,122,10],[31,67,3,150,210,10]]},"RC107":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,125,191,10],[22,75,30,32,97,10],[22,85,10,101,146,10],[20,80,40,71,193,10],[20,85,20,40,113,10],[18,75,20,55,164,10],[15,75,20,69,118,10],[15,80,10,56,155,10],[10,35,20,51,160,10],[10,40,30,90,177,10],[8,40,40,33,152,10],[8,45,20,49,108,10],[5,35,10,62,191,10],[5,45,10,35,117,10],[2,40,20,39,161,10],[0,40,20,59,114,10],[0,45,20,60,189,10],[44,5,20,79,124,10],[42,10,40,58,115,10],[42,15,10,111,162,10],[40,5,10,52,111,10],[40,15,40,55,158,10],[38,5,30,45,164,10],[38,15,10,128,194,10],[35,5,20,54,184,10],[95,30,30,105,154,10],[95,35,20,57,172,10],[92,30,10,55,120,10],[90,35,10,52,112,10],[88,30,10,52,159,10],[88,35,20,50,110,10],[87,30,10,116,175,10],[85,25,10,51,178,10],[85,35,30,100,151,10],[67,85,20,61,185,10],[65,85,40,43,186,10],[65,82,10,113,164,10],[62,80,30,37,148,10],[60,80,10,36,191,10],[60,85,30,50,149,10],[58,75,20,48,165,10],[55,80,10,33,166,10],[55,85,20,117,168,10],[55,82,10,35,148,10],[20,82,10,37,177,10],[18,80,10,98,157,10],[2,45,10,38,109,10],[42,5,10,120,184,10],[42,12,10,79,158,10],[72,35,30,104,157,10],[55,20,19,69,126,10],[25,30,3,36,97,10],[20,50,5,57,154,10],[55,60,16,127,180,10],[30,60,16,95,214,10],[50,35,19,88,201,10],[30,25,23,82,139,10],[15,10,20,56,182,10],[10,20,19,42,125,10],[15,60,17,137,202,10],[45,65,9,55,106,10],[65,35,3,29,158,10],[65,20,6,39,108,10],[45,30,17,20,139,10],[35,40,16,11,140,10],[41,37,16,92,203,10],[64,42,9,28,141,10],[40,60,21,100,217,10],[31,52,27,9,134,10],[35,69,23,60,210,10],[65,55,14,52,107,10],[63,65,8,27,101,10],[2,60,5,65,118,10],[20,20,8,72,193,10],[5,5,16,60,117,10],[60,12,31,42,143,10],[23,3,7,52,180,10],[8,56,27,46,163,10],[6,68,30,54,153,10],[47,47,13,97,222,10],[49,58,10,80,121,10],[27,43,9,26,87,10],[37,31,14,19,87,10],[57,29,18,62,159,10],[63,23,2,76,127,10],[21,24,28,77,126,10],[12,24,13,68,141,10],[24,58,19,24,139,10],[67,5,25,105,177,10],[37,47,6,74,127,10],[49,42,13,151,212,10],[53,43,14,14,155,10],[61,52,3,69,208,10],[57,48,23,86,133,10],[56,37,6,20,84,10],[55,54,26,121,172,10],[4,18,35,112,157,10],[26,52,9,30,91,10],[26,35,15,37,146,10],[31,67,3,66,210,10]]},"RC108":{"vehicles":25,"capacity":200,"nodes":[[40,50,0,0,240,0],[25,85,20,49,191,10],[22,75,30,30,168,10],[22,85,10,95,152,10],[20,80,40,69,193,10],[20,85,20,40,189,10],[18,75,20,60,159,10],[15,75,20,54,133,10],[15,80,10,67,144,10],[10,35,20,57,154,10],[10,40,30,106,161,10],[8,40,40,33,152,10],[8,45,20,32,148,10],[5,35,10,53,191,10],[5,45,10,35,194,10],[2,40,20,39,163,10],[0,40,20,41,141,10],[0,45,20,51,189,10],[44,5,20,73,130,10],[42,10,40,40,148,10],[42,15,10,94,179,10],[40,5,10,45,161,10],[40,15,40,64,149,10],[38,5,30,45,164,10],[38,15,10,51,194,10],[35,5,20,45,183,10],[95,30,30,90,169,10],[95,35,20,57,172,10],[92,30,10,55,174,10],[90,35,10,52,174,10],[88,30,10,52,147,10],[88,35,20,50,172,10],[87,30,10,61,178,10],[85,25,10,51,178,10],[85,35,30,83,168,10],[67,85,20,57,185,10],[65,85,40,43,186,10],[65,82,10,95,182,10],[62,80,30,38,141,10],[60,80,10,36,193,10],[60,85,30,61,138,10],[58,75,20,49,164,10],[55,80,10,33,180,10],[55,85,20,100,185,10],[55,82,10,35,142,10],[20,82,10,37,192,10],[18,80,10,71,184,10],[2,45,10,38,191,10],[42,5,10,50,184,10],[42,12,10,99,138,10],[72,35,30,83,178,10],[55,20,19,45,150,10],[25,30,3,25,150,10],[20,50,5,68,143,10],[55,60,16,107,200,10],[30,60,16,95,214,10],[50,35,19,91,198,10],[30,25,23,56,165,10],[15,10,20,51,182,10],[10,20,19,42,187,10],[15,60,17,62,203,10],[45,65,9,37,124,10],[65,35,3,29,168,10],[65,20,6,39,190,10],[45,30,17,20,139,10],[35,40,16,11,150,10],[41,37,16,97,198,10],[64,42,9,31,138,10],[40,60,21,101,216,10],[31,52,27,9,139,10],[35,69,23,30,210,10],[65,55,14,30,129,10],[63,65,8,27,202,10],[2,60,5,46,137,10],[20,20,8,71,193,10],[5,5,16,57,165,10],[60,12,31,48,131,10],[23,3,7,49,180,10],[8,56,27,47,162,10],[6,68,30,65,142,10],[47,47,13,93,222,10],[49,58,10,78,123,10],[27,43,9,14,140,10],[37,31,14,19,172,10],[57,29,18,73,148,10],[63,23,2,59,144,10],[21,24,28,63,140,10],[12,24,13,91,118,10],[24,58,19,27,136,10],[67,5,25,52,177,10],[37,47,6,53,148,10],[49,42,13,89,217,10],[53,43,14,14,177,10],[61,52,3,50,208,10],[57,48,23,76,143,10],[56,37,6,20,159,10],[55,54,26,105,188,10],[4,18,35,104,165,10],[26,52,9,14,136,10],[26,35,15,42,141,10],[31,67,3,43,210,10]]},"RC201":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,673,793,10],[22,75,30,152,272,10],[22,85,10,471,591,10],[20,80,40,644,764,10],[20,85,20,73,193,10],[18,75,20,388,508,10],[15,75,20,300,420,10],[15,80,10,367,487,10],[10,35,20,371,491,10],[10,40,30,519,639,10],[8,40,40,195,315,10],[8,45,20,223,343,10],[5,35,10,653,773,10],[5,45,10,35,155,10],[2,40,20,174,294,10],[0,40,20,255,375,10],[0,45,20,703,823,10],[44,5,20,335,455,10],[42,10,40,254,374,10],[42,15,10,537,657,10],[40,5,10,215,335,10],[40,15,40,375,495,10],[38,5,30,201,321,10],[38,15,10,681,801,10],[35,5,20,784,904,10],[95,30,30,529,649,10],[95,35,20,146,266,10],[92,30,10,149,269,10],[90,35,10,194,314,10],[88,30,10,246,366,10],[88,35,20,165,285,10],[87,30,10,621,741,10],[85,25,10,80,200,10],[85,35,30,487,607,10],[67,85,20,657,777,10],[65,85,40,43,163,10],[65,82,10,557,677,10],[62,80,30,278,398,10],[60,80,10,64,184,10],[60,85,30,329,449,10],[58,75,20,376,496,10],[55,80,10,33,153,10],[55,85,20,574,694,10],[55,82,10,217,337,10],[20,82,10,37,157,10],[18,80,10,489,609,10],[2,45,10,105,225,10],[42,5,10,732,852,10],[42,12,10,440,560,10],[72,35,30,507,627,10],[55,20,19,326,446,10],[25,30,3,175,295,10],[20,50,5,375,495,10],[55,60,16,601,721,10],[30,60,16,599,719,10],[50,35,19,557,677,10],[30,25,23,397,517,10],[15,10,20,782,902,10],[10,20,19,42,162,10],[15,60,17,694,814,10],[45,65,9,258,378,10],[65,35,3,167,287,10],[65,20,6,39,159,10],[45,30,17,191,311,10],[35,40,16,11,131,10],[41,37,16,566,686,10],[64,42,9,268,388,10],[40,60,21,612,732,10],[31,52,27,157,277,10],[35,69,23,810,930,10],[65,55,14,241,361,10],[63,65,8,60,180,10],[2,60,5,286,406,10],[20,20,8,645,765,10],[5,5,16,232,352,10],[60,12,31,268,388,10],[23,3,7,764,884,10],[8,56,27,365,485,10],[6,68,30,352,472,10],[47,47,13,822,942,10],[49,58,10,355,475,10],[27,43,9,152,272,10],[37,31,14,105,225,10],[57,29,18,395,515,10],[63,23,2,344,464,10],[21,24,28,349,469,10],[12,24,13,359,479,10],[24,58,19,260,380,10],[67,5,25,713,833,10],[37,47,6,359,479,10],[49,42,13,719,839,10],[53,43,14,14,134,10],[61,52,3,808,928,10],[57,48,23,392,512,10],[56,37,6,100,220,10],[55,54,26,562,682,10],[4,18,35,547,667,10],[26,52,9,172,292,10],[26,35,15,308,428,10],[31,67,3,810,930,10]]},"RC202":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,0,911,10],[22,75,30,0,919,10],[22,85,10,0,910,10],[20,80,40,644,764,10],[20,85,20,0,909,10],[18,75,20,388,508,10],[15,75,20,0,914,10],[15,80,10,367,487,10],[10,35,20,371,491,10],[10,40,30,519,639,10],[8,40,40,195,315,10],[8,45,20,0,917,10],[5,35,10,653,773,10],[5,45,10,35,155,10],[2,40,20,174,294,10],[0,40,20,255,375,10],[0,45,20,703,823,10],[44,5,20,335,455,10],[42,10,40,254,374,10],[42,15,10,537,657,10],[40,5,10,0,905,10],[40,15,40,375,495,10],[38,5,30,201,321,10],[38,15,10,681,801,10],[35,5,20,784,904,10],[95,30,30,0,891,10],[95,35,20,146,266,10],[92,30,10,149,269,10],[90,35,10,194,314,10],[88,30,10,246,366,10],[88,35,20,0,899,10],[87,30,10,621,741,10],[85,25,10,80,200,10],[85,35,30,0,902,10],[67,85,20,657,777,10],[65,85,40,43,163,10],[65,82,10,0,909,10],[62,80,30,278,398,10],[60,80,10,64,184,10],[60,85,30,329,449,10],[58,75,20,376,496,10],[55,80,10,33,153,10],[55,85,20,574,694,10],[55,82,10,217,337,10],[20,82,10,37,157,10],[18,80,10,489,609,10],[2,45,10,105,225,10],[42,5,10,0,904,10],[42,12,10,440,560,10],[72,35,30,0,914,10],[55,20,19,326,446,10],[25,30,3,0,925,10],[20,50,5,375,495,10],[55,60,16,601,721,10],[30,60,16,599,719,10],[50,35,19,557,677,10],[30,25,23,397,517,10],[15,10,20,782,902,10],[10,20,19,0,907,10],[15,60,17,694,814,10],[45,65,9,258,378,10],[65,35,3,167,287,10],[65,20,6,39,159,10],[45,30,17,191,311,10],[35,40,16,11,131,10],[41,37,16,566,686,10],[64,42,9,268,388,10],[40,60,21,612,732,10],[31,52,27,157,277,10],[35,69,23,810,930,10],[65,55,14,241,361,10],[63,65,8,0,922,10],[2,60,5,286,406,10],[20,20,8,645,765,10],[5,5,16,0,892,10],[60,12,31,268,388,10],[23,3,7,764,884,10],[8,56,27,365,485,10],[6,68,30,352,472,10],[47,47,13,822,942,10],[49,58,10,355,475,10],[27,43,9,0,935,10],[37,31,14,0,930,10],[57,29,18,395,515,10],[63,23,2,0,914,10],[21,24,28,349,469,10],[12,24,13,359,479,10],[24,58,19,260,380,10],[67,5,25,713,833,10],[37,47,6,359,479,10],[49,42,13,0,937,10],[53,43,14,14,134,10],[61,52,3,808,928,10],[57,48,23,0,932,10],[56,37,6,0,929,10],[55,54,26,0,934,10],[4,18,35,547,667,10],[26,52,9,0,935,10],[26,35,15,308,428,10],[31,67,3,810,930,10]]},"RC203":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,0,911,10],[22,75,30,0,919,10],[22,85,10,0,910,10],[20,80,40,644,764,10],[20,85,20,0,909,10],[18,75,20,388,508,10],[15,75,20,0,914,10],[15,80,10,367,487,10],[10,35,20,371,491,10],[10,40,30,519,639,10],[8,40,40,195,315,10],[8,45,20,0,917,10],[5,35,10,653,773,10],[5,45,10,0,914,10],[2,40,20,174,294,10],[0,40,20,0,908,10],[0,45,20,703,823,10],[44,5,20,0,904,10],[42,10,40,0,909,10],[42,15,10,0,914,10],[40,5,10,0,905,10],[40,15,40,375,495,10],[38,5,30,201,321,10],[38,15,10,0,914,10],[35,5,20,784,904,10],[95,30,30,0,891,10],[95,35,20,146,266,10],[92,30,10,0,894,10],[90,35,10,0,897,10],[88,30,10,246,366,10],[88,35,20,0,899,10],[87,30,10,0,898,10],[85,25,10,80,200,10],[85,35,30,0,902,10],[67,85,20,657,777,10],[65,85,40,43,163,10],[65,82,10,0,909,10],[62,80,30,278,398,10],[60,80,10,64,184,10],[60,85,30,329,449,10],[58,75,20,376,496,10],[55,80,10,33,153,10],[55,85,20,0,911,10],[55,82,10,217,337,10],[20,82,10,37,157,10],[18,80,10,0,912,10],[2,45,10,0,911,10],[42,5,10,0,904,10],[42,12,10,440,560,10],[72,35,30,0,914,10],[55,20,19,0,916,10],[25,30,3,0,925,10],[20,50,5,375,495,10],[55,60,16,0,931,10],[30,60,16,599,719,10],[50,35,19,557,677,10],[30,25,23,0,923,10],[15,10,20,782,902,10],[10,20,19,0,907,10],[15,60,17,0,923,10],[45,65,9,0,934,10],[65,35,3,167,287,10],[65,20,6,0,910,10],[45,30,17,191,311,10],[35,40,16,11,131,10],[41,37,16,566,686,10],[64,42,9,268,388,10],[40,60,21,612,732,10],[31,52,27,157,277,10],[35,69,23,810,930,10],[65,55,14,0,924,10],[63,65,8,0,922,10],[2,60,5,0,910,10],[20,20,8,645,765,10],[5,5,16,0,892,10],[60,12,31,268,388,10],[23,3,7,764,884,10],[8,56,27,365,485,10],[6,68,30,352,472,10],[47,47,13,822,942,10],[49,58,10,0,937,10],[27,43,9,0,935,10],[37,31,14,0,930,10],[57,29,18,395,515,10],[63,23,2,0,914,10],[21,24,28,0,917,10],[12,24,13,359,479,10],[24,58,19,260,380,10],[67,5,25,0,897,10],[37,47,6,0,945,10],[49,42,13,0,937,10],[53,43,14,14,134,10],[61,52,3,808,928,10],[57,48,23,0,932,10],[56,37,6,0,929,10],[55,54,26,0,934,10],[4,18,35,0,901,10],[26,52,9,0,935,10],[26,35,15,308,428,10],[31,67,3,810,930,10]]},"RC204":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,0,911,10],[22,75,30,0,919,10],[22,85,10,0,910,10],[20,80,40,644,764,10],[20,85,20,0,909,10],[18,75,20,0,916,10],[15,75,20,0,914,10],[15,80,10,367,487,10],[10,35,20,371,491,10],[10,40,30,0,918,10],[8,40,40,195,315,10],[8,45,20,0,917,10],[5,35,10,653,773,10],[5,45,10,0,914,10],[2,40,20,174,294,10],[0,40,20,0,908,10],[0,45,20,0,909,10],[44,5,20,0,904,10],[42,10,40,0,909,10],[42,15,10,0,914,10],[40,5,10,0,905,10],[40,15,40,0,915,10],[38,5,30,201,321,10],[38,15,10,0,914,10],[35,5,20,784,904,10],[95,30,30,0,891,10],[95,35,20,0,892,10],[92,30,10,0,894,10],[90,35,10,0,897,10],[88,30,10,0,898,10],[88,35,20,0,899,10],[87,30,10,0,898,10],[85,25,10,0,898,10],[85,35,30,0,902,10],[67,85,20,0,905,10],[65,85,40,0,906,10],[65,82,10,0,909,10],[62,80,30,278,398,10],[60,80,10,0,913,10],[60,85,30,0,909,10],[58,75,20,0,919,10],[55,80,10,0,916,10],[55,85,20,0,911,10],[55,82,10,217,337,10],[20,82,10,0,912,10],[18,80,10,0,912,10],[2,45,10,0,911,10],[42,5,10,0,904,10],[42,12,10,0,911,10],[72,35,30,0,914,10],[55,20,19,0,916,10],[25,30,3,0,925,10],[20,50,5,375,495,10],[55,60,16,0,931,10],[30,60,16,599,719,10],[50,35,19,0,931,10],[30,25,23,0,923,10],[15,10,20,782,902,10],[10,20,19,0,907,10],[15,60,17,0,923,10],[45,65,9,0,934,10],[65,35,3,167,287,10],[65,20,6,0,910,10],[45,30,17,0,929,10],[35,40,16,0,938,10],[41,37,16,0,936,10],[64,42,9,268,388,10],[40,60,21,0,940,10],[31,52,27,157,277,10],[35,69,23,0,930,10],[65,55,14,0,924,10],[63,65,8,0,922,10],[2,60,5,0,910,10],[20,20,8,645,765,10],[5,5,16,0,892,10],[60,12,31,268,388,10],[23,3,7,764,884,10],[8,56,27,0,917,10],[6,68,30,352,472,10],[47,47,13,0,942,10],[49,58,10,0,937,10],[27,43,9,0,935,10],[37,31,14,0,930,10],[57,29,18,395,515,10],[63,23,2,0,914,10],[21,24,28,0,917,10],[12,24,13,359,479,10],[24,58,19,0,932,10],[67,5,25,0,897,10],[37,47,6,0,945,10],[49,42,13,0,937,10],[53,43,14,14,134,10],[61,52,3,0,928,10],[57,48,23,0,932,10],[56,37,6,0,929,10],[55,54,26,0,934,10],[4,18,35,0,901,10],[26,52,9,0,935,10],[26,35,15,308,428,10],[31,67,3,810,930,10]]},"RC205":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,431,911,10],[22,75,30,30,510,10],[22,85,10,291,771,10],[20,80,40,674,734,10],[20,85,20,40,520,10],[18,75,20,393,502,10],[15,75,20,120,600,10],[15,80,10,397,457,10],[10,35,20,401,461,10],[10,40,30,535,622,10],[8,40,40,225,285,10],[8,45,20,43,523,10],[5,35,10,683,743,10],[5,45,10,35,366,10],[2,40,20,204,264,10],[0,40,20,204,425,10],[0,45,20,698,827,10],[44,5,20,306,483,10],[42,10,40,199,428,10],[42,15,10,494,699,10],[40,5,10,45,525,10],[40,15,40,383,486,10],[38,5,30,231,291,10],[38,15,10,609,872,10],[35,5,20,821,881,10],[95,30,30,349,829,10],[95,35,20,138,273,10],[92,30,10,78,339,10],[90,35,10,132,375,10],[88,30,10,252,359,10],[88,35,20,50,530,10],[87,30,10,562,799,10],[85,25,10,71,208,10],[85,35,30,307,787,10],[67,85,20,655,778,10],[65,85,40,43,186,10],[65,82,10,377,857,10],[62,80,30,308,368,10],[60,80,10,46,201,10],[60,85,30,339,438,10],[58,75,20,377,494,10],[55,80,10,33,166,10],[55,85,20,531,736,10],[55,82,10,247,307,10],[20,82,10,37,177,10],[18,80,10,432,665,10],[2,45,10,38,322,10],[42,5,10,424,904,10],[42,12,10,460,539,10],[72,35,30,327,807,10],[55,20,19,273,498,10],[25,30,3,25,505,10],[20,50,5,405,465,10],[55,60,16,554,767,10],[30,60,16,629,689,10],[50,35,19,560,673,10],[30,25,23,342,571,10],[15,10,20,842,902,10],[10,20,19,42,522,10],[15,60,17,623,884,10],[45,65,9,214,421,10],[65,35,3,197,257,10],[65,20,6,39,316,10],[45,30,17,191,310,10],[35,40,16,11,140,10],[41,37,16,570,681,10],[64,42,9,298,358,10],[40,60,21,613,730,10],[31,52,27,187,247,10],[35,69,23,780,930,10],[65,55,14,191,410,10],[63,65,8,27,507,10],[2,60,5,240,451,10],[20,20,8,675,735,10],[5,5,16,57,537,10],[60,12,31,298,358,10],[23,3,7,794,854,10],[8,56,27,366,483,10],[6,68,30,382,442,10],[47,47,13,817,942,10],[49,58,10,332,497,10],[27,43,9,14,494,10],[37,31,14,19,499,10],[57,29,18,425,485,10],[63,23,2,164,644,10],[21,24,28,310,507,10],[12,24,13,389,449,10],[24,58,19,262,377,10],[67,5,25,611,897,10],[37,47,6,311,526,10],[49,42,13,457,937,10],[53,43,14,14,74,10],[61,52,3,789,928,10],[57,48,23,212,692,10],[56,37,6,20,500,10],[55,54,26,382,862,10],[4,18,35,516,697,10],[26,52,9,14,494,10],[26,35,15,338,398,10],[31,67,3,870,930,10]]},"RC206":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,613,853,10],[22,75,30,92,332,10],[22,85,10,411,651,10],[20,80,40,584,824,10],[20,85,20,40,280,10],[18,75,20,328,568,10],[15,75,20,240,480,10],[15,80,10,307,547,10],[10,35,20,311,551,10],[10,40,30,459,699,10],[8,40,40,135,375,10],[8,45,20,163,403,10],[5,35,10,593,833,10],[5,45,10,35,275,10],[2,40,20,114,354,10],[0,40,20,195,435,10],[0,45,20,643,883,10],[44,5,20,275,515,10],[42,10,40,194,434,10],[42,15,10,477,717,10],[40,5,10,155,395,10],[40,15,40,315,555,10],[38,5,30,141,381,10],[38,15,10,621,861,10],[35,5,20,664,904,10],[95,30,30,469,709,10],[95,35,20,86,326,10],[92,30,10,89,329,10],[90,35,10,134,374,10],[88,30,10,186,426,10],[88,35,20,105,345,10],[87,30,10,561,801,10],[85,25,10,51,291,10],[85,35,30,427,667,10],[67,85,20,597,837,10],[65,85,40,43,283,10],[65,82,10,497,737,10],[62,80,30,218,458,10],[60,80,10,36,276,10],[60,85,30,269,509,10],[58,75,20,316,556,10],[55,80,10,33,273,10],[55,85,20,514,754,10],[55,82,10,157,397,10],[20,82,10,37,277,10],[18,80,10,429,669,10],[2,45,10,45,285,10],[42,5,10,664,904,10],[42,12,10,380,620,10],[72,35,30,447,687,10],[55,20,19,266,506,10],[25,30,3,115,355,10],[20,50,5,315,555,10],[55,60,16,541,781,10],[30,60,16,539,779,10],[50,35,19,497,737,10],[30,25,23,337,577,10],[15,10,20,662,902,10],[10,20,19,42,282,10],[15,60,17,634,874,10],[45,65,9,198,438,10],[65,35,3,107,347,10],[65,20,6,39,279,10],[45,30,17,131,371,10],[35,40,16,11,251,10],[41,37,16,506,746,10],[64,42,9,208,448,10],[40,60,21,552,792,10],[31,52,27,97,337,10],[35,69,23,690,930,10],[65,55,14,181,421,10],[63,65,8,27,267,10],[2,60,5,226,466,10],[20,20,8,585,825,10],[5,5,16,172,412,10],[60,12,31,208,448,10],[23,3,7,660,900,10],[8,56,27,305,545,10],[6,68,30,292,532,10],[47,47,13,702,942,10],[49,58,10,295,535,10],[27,43,9,92,332,10],[37,31,14,45,285,10],[57,29,18,335,575,10],[63,23,2,284,524,10],[21,24,28,289,529,10],[12,24,13,299,539,10],[24,58,19,200,440,10],[67,5,25,653,893,10],[37,47,6,299,539,10],[49,42,13,659,899,10],[53,43,14,14,254,10],[61,52,3,688,928,10],[57,48,23,332,572,10],[56,37,6,40,280,10],[55,54,26,502,742,10],[4,18,35,487,727,10],[26,52,9,112,352,10],[26,35,15,248,488,10],[31,67,3,690,930,10]]},"RC207":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,591,874,10],[22,75,30,73,350,10],[22,85,10,473,588,10],[20,80,40,418,913,10],[20,85,20,40,390,10],[18,75,20,249,646,10],[15,75,20,281,438,10],[15,80,10,272,581,10],[10,35,20,236,625,10],[10,40,30,470,687,10],[8,40,40,33,510,10],[8,45,20,166,399,10],[5,35,10,359,911,10],[5,45,10,35,457,10],[2,40,20,39,538,10],[0,40,20,214,415,10],[0,45,20,359,909,10],[44,5,20,338,451,10],[42,10,40,205,422,10],[42,15,10,511,682,10],[40,5,10,158,391,10],[40,15,40,263,606,10],[38,5,30,45,522,10],[38,15,10,598,883,10],[35,5,20,348,904,10],[95,30,30,509,668,10],[95,35,20,57,664,10],[92,30,10,68,349,10],[90,35,10,131,376,10],[88,30,10,114,497,10],[88,35,20,102,347,10],[87,30,10,564,797,10],[85,25,10,51,673,10],[85,35,30,462,631,10],[67,85,20,396,905,10],[65,85,40,43,712,10],[65,82,10,530,703,10],[62,80,30,131,544,10],[60,80,10,36,800,10],[60,85,30,233,544,10],[58,75,20,207,664,10],[55,80,10,33,624,10],[55,85,20,549,718,10],[55,82,10,62,491,10],[20,82,10,37,677,10],[18,80,10,435,662,10],[2,45,10,38,366,10],[42,5,10,636,904,10],[42,12,10,423,576,10],[72,35,30,471,662,10],[55,20,19,281,490,10],[25,30,3,109,360,10],[20,50,5,284,585,10],[55,60,16,568,753,10],[30,60,16,421,896,10],[50,35,19,404,829,10],[30,25,23,347,566,10],[15,10,20,380,902,10],[10,20,19,42,466,10],[15,60,17,613,894,10],[45,65,9,230,405,10],[65,35,3,29,587,10],[65,20,6,39,353,10],[45,30,17,20,497,10],[35,40,16,11,570,10],[41,37,16,423,828,10],[64,42,9,112,543,10],[40,60,21,441,902,10],[31,52,27,9,532,10],[35,69,23,211,930,10],[65,55,14,201,400,10],[63,65,8,27,382,10],[2,60,5,255,436,10],[20,20,8,427,913,10],[5,5,16,183,400,10],[60,12,31,162,493,10],[23,3,7,360,900,10],[8,56,27,195,654,10],[6,68,30,258,565,10],[47,47,13,426,942,10],[49,58,10,369,460,10],[27,43,9,85,338,10],[37,31,14,19,326,10],[57,29,18,304,605,10],[63,23,2,318,489,10],[21,24,28,332,485,10],[12,24,13,365,472,10],[24,58,19,100,539,10],[67,5,25,565,897,10],[37,47,6,324,513,10],[49,42,13,651,906,10],[53,43,14,14,669,10],[61,52,3,298,928,10],[57,48,23,385,518,10],[56,37,6,20,299,10],[55,54,26,538,705,10],[4,18,35,546,667,10],[26,52,9,109,354,10],[26,35,15,170,565,10],[31,67,3,262,930,10]]},"RC208":{"vehicles":25,"capacity":1000,"nodes":[[40,50,0,0,960,0],[25,85,20,388,911,10],[22,75,30,30,546,10],[22,85,10,353,708,10],[20,80,40,425,913,10],[20,85,20,40,630,10],[18,75,20,228,667,10],[15,75,20,161,558,10],[15,80,10,229,624,10],[10,35,20,213,648,10],[10,40,30,404,753,10],[8,40,40,33,511,10],[8,45,20,46,519,10],[5,35,10,395,911,10],[5,45,10,35,697,10],[2,40,20,39,528,10],[0,40,20,94,535,10],[0,45,20,394,909,10],[44,5,20,218,571,10],[42,10,40,85,542,10],[42,15,10,391,802,10],[40,5,10,45,517,10],[40,15,40,229,640,10],[38,5,30,45,523,10],[38,15,10,389,914,10],[35,5,20,386,904,10],[95,30,30,389,788,10],[95,35,20,57,600,10],[92,30,10,55,575,10],[90,35,10,52,536,10],[88,30,10,90,521,10],[88,35,20,50,534,10],[87,30,10,425,898,10],[85,25,10,51,602,10],[85,35,30,342,751,10],[67,85,20,410,905,10],[65,85,40,43,617,10],[65,82,10,410,823,10],[62,80,30,114,561,10],[60,80,10,36,658,10],[60,85,30,191,586,10],[58,75,20,201,670,10],[55,80,10,33,568,10],[55,85,20,429,838,10],[55,82,10,49,504,10],[20,82,10,37,597,10],[18,80,10,315,782,10],[2,45,10,38,606,10],[42,5,10,396,904,10],[42,12,10,341,658,10],[72,35,30,351,782,10],[55,20,19,161,610,10],[25,30,3,25,516,10],[20,50,5,239,630,10],[55,60,16,448,873,10],[30,60,16,420,897,10],[50,35,19,390,843,10],[30,25,23,227,686,10],[15,10,20,401,902,10],[10,20,19,42,706,10],[15,60,17,401,923,10],[45,65,9,110,525,10],[65,35,3,29,548,10],[65,20,6,39,593,10],[45,30,17,20,498,10],[35,40,16,11,530,10],[41,37,16,404,847,10],[64,42,9,100,555,10],[40,60,21,436,907,10],[31,52,27,9,510,10],[35,69,23,330,930,10],[65,55,14,81,520,10],[63,65,8,27,622,10],[2,60,5,135,556,10],[20,20,8,430,913,10],[5,5,16,63,520,10],[60,12,31,125,530,10],[23,3,7,390,900,10],[8,56,27,190,659,10],[6,68,30,215,608,10],[47,47,13,444,942,10],[49,58,10,249,580,10],[27,43,9,14,506,10],[37,31,14,19,566,10],[57,29,18,259,650,10],[63,23,2,198,609,10],[21,24,28,212,605,10],[12,24,13,272,565,10],[24,58,19,90,549,10],[67,5,25,325,897,10],[37,47,6,204,633,10],[49,42,13,442,937,10],[53,43,14,14,581,10],[61,52,3,373,928,10],[57,48,23,265,638,10],[56,37,6,20,539,10],[55,54,26,418,825,10],[4,18,35,426,787,10],[26,52,9,14,499,10],[26,35,15,149,586,10],[31,67,3,356,930,10]]}}};
+const CORE_SRC = document.scripts[0].textContent;
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600); };
+const hm = (min) => { min = Math.max(0, Math.round(min)); return String(Math.floor(min / 60) % 24).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); };
+const parseHM = (s) => { const [h, m] = String(s).split(':').map(Number); return h * 60 + (m || 0); };
+const inr = (v) => '₹' + Math.round(v).toLocaleString('en-IN');
+const COLORS = ['#2f6690', '#c0503a', '#2a9d8f', '#d49a2a', '#6a4c93', '#3a7d44', '#b5446e', '#4c6a92', '#8c5e3c', '#1b998b', '#9b2915', '#5e6472', '#7b9e2f', '#a05195', '#d17a22', '#3d5a80', '#6b8f71', '#c44536', '#457b9d', '#8a6f3f'];
+
+// ---------- city ----------
+// Approximate neighbourhood centres; good enough to place realistic demo orders.
+const CENTER = { lat: 12.955, lon: 77.62 };
+const AREAS = [
+  ['Koramangala', 12.9352, 77.6245, 1.3], ['Indiranagar', 12.9784, 77.6408, 1.2], ['HSR Layout', 12.9116, 77.6474, 1.2], ['Whitefield', 12.9698, 77.75, 1],
+  ['Jayanagar', 12.925, 77.5938, 1], ['Malleshwaram', 13.0035, 77.571, 0.8], ['Hebbal', 13.0358, 77.597, 0.7], ['Electronic City', 12.8452, 77.6602, 0.8],
+  ['BTM Layout', 12.9166, 77.6101, 1.1], ['Marathahalli', 12.9569, 77.7011, 1], ['Rajajinagar', 12.991, 77.555, 0.7], ['Bellandur', 12.926, 77.6762, 1],
+  ['JP Nagar', 12.9063, 77.5857, 0.9], ['Banashankari', 12.9255, 77.5468, 0.7], ['Yelahanka', 13.1007, 77.5963, 0.5], ['Domlur', 12.961, 77.6387, 0.6],
+];
+const DEPOT = { name: 'Warehouse, Bommanahalli', lat: 12.9037, lon: 77.624 };
+const toXY = (lat, lon) => ({ x: (lon - CENTER.lon) * 108.6, y: -(lat - CENTER.lat) * 110.9 }); // km
+const SLOTS = [[540, 720], [720, 900], [900, 1080], [1080, 1260]];
+
+// ---------- state (kept between visits) ----------
+const DEF = {
+  bike: { label: 'Bike riders', capacity: 20, speed: 18, service: 4, fixed: 650, perKm: 3.5, count: 25 },
+  van: { label: 'Vans', capacity: 350, speed: 14, service: 7, fixed: 2200, perKm: 14, count: 8 },
+};
+let S = load() || { orders: [], fleet: JSON.parse(JSON.stringify(DEF)), mode: 'bike', open: 480, close: 1320, circ: 1.35, plan: null, seed: 1 };
+function save() { try { localStorage.setItem('drp:v1', JSON.stringify(S)); } catch {} }
+function load() { try { return JSON.parse(localStorage.getItem('drp:v1')); } catch { return null; } }
+
+function rnd(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+function gauss(r) { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function generate(n, seed) {
+  const r = rnd(seed), wsum = AREAS.reduce((s, a) => s + a[3], 0);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let p = r() * wsum, a = AREAS[0];
+    for (const x of AREAS) { p -= x[3]; if (p <= 0) { a = x; break; } }
+    const lat = a[1] + gauss(r) * 0.009, lon = a[2] + gauss(r) * 0.009;
+    const kg = Math.max(0.3, Math.round((r() < 0.8 ? 0.5 + r() * 3 : 4 + r() * 8) * 10) / 10);
+    const slot = SLOTS[Math.min(3, Math.floor(Math.pow(r(), 0.9) * 4))];
+    out.push({ id: 'ORD-' + String(1001 + i), area: a[0], lat: +lat.toFixed(5), lon: +lon.toFixed(5), kg, start: slot[0], end: slot[1] });
+  }
+  return out;
+}
+if (!S.orders.length) { S.orders = generate(120, 11); save(); }
+
+// ---------- problem building ----------
+function buildProblem(mode, orders, extra = {}) {
+  const f = S.fleet[mode];
+  const d = toXY(DEPOT.lat, DEPOT.lon);
+  const nodes = [{ x: d.x, y: d.y, demand: 0, ready: S.open, due: S.close, service: 0 }].concat(orders.map((o) => {
+    const p = toXY(o.lat, o.lon);
+    return { x: p.x, y: p.y, demand: o.kg, ready: o.start, due: o.end, service: f.service };
+  }));
+  // Trips are unlimited here; riders reload at the warehouse, and trips are chained into riders' days afterwards.
+  // A small cost per trip stands for the time spent reloading.
+  // Driver time is priced at the day rate spread over a 9-hour shift, so trips don't sit and wait for later slots.
+  return { nodes, opts: { capacity: f.capacity, maxVehicles: orders.length, fixedCost: f.perKm * 0.5, costPerUnit: f.perKm, costPerMinute: f.fixed / 540, circuity: S.circ, travelFactor: 60 / f.speed } };
+}
+
+// ---------- worker ----------
+function runSolver(prob, iterations, onProgress) {
+  return new Promise((resolve) => {
+    const src = CORE_SRC + `\nonmessage=(e)=>{const R=self.Routing;const P=R.makeProblem(e.data.nodes,e.data.opts);const t=Date.now();const s=R.solve(P,{iterations:e.data.iterations,seed:e.data.seed,onProgress:(p)=>postMessage({type:'p',it:p.iteration,cost:p.best.cost(),routes:p.best.routes})});const c=R.check(P,s.routes);postMessage({type:'done',s,check:c,ms:Date.now()-t});};`;
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    w.onmessage = (e) => { if (e.data.type === 'p') onProgress && onProgress(e.data); else { w.terminate(); resolve(e.data); } };
+    w.postMessage({ ...prob, iterations, seed: S.seed });
+  });
+}
+
+// ---------- map ----------
+const cv = $('#map'), cx = cv.getContext('2d');
+let view = { s: 9, ox: 0, oy: 0 }, selRoute = -1, liveRoutes = null, now = 480;
+function fit() {
+  const pts = S.orders.map((o) => toXY(o.lat, o.lon)).concat([toXY(DEPOT.lat, DEPOT.lon)]);
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  const sx = (w - 80) / (Math.max(...xs) - Math.min(...xs) + 1), sy = (h - 160) / (Math.max(...ys) - Math.min(...ys) + 1);
+  view.s = Math.min(sx, sy);
+  view.ox = w / 2 - ((Math.max(...xs) + Math.min(...xs)) / 2) * view.s;
+  view.oy = h / 2 - 10 - ((Math.max(...ys) + Math.min(...ys)) / 2) * view.s;
+}
+const P2 = (p) => [p.x * view.s + view.ox, p.y * view.s + view.oy];
+function resize() { const r = devicePixelRatio || 1; cv.width = cv.clientWidth * r; cv.height = cv.clientHeight * r; cx.setTransform(r, 0, 0, r, 0, 0); draw(); }
+function slotColor(o) { return ['#5b87b5', '#6b9a52', '#cf9f2b', '#c96a4f'][SLOTS.findIndex((s) => s[0] === o.start)] || '#ddd'; }
+const RELOAD = 10; // minutes at the warehouse between trips
+function driverPos(dr, t) {
+  if (t < dr.start || t > dr.end) return null;
+  for (const tr of dr.trips) if (t <= tr.sched.end) return t < tr.sched.start ? { ...toXY(DEPOT.lat, DEPOT.lon), home: true } : positionAt(tr.sched, t);
+  return null;
+}
+function positionAt(sched, t) {
+  // where a vehicle is at minute t (straight-line interpolation between stops)
+  const d = toXY(DEPOT.lat, DEPOT.lon);
+  let prev = d, prevLeave = sched.start;
+  for (const st of sched.stops) {
+    const o = S.orders[st.node - 1], p = toXY(o.lat, o.lon);
+    if (t < st.arrive) { const k = Math.max(0, Math.min(1, (t - prevLeave) / Math.max(1e-6, st.arrive - prevLeave))); return { x: prev.x + (p.x - prev.x) * k, y: prev.y + (p.y - prev.y) * k, moving: t >= prevLeave }; }
+    if (t < st.leave) return { x: p.x, y: p.y, moving: false };
+    prev = p; prevLeave = st.leave;
+  }
+  if (t < sched.end) { const k = (t - prevLeave) / Math.max(1e-6, sched.end - prevLeave); return { x: prev.x + (d.x - prev.x) * k, y: prev.y + (d.y - prev.y) * k, moving: true }; }
+  return { x: d.x, y: d.y, moving: false, home: true };
+}
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cx.clearRect(0, 0, w, h);
+  // grid
+  cx.strokeStyle = 'rgba(20,35,31,.06)'; cx.lineWidth = 1;
+  const step = 2 * view.s;
+  for (let x = view.ox % step; x < w; x += step) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, h); cx.stroke(); }
+  for (let y = view.oy % step; y < h; y += step) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(w, y); cx.stroke(); }
+  // area labels
+  cx.font = '600 12px Figtree'; cx.textAlign = 'center';
+  for (const a of AREAS) { const [x, y] = P2(toXY(a[1], a[2])); cx.fillStyle = 'rgba(20,35,31,.38)'; cx.fillText(a[0].toUpperCase(), x, y - 18); }
+  // routes
+  const plan = liveRoutes ? liveRoutes.map((r, i) => [r, i]) : S.plan ? S.plan.drivers.flatMap((d, di) => d.trips.map((t) => [t.route, di])) : null;
+  if (plan) plan.forEach(([r, ri]) => {
+    const sel = selRoute === -1 || selRoute === ri;
+    cx.strokeStyle = COLORS[ri % COLORS.length]; cx.globalAlpha = sel ? 0.95 : 0.15; cx.lineWidth = selRoute === ri ? 3.2 : 2; cx.lineJoin = 'round';
+    cx.beginPath(); let [x0, y0] = P2(toXY(DEPOT.lat, DEPOT.lon)); cx.moveTo(x0, y0);
+    for (const v of r) { const o = S.orders[v - 1]; const [x, y] = P2(toXY(o.lat, o.lon)); cx.lineTo(x, y); }
+    cx.lineTo(x0, y0); cx.stroke(); cx.globalAlpha = 1;
+  });
+  // orders
+  const served = new Set();
+  if (S.plan && !liveRoutes) S.plan.drivers.forEach((d) => d.trips.forEach((t) => t.sched.stops.forEach((st) => { if (now >= st.begin) served.add(st.node); })));
+  S.orders.forEach((o, i) => {
+    const [x, y] = P2(toXY(o.lat, o.lon));
+    cx.beginPath(); cx.arc(x, y, served.has(i + 1) ? 3 : 4.2, 0, 7);
+    cx.fillStyle = served.has(i + 1) ? 'rgba(20,35,31,.2)' : slotColor(o); cx.fill();
+  });
+  // depot
+  const [dx, dy] = P2(toXY(DEPOT.lat, DEPOT.lon));
+  cx.fillStyle = '#14231f'; cx.beginPath(); cx.roundRect(dx - 9, dy - 9, 18, 18, 4); cx.fill();
+  cx.fillStyle = '#fff'; cx.font = '800 11px Figtree'; cx.fillText('W', dx, dy + 4);
+  // vehicles
+  if (S.plan && !liveRoutes) S.plan.drivers.forEach((d, ri) => {
+    if (selRoute !== -1 && selRoute !== ri) return;
+    const p = driverPos(d, now); if (!p) return;
+    const [x, y] = P2(p);
+    cx.beginPath(); cx.arc(x, y, 7, 0, 7); cx.fillStyle = COLORS[ri % COLORS.length]; cx.fill();
+    cx.lineWidth = 2.5; cx.strokeStyle = '#fff'; cx.stroke();
+  });
+}
+// pan and zoom
+let drag = null;
+cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, ox: view.ox, oy: view.oy }; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
+cv.addEventListener('pointermove', (e) => { if (!drag) return; view.ox = drag.ox + e.clientX - drag.x; view.oy = drag.oy + e.clientY - drag.y; draw(); });
+cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('drag'); });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); const k = Math.exp(-e.deltaY * 0.0015), r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; view.ox = mx - (mx - view.ox) * k; view.oy = my - (my - view.oy) * k; view.s *= k; draw(); }, { passive: false });
+addEventListener('resize', () => { resize(); });
+
+// ---------- plan ----------
+async function plan() {
+  const btn = $('#solve'); btn.disabled = true; btn.textContent = 'Planning…';
+  const prob = buildProblem(S.mode, S.orders);
+  const iters = Math.round(Math.min(40000, 2500000 / Math.max(20, S.orders.length)));
+  const res = await runSolver(prob, iters, (p) => { liveRoutes = p.routes; $('#prog').style.width = (100 * p.it / iters) + '%'; draw(); hud({ cost: p.cost, vehicles: p.routes.length, live: true }); });
+  liveRoutes = null; $('#prog').style.width = '100%'; setTimeout(() => ($('#prog').style.width = '0'), 600);
+  S.plan = finish(S.mode, prob, res);
+  save(); btn.disabled = false; btn.textContent = 'Plan again';
+  selRoute = -1; renderPlan(); now = S.open; $('#time').value = now; draw();
+  toast(res.check.ok && !res.s.unassigned.length ? `Planned in ${(res.ms / 1000).toFixed(1)} s · every drop inside its slot` : `${res.s.unassigned.length} orders could not fit with this fleet`);
+}
+function finish(mode, prob, res) {
+  const f = S.fleet[mode];
+  const P = Routing.makeProblem(prob.nodes, prob.opts);
+  const drivers = Routing.chainTrips(P, res.s.routes, RELOAD, (S.shift || 10) * 60);
+  const cost = drivers.length * f.fixed + f.perKm * res.s.distance;
+  return { mode, drivers, unassigned: res.s.unassigned, cost, distance: res.s.distance, trips: res.s.routes.length, ok: res.check.ok, errors: res.check.errors, ms: res.ms, iterations: res.s.iterations, short: Math.max(0, drivers.length - f.count) };
+}
+function hud(o) {
+  const p = S.plan;
+  const n = S.orders.length;
+  const cost = o ? null : p ? p.cost : null, veh = o ? o.vehicles : p ? p.drivers.length : null;
+  $('#hud').innerHTML = `<div class="chip"><small>Orders</small><b class="mono">${n}</b></div>` +
+    (o && o.live ? `<div class="chip"><small>Searching…</small><b class="mono">${veh} trips</b></div>` : '') +
+    (cost != null ? `<div class="chip"><small>Cost of the day</small><b class="mono">${inr(cost)}</b></div><div class="chip"><small>${S.fleet[p.mode].label}</small><b class="mono">${veh}</b></div>` : '') +
+    (p && !o ? `<div class="chip"><small>Per drop</small><b class="mono">${inr(p.cost / Math.max(1, n - p.unassigned.length))}</b></div>` : '');
+  $('#legend').innerHTML = SLOTS.map((s, i) => `<span><i style="background:${['#5b87b5', '#6b9a52', '#cf9f2b', '#c96a4f'][i]}"></i>${hm(s[0])}–${hm(s[1])}</span>`).join('') + '<span><i style="background:#fff;border-radius:3px"></i>Warehouse</span>';
+}
+function renderPlan() {
+  hud();
+  const p = S.plan && S.plan.drivers ? S.plan : null, box = $('#routes');
+  if (S.plan && !S.plan.drivers) S.plan = null;
+  $('#export').disabled = !p;
+  if (!p) { box.innerHTML = '<div class="empty">No plan yet. Press <b>Plan routes</b>.</div>'; $('#dayTitle').textContent = "Today's run sheet"; $('#daySub').textContent = "Hit plan routes and it'll sort out who goes where."; return; }
+  const f = S.fleet[p.mode], who = p.mode === 'bike' ? 'Rider' : 'Van';
+  $('#dayTitle').textContent = `${p.drivers.length} ${p.mode === 'bike' ? 'riders' : 'vans'}, ${p.trips} trips, ${Math.round(p.distance)} km`;
+  $('#daySub').textContent = (p.ok && !p.unassigned.length ? `All ${S.orders.length} orders inside their slots. Checked independently.` : `${p.unassigned.length} orders left over.`) + (p.short ? ` Needs ${p.short} more than the ${f.count} available.` : '');
+  box.innerHTML = p.drivers.map((d, ri) => {
+    const cost = f.fixed + f.perKm * d.dist;
+    const busy = d.trips.reduce((s, t) => s + (t.sched.end - t.sched.start), 0);
+    return `<div class="route" data-r="${ri}" style="animation-delay:${ri * 30}ms"><div class="top"><span class="sw" style="background:${COLORS[ri % COLORS.length]}"></span><h3>${who} ${ri + 1}</h3><span class="mono">${inr(cost)}</span></div>
+      <div class="meta"><span>${d.drops} drops · ${d.trips.length} trip${d.trips.length > 1 ? 's' : ''}</span><span class="mono">${d.dist.toFixed(1)} km</span><span class="mono">${hm(d.start)}–${hm(d.end)}</span></div>
+      <div class="bar" title="share of the shift spent on the road"><i style="width:${Math.min(100, 100 * busy / Math.max(1, d.end - d.start))}%;background:${COLORS[ri % COLORS.length]}"></i></div>
+      <ol class="stops">${d.trips.map((t, ti) => `<li style="grid-template-columns:1fr;color:var(--mute);font-weight:700">Trip ${ti + 1} · leaves ${hm(t.sched.start)} · ${t.sched.load.toFixed(1)}/${f.capacity} kg</li>` + t.sched.stops.map((st) => { const o = S.orders[st.node - 1]; return `<li><span class="mono">${hm(st.begin)}</span><span>${o.area} <span class="note mono">${o.id}</span></span><span class="mono">${o.kg} kg</span></li>`; }).join('')).join('')}</ol></div>`;
+  }).join('') + (p.unassigned.length ? `<div class="route"><h3>Not planned</h3><div class="meta">${p.unassigned.map((v) => S.orders[v - 1].id).join(', ')}</div></div>` : '');
+  $$('.route[data-r]').forEach((el) => el.onclick = () => { const r = +el.dataset.r; selRoute = selRoute === r ? -1 : r; $$('.route').forEach((x) => x.classList.toggle('sel', +x.dataset.r === selRoute)); draw(); });
+}
+$('#solve').onclick = plan;
+$('#newday').onclick = () => { S.seed = (S.seed * 48271) % 2147483647; S.orders = generate(S.orders.length || 120, S.seed); S.plan = null; save(); fit(); renderPlan(); renderOrders(); draw(); toast('New day: ' + S.orders.length + ' orders'); };
+$('#export').onclick = () => {
+  const p = S.plan; if (!p) return;
+  const rows = [['vehicle', 'trip', 'stop', 'order', 'area', 'lat', 'lon', 'kg', 'arrive', 'slot']];
+  p.drivers.forEach((d, ri) => d.trips.forEach((t, ti) => t.sched.stops.forEach((st, k) => { const o = S.orders[st.node - 1]; rows.push([`${p.mode} ${ri + 1}`, ti + 1, k + 1, o.id, o.area, o.lat, o.lon, o.kg, hm(st.begin), `${hm(o.start)}-${hm(o.end)}`]); })));
+  download('driver-sheets.csv', rows.map((r) => r.join(',')).join('\n'));
+};
+function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = name; a.click(); }
+
+// play the day
+let playing = null;
+$('#time').oninput = (e) => { now = +e.target.value; $('#tlabel').textContent = hm(now); $('#clock').textContent = hm(now); draw(); };
+$('#play').onclick = () => {
+  if (playing) { cancelAnimationFrame(playing); playing = null; $('#play').textContent = 'Play the day'; return; }
+  if (!S.plan) { toast('Plan the routes first'); return; }
+  if (now >= S.close - 1) now = S.open;
+  $('#play').textContent = 'Pause';
+  let last = performance.now();
+  const tick = (t) => { now = Math.min(S.close, now + (t - last) / 1000 * 40); last = t; $('#time').value = now; $('#tlabel').textContent = hm(now); $('#clock').textContent = hm(now); draw(); if (now < S.close) playing = requestAnimationFrame(tick); else { playing = null; $('#play').textContent = 'Play the day'; } };
+  playing = requestAnimationFrame(tick);
+};
+
+// ---------- orders ----------
+function renderOrders() {
+  $('#otable').innerHTML = S.orders.map((o, i) => `<tr><td class="mono">${o.id}</td><td>${o.area}</td><td class="num mono">${o.kg}</td><td><span class="pill" style="background:${slotColor(o)}">${hm(o.start)}–${hm(o.end)}</span></td><td class="num mono">${o.lat}</td><td class="num mono">${o.lon}</td><td><button class="btn" data-del="${i}" style="min-height:30px;padding:0 10px">Remove</button></td></tr>`).join('');
+  $$('[data-del]').forEach((b) => b.onclick = () => { S.orders.splice(+b.dataset.del, 1); S.plan = null; save(); renderOrders(); renderPlan(); draw(); });
+}
+$('#gen').onclick = () => { const n = Math.max(10, Math.min(400, +$('#genN').value || 120)); S.seed = (S.seed * 48271) % 2147483647; S.orders = generate(n, S.seed); S.plan = null; save(); fit(); renderOrders(); renderPlan(); draw(); toast(n + ' orders generated'); };
+$('#dlorders').onclick = () => download('orders.csv', ['id,area,lat,lon,kg,slot_start,slot_end'].concat(S.orders.map((o) => [o.id, o.area, o.lat, o.lon, o.kg, hm(o.start), hm(o.end)].join(','))).join('\n'));
+$('#csv').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const lines = (await f.text()).trim().split(/\r?\n/); const head = lines.shift().toLowerCase().split(',').map((s) => s.trim());
+  const ix = (k) => head.indexOf(k);
+  const need = ['lat', 'lon', 'kg', 'slot_start', 'slot_end'];
+  if (need.some((k) => ix(k) < 0)) { toast('Missing columns: ' + need.filter((k) => ix(k) < 0).join(', ')); return; }
+  const out = [];
+  for (const l of lines) { const c = l.split(',').map((s) => s.trim()); if (c.length < head.length) continue; out.push({ id: c[ix('id')] || 'ORD-' + (out.length + 1), area: c[ix('area')] || '', lat: +c[ix('lat')], lon: +c[ix('lon')], kg: +c[ix('kg')], start: parseHM(c[ix('slot_start')]), end: parseHM(c[ix('slot_end')]) }); }
+  if (!out.length) { toast('No rows found'); return; }
+  S.orders = out; S.plan = null; save(); fit(); renderOrders(); renderPlan(); draw(); toast(out.length + ' orders imported');
+};
+
+// ---------- fleet ----------
+const FIELDS = [['capacity', 'Capacity (kg)'], ['count', 'Available'], ['speed', 'Avg speed (km/h)'], ['service', 'Minutes per drop'], ['fixed', 'Cost per day (₹)'], ['perKm', 'Cost per km (₹)']];
+function renderFleet() {
+  for (const m of ['bike', 'van']) $('#' + m + 'F').innerHTML = FIELDS.map(([k, l]) => `<label class="f">${l}<input type="number" step="any" data-m="${m}" data-k="${k}" value="${S.fleet[m][k]}"></label>`).join('');
+  $$('[data-m]').forEach((i) => i.onchange = () => { S.fleet[i.dataset.m][i.dataset.k] = +i.value; S.plan = null; save(); renderPlan(); });
+  $('#mode').value = S.mode; $('#open').value = hm(S.open); $('#close').value = hm(S.close); $('#circ').value = S.circ; $('#shift').value = S.shift || 10;
+}
+$('#mode').onchange = (e) => { S.mode = e.target.value; S.plan = null; save(); renderPlan(); draw(); };
+$('#open').onchange = (e) => { S.open = parseHM(e.target.value); S.plan = null; save(); };
+$('#close').onchange = (e) => { S.close = parseHM(e.target.value); S.plan = null; save(); };
+$('#circ').onchange = (e) => { S.circ = +e.target.value || 1.35; S.plan = null; save(); };
+$('#shift').onchange = (e) => { S.shift = +e.target.value || 10; S.plan = null; save(); };
+$('#cmp').onclick = async () => {
+  const b = $('#cmp'); b.disabled = true; b.textContent = 'Comparing…';
+  const out = [];
+  for (const m of ['bike', 'van']) {
+    const prob = buildProblem(m, S.orders);
+    const r = await runSolver(prob, 12000);
+    const pl = finish(m, prob, r);
+    const n = S.orders.length - r.s.unassigned.length;
+    out.push({ m, cost: pl.cost, veh: pl.drivers.length, trips: pl.trips, km: r.s.distance, left: r.s.unassigned.length, short: pl.short, per: pl.cost / Math.max(1, n) });
+  }
+  const max = Math.max(...out.map((o) => o.cost));
+  const best = out.reduce((a, c) => (c.left + c.short < a.left + a.short || (c.left + c.short === a.left + a.short && c.cost < a.cost) ? c : a));
+  $('#cmpOut').innerHTML = `<div class="compare-bars">${out.map((o) => `<div class="cb"><b>${S.fleet[o.m].label}</b><div class="track"><i style="background:${o.m === 'bike' ? 'var(--sun)' : '#2a9d8f'}" data-w="${100 * o.cost / max}"></i></div><span class="mono">${inr(o.cost)}</span></div>`).join('')}</div>
+   <table style="margin-top:14px"><thead><tr><th></th><th class="num">Vehicles</th><th class="num">Trips</th><th class="num">km</th><th class="num">Per drop</th><th class="num">Left over</th></tr></thead><tbody>${out.map((o) => `<tr><td>${S.fleet[o.m].label}${o === best ? ' <span class="pill" style="background:var(--sun)">cheapest</span>' : ''}${o.short ? ` <span class="pill" style="background:#fca5a5">needs ${o.short} more</span>` : ''}</td><td class="num mono">${o.veh}</td><td class="num mono">${o.trips}</td><td class="num mono">${o.km.toFixed(0)}</td><td class="num mono">${inr(o.per)}</td><td class="num mono ${o.left ? 'loss' : ''}">${o.left}</td></tr>`).join('')}</tbody></table>`;
+  requestAnimationFrame(() => $$('#cmpOut [data-w]').forEach((i) => (i.style.width = i.dataset.w + '%')));
+  b.disabled = false; b.textContent = 'Compare bikes and vans';
+};
+
+// ---------- schedule ----------
+function renderGantt() {
+  const p = S.plan, box = $('#gantt');
+  if (!p || !p.drivers) { box.innerHTML = '<div class="empty">Plan the routes first.</div>'; return; }
+  const t0 = Math.floor(Math.min(...p.drivers.map((d) => d.start)) / 60) * 60, t1 = Math.ceil(Math.max(...p.drivers.map((d) => d.end)) / 60) * 60;
+  const W = Math.max(900, (t1 - t0) * 1.6), L = 90, rowH = 30, H = 30 + p.drivers.length * rowH;
+  const X = (t) => L + (t - t0) / (t1 - t0) * (W - L - 10);
+  let svg = `<svg width="${W}" height="${H}" font-family="Figtree" font-size="11"><defs><pattern id="h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f1f2ee"/><line x1="0" y1="0" x2="0" y2="6" stroke="#c9ccc4" stroke-width="2"/></pattern></defs>`;
+  for (let t = t0; t <= t1; t += 60) svg += `<line x1="${X(t)}" x2="${X(t)}" y1="18" y2="${H}" stroke="#e4e6e1"/><text x="${X(t)}" y="12" text-anchor="middle" fill="#5d6b66" font-family="JetBrains Mono">${hm(t)}</text>`;
+  p.drivers.forEach((d, ri) => {
+    const y = 24 + ri * rowH;
+    svg += `<text x="6" y="${y + 15}" fill="#14231f" font-weight="700">${p.mode === 'bike' ? 'Rider' : 'Van'} ${ri + 1}</text>`;
+    d.trips.forEach((tr, ti) => {
+      const sc = tr.sched; let tPrev = sc.start;
+      if (ti) svg += `<rect x="${X(sc.start - RELOAD)}" y="${y + 7}" width="${X(sc.start) - X(sc.start - RELOAD)}" height="10" rx="2" fill="#2a9d8f"><title>Reload at the warehouse</title></rect>`;
+      sc.stops.forEach((st) => {
+        const o = S.orders[st.node - 1];
+        svg += `<rect x="${X(tPrev)}" y="${y + 5}" width="${Math.max(0.5, X(st.arrive) - X(tPrev))}" height="14" rx="3" fill="#e0a92e"/>`;
+        if (st.wait > 0.5) svg += `<rect x="${X(st.arrive)}" y="${y + 5}" width="${X(st.begin) - X(st.arrive)}" height="14" fill="url(#h)"/>`;
+        svg += `<rect x="${X(st.begin)}" y="${y + 3}" width="${Math.max(2, X(st.leave) - X(st.begin))}" height="18" rx="2" fill="#fff" stroke="#14231f" stroke-width=".8"><title>${o.id} · ${hm(st.begin)} · slot ${hm(o.start)}–${hm(o.end)}</title></rect>`;
+        svg += `<line x1="${X(o.end)}" x2="${X(o.end)}" y1="${y}" y2="${y + 4}" stroke="${COLORS[ri % COLORS.length]}" stroke-width="2"/>`;
+        tPrev = st.leave;
+      });
+      svg += `<rect x="${X(tPrev)}" y="${y + 5}" width="${Math.max(0.5, X(sc.end) - X(tPrev))}" height="14" rx="3" fill="#e0a92e" opacity=".55"/>`;
+    });
+  });
+  box.innerHTML = svg + '</svg>';
+  box.querySelectorAll('rect').forEach((r, i) => { r.style.opacity = 0; r.style.transition = 'opacity .5s'; setTimeout(() => (r.style.opacity = ''), 10 + (i % 60) * 8); });
+}
+
+// ---------- benchmark ----------
+function renderBench() {
+  if (!BENCH || !BENCH.ours) { $('#bkpi').innerHTML = '<div class="card">Benchmark results not built in.</div>'; return; }
+  const names = Object.keys(BENCH.ours).filter((n) => BENCH.ref[n]).sort();
+  const rows = names.map((n) => ({ n, o: BENCH.ours[n], r: BENCH.ref[n], gap: 100 * (BENCH.ours[n].distance - BENCH.ref[n].distance) / BENCH.ref[n].distance }));
+  const mean = rows.reduce((s, r) => s + r.gap, 0) / rows.length;
+  const within1 = rows.filter((r) => r.gap <= 1).length, better = rows.filter((r) => r.gap < -0.005).length;
+  const valid = rows.filter((r) => r.o.ok).length;
+  $('#bkpi').innerHTML = [[mean.toFixed(2) + '%', 'average gap to PyVRP'], [`${within1} of ${rows.length}`, 'within 1%'], [`${better}`, 'shorter than PyVRP'], [`${valid} of ${rows.length}`, 'plans pass the independent check']].map(([a, b]) => `<div class="card kpi"><span class="big mono">${a}</span><small>${b}</small></div>`).join('');
+  const W = 1100, H = 220, bw = W / rows.length, maxg = Math.max(1, ...rows.map((r) => Math.abs(r.gap)));
+  const y0 = H / 2;
+  $('#bchart').innerHTML = `<div style="overflow-x:auto"><svg width="${W}" height="${H + 40}" font-family="JetBrains Mono" font-size="9">` +
+    `<line x1="0" x2="${W}" y1="${y0}" y2="${y0}" stroke="#14231f"/>` +
+    rows.map((r, i) => { const h = (r.gap / maxg) * (H / 2 - 10); const c = r.gap <= 0 ? '#2f8f5b' : r.gap <= 1 ? '#f2a900' : '#d64933'; return `<rect x="${i * bw + 2}" width="${bw - 4}" y="${h > 0 ? y0 - h : y0}" height="${Math.abs(h)}" fill="${c}"><title>${r.n}: ${r.gap.toFixed(2)}%</title><animate attributeName="height" from="0" to="${Math.abs(h)}" dur=".7s" fill="freeze"/></rect><text x="${i * bw + bw / 2}" y="${H + 14}" text-anchor="end" transform="rotate(-60 ${i * bw + bw / 2} ${H + 14})">${r.n}</text>`; }).join('') +
+    `<text x="4" y="12" fill="#5d6b66">longer than PyVRP ↑  (max ${maxg.toFixed(1)}%)</text><text x="4" y="${H - 4}" fill="#5d6b66">shorter ↓</text></svg></div>`;
+  const fmtGap = (g) => (Math.abs(g) < 0.005 ? '0.00%' : (g > 0 ? '+' : '−') + Math.abs(g).toFixed(2) + '%');
+  $('#btable').innerHTML = rows.map((r) => `<tr><td class="mono">${r.n}</td><td class="num mono">${r.o.distance.toFixed(2)}</td><td class="num mono">${r.o.vehicles}</td><td class="num mono">${r.r.distance.toFixed(2)}</td><td class="num mono">${r.r.vehicles}</td><td class="num mono ${r.gap > 1 ? 'loss' : r.gap < -0.005 ? 'win' : ''}">${fmtGap(r.gap)}</td></tr>`).join('');
+  $('#bsel').innerHTML = names.map((n) => `<option>${n}</option>`).join('');
+}
+$('#brun').onclick = async () => {
+  if (!BENCH.instances) return;
+  const n = $('#bsel').value, inst = BENCH.instances[n];
+  const nodes = inst.nodes.map(([x, y, demand, ready, due, service]) => ({ x, y, demand, ready, due, service }));
+  const b = $('#brun'); b.disabled = true; $('#bres').textContent = 'Solving…';
+  const r = await new Promise((res) => {
+    const src = CORE_SRC + `\nonmessage=(e)=>{const R=self.Routing;const P=R.makeProblem(e.data.nodes,e.data.opts);const s=R.solve(P,{iterations:30000,seed:7});postMessage({s,c:R.check(P,s.routes)});};`;
+    const w = new Worker(URL.createObjectURL(new Blob([src]))); w.onmessage = (e) => { w.terminate(); res(e.data); };
+    w.postMessage({ nodes, opts: { capacity: inst.capacity, maxVehicles: inst.vehicles } });
+  });
+  const ref = BENCH.ref[n].distance, gap = 100 * (r.s.distance - ref) / ref;
+  $('#bres').textContent = `${r.s.distance.toFixed(2)} with ${r.s.vehicles} vehicles in ${(r.s.ms / 1000).toFixed(1)} s · ${(Math.abs(gap) < 0.005 ? '0.00%' : (gap > 0 ? '+' : '−') + Math.abs(gap).toFixed(2) + '%')} vs PyVRP · ${r.c.ok ? 'valid' : 'INVALID'}`;
+  b.disabled = false;
+};
+
+// ---------- navigation ----------
+function go() {
+  const id = (location.hash || '#plan').slice(1);
+  $$('.view').forEach((v) => v.classList.toggle('on', v.id === 'v-' + id));
+  $$('#nav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + id));
+  if (id === 'plan') requestAnimationFrame(() => { resize(); });
+  if (id === 'schedule') renderGantt();
+}
+addEventListener('hashchange', go);
+renderOrders(); renderFleet(); renderBench(); renderPlan(); go();
+requestAnimationFrame(() => { fit(); resize(); });
+$('#clock').textContent = hm(now);
+</script>
+</body>
+</html>

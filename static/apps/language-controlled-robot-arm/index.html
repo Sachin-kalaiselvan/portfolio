@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Language-Controlled Robot Arm</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a quiet robotics lab bench: precise, friendly, nothing shouting except the blocks.
+   IDEA: the self-healing cutting-mat workcell, where you talk to the arm and it fixes the world back to what you asked.
+   PICTURE: the 3D arm over a green calibration mat with six rainbow cubes, a ghost box where the next block will land.
+   COLOUR and TYPE: mat green and paper white with ink; the cubes carry the only bright colour; coral for faults. Sora headings, Inter text, JetBrains Mono for machine readouts.
+   LAYOUT: stage left with controls beneath, conversation rail right; other views are bench sheets of diagrams and tables. */
+:root{color-scheme:light dark;
+--bg:light-dark(#eef0ea,#121614);--card:light-dark(#ffffff,#1a1f1d);--ink:light-dark(#18211f,#e7ece8);--mute:light-dark(#5d6763,#97a39e);
+--line:light-dark(#d9ddd4,#2a322f);--mat:#24584a;--mat2:light-dark(#dcefe6,#1d3a31);--mint:light-dark(#2b7a63,#7fd8b6);--coral:light-dark(#c8432f,#ff8a76);--soft:light-dark(#f5f6f2,#161b19)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.brand,nav a{font-family:Sora,Inter,sans-serif}
+.mono{font-family:"JetBrains Mono",monospace}
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 max(2vw,14px);min-height:58px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:18px;display:flex;align-items:center;gap:10px}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav a{color:var(--mute);text-decoration:none;font-weight:600;font-size:15px;padding:8px 12px;border-radius:10px;min-height:40px;display:flex;align-items:center;transition:background .2s,color .2s}
+nav a:hover{color:var(--ink)}nav a.on{background:var(--mat);color:#fff}
+.view{display:none}.view.on{display:block;animation:vin .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes vin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+#workcell.on{display:grid}
+#workcell{grid-template-columns:minmax(0,1fr) 400px;height:calc(100vh - 58px);min-height:600px}
+.left{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}
+.stage{position:relative;background:#cfd6cf;overflow:hidden}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.tag{position:absolute;left:14px;top:14px;background:rgba(255,255,255,.88);color:#18211f;border-radius:999px;padding:6px 12px;font-weight:600;font-size:14px;display:flex;gap:8px;align-items:center;pointer-events:none}
+.tag i{width:9px;height:9px;border-radius:50%;background:#9aa39f}.tag i.busy{background:#2b7a63;animation:pl 1.2s infinite}.tag i.fault{background:#c8432f}
+@keyframes pl{50%{opacity:.35}}
+.hint{position:absolute;right:14px;bottom:12px;color:rgba(255,255,255,.9);font-size:13px;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 14px;background:var(--card);border-top:1px solid var(--line)}
+button{font:600 15px Inter,sans-serif;cursor:pointer}
+.b{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:9px 14px;min-height:44px;transition:transform .15s,background .2s}
+.b:hover{transform:translateY(-1px)}.b:active{transform:translateY(1px)}
+.b.main{background:var(--mat);color:#fff;border-color:var(--mat)}
+.b.warn{color:var(--coral)}
+.b:disabled{opacity:.45;transform:none;cursor:not-allowed}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{border:0;background:var(--card);color:var(--mute);padding:8px 11px;min-height:42px}
+.seg button.on{background:var(--mat2);color:var(--ink)}
+.tog{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mute);min-height:44px;padding:0 4px;cursor:pointer}
+.tog input{width:20px;height:20px;accent-color:#24584a;min-height:0}
+.sp{flex:1}
+:focus-visible{outline:3px solid #7fd8b6;outline-offset:2px}
+/* rail */
+.rail{background:var(--card);border-left:1px solid var(--line);display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0}
+.rail .hd{padding:16px 18px 8px}
+.rail h2{font-size:20px;margin:0;line-height:1.2}
+.rail .hd p{margin:4px 0 0;color:var(--mute);font-size:14px}
+.thread{overflow-y:auto;padding:8px 18px 12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+.msg{max-width:92%;padding:10px 13px;border-radius:14px;font-size:15px;animation:pop .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+.msg.me{align-self:flex-end;background:var(--mat);color:#fff;border-bottom-right-radius:4px}
+.msg.bot{align-self:flex-start;background:var(--soft);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg .who{display:block;font-size:12px;color:var(--mute);margin-bottom:2px;font-weight:600}
+.msg.ev{align-self:stretch;max-width:none;background:none;padding:2px 2px;font-size:13px;color:var(--mute);display:flex;gap:8px}
+.msg.ev.fault{color:var(--coral)}
+.msg.ev time{font-family:"JetBrains Mono",monospace;font-size:12px}
+.steps{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}
+.steps li{display:flex;gap:8px;align-items:center;font-size:14px;padding:5px 8px;border-radius:9px;background:var(--card);border:1px solid var(--line);transition:background .3s,opacity .3s}
+.steps li .sw{width:14px;height:14px;border-radius:3px;flex:none}
+.steps li.now{background:var(--mat2);border-color:var(--mint)}
+.steps li.done{opacity:.55}.steps li.done::after{content:"✓";margin-left:auto;color:var(--mint);font-weight:700}
+.typing span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mute);margin-right:4px;animation:ty 1s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes ty{50%{transform:translateY(-4px);opacity:.4}}
+.compose{border-top:1px solid var(--line);padding:12px 14px 14px;display:grid;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:500;min-height:34px}
+.chips button:hover{border-color:var(--mint)}
+form.in{display:flex;gap:8px}
+form.in input{flex:1;font:16px Inter,sans-serif;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:46px}
+.brain{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px}
+.brain b{color:var(--ink);font-weight:600}
+/* sheets */
+.sheet{max-width:1240px;margin:0 auto;padding:clamp(22px,4vw,48px) max(4vw,16px) 64px}
+.sheet h1{font-size:clamp(30px,4.4vw,46px);line-height:1.08;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--mute);max-width:68ch;margin:0 0 24px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.card h2{font-size:19px;margin:0 0 2px}.card .sub{color:var(--mute);font-size:14px;margin:0 0 10px}
+.fig{position:relative;min-height:250px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.fig text{font:13px Inter;fill:var(--mute)}
+.joints{display:grid;gap:10px}
+.joint{display:grid;grid-template-columns:110px minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:14px}
+.joint .tr{position:relative;height:10px;border-radius:5px;background:var(--soft);border:1px solid var(--line)}
+.joint .tr i{position:absolute;top:-4px;width:4px;height:16px;border-radius:2px;background:var(--mat);transition:left .1s linear}
+.joint b{font-family:"JetBrains Mono",monospace;font-weight:500;text-align:right;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;color:var(--mute);font-weight:500;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+td.r,th.r{text-align:right}
+.chip{display:inline-flex;align-items:center;gap:6px}.chip i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,var(--mint) 16%,transparent);color:var(--mint)}.pill.bad{background:color-mix(in srgb,var(--coral) 16%,transparent);color:var(--coral)}
+.pill.n{background:var(--soft);color:var(--mute);border:1px solid var(--line)}
+.planlist{list-style:none;padding:0;margin:0;display:grid;gap:6px;counter-reset:s}
+.planlist li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;font-size:15px}
+.planlist .empty{grid-column:1/-1}.planlist li::before{content:counter(s);font:600 13px "JetBrains Mono";color:var(--mute);padding-top:2px}
+.planlist small{display:block;color:var(--mute);font-size:13px}
+.empty{color:var(--mute);padding:20px 0}
+.prose{max-width:74ch}.prose h2{font-size:24px;margin:28px 0 6px}.prose p{margin:0 0 12px}
+.scroll{overflow-x:auto}
+/* jobs */
+.jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-bottom:18px}
+.job{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;display:grid;gap:6px;animation:pop .4s both;transition:transform .2s,border-color .2s}
+.job:hover{transform:translateY(-2px);border-color:var(--mint)}
+.job h3{margin:0;font-size:17px}.job p{margin:0;color:var(--mute);font-size:14px}
+.job .acts{display:flex;gap:6px;margin-top:4px}.job .acts .b{min-height:38px;padding:6px 12px;font-size:14px}
+.job svg{width:100%;height:84px}
+.fl{display:grid;gap:4px;font-size:14px;color:var(--mute);margin-bottom:12px}
+.fl input{font:16px Inter,sans-serif;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:44px}
+.assign{display:grid;gap:8px}
+.arow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;align-items:center;font-size:15px}
+.arow .seg button{flex:1;padding:6px 6px;min-height:38px;font-size:14px}
+.arow .seg{width:100%}
+.row2{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.tiles div{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:10px 12px}.tiles span{display:block;color:var(--mute);font-size:13px}.tiles b{font:700 24px/1.15 Sora;font-variant-numeric:tabular-nums}
+.bad-t{color:var(--coral)}
+@media(max-width:600px){.tiles{grid-template-columns:1fr 1fr}.arow{grid-template-columns:1fr}}
+@media(max-width:980px){#workcell{grid-template-columns:1fr;height:auto}.left{grid-template-rows:auto auto}.stage{height:56vh;min-height:360px}.rail{border-left:0;border-top:1px solid var(--line)}.thread{max-height:46vh}.g2{grid-template-columns:1fr}}
+@media(max-width:600px){nav{margin-left:0}nav a{padding:6px 9px;font-size:14px}.joint{grid-template-columns:86px minmax(0,1fr) 58px}
+table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mute)}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="3" y="19" width="12" height="4" rx="1.5" fill="#24584a"/><path d="M9 19V13l7-6 5 3" stroke="#24584a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="12" width="5" height="5" rx="1" fill="#d8473b"/></svg>Language-Controlled Robot Arm</div>
+  <nav id="nav"><a href="#workcell">Workcell</a><a href="#jobs">Jobs</a><a href="#planner">Planner</a><a href="#history">History and data</a><a href="#method">How it works</a></nav>
+</header>
+<main>
+<section class="view" id="workcell">
+  <div class="left">
+    <div class="stage" id="stage">
+      <canvas id="gl" aria-label="3D view of the robot arm and blocks"></canvas>
+      <div class="tag"><i id="tagDot"></i><span id="tagText">Idle, watching the mat</span></div>
+      <div class="hint">Drag a block to move it · drag the mat to look around</div>
+    </div>
+    <div class="controls">
+      <button class="b warn" id="bump" title="Shake the table">Bump the table</button>
+      <button class="b" id="shuffle">Scatter blocks</button>
+      <button class="b" id="stop" disabled>Stop</button>
+      <label class="tog" title="After finishing, the arm keeps checking the goal and repairs it if something moves"><input type="checkbox" id="watch" checked>Keep the goal</label>
+      <span class="sp"></span>
+      <div class="seg" id="slip" role="group" aria-label="Gripper slip chance"><button data-v="0">No slips</button><button data-v="0.12" class="on">Some slips</button><button data-v="0.3">Butterfingers</button></div>
+      <div class="seg" id="speed" role="group" aria-label="Speed"><button data-v="1" class="on">1×</button><button data-v="2">2×</button><button data-v="3">3×</button></div>
+    </div>
+  </div>
+  <aside class="rail">
+    <div class="hd"><h2>Tell the arm what to build</h2><p>Plain words. It plans the moves, then repairs anything that goes wrong.</p></div>
+    <div class="thread" id="thread" aria-live="polite"></div>
+    <div class="compose">
+      <div class="chips" id="chips">
+        <button>Stack all the blocks, red at the bottom</button><button>Put blue on yellow</button><button>Line them up in rainbow order</button><button>Reverse the tallest tower</button><button>Unstack everything</button><button>Sort warm colours into bin A and cool ones into bin B</button><button>Kit red, green and blue into bin C</button><button>Empty the bins</button><button>Which block is closest to the arm?</button>
+      </div>
+      <form class="in" id="form"><input id="cmd" autocomplete="off" placeholder="e.g. build two towers of three" aria-label="Command for the arm"><button class="b main" type="submit">Send</button></form>
+      <div class="brain" id="brain">Language: <b>checking…</b></div>
+    </div>
+  </aside>
+</section>
+
+<section class="view" id="jobs"><div class="sheet">
+  <h1 id="jbTitle">Sorting and kitting jobs</h1>
+  <p class="lede">Three bins are painted on the mat. A job says which blocks belong in which bin, like a pick list in a warehouse or a parts kit for an assembly line. Run one and the arm plans the picks, recovers from slips and knocks, and logs how long it took.</p>
+  <div class="jobs" id="jobList"></div>
+  <div class="g2">
+    <div class="card"><h2>Make a job</h2><p class="sub">Pick a bin for each block, or leave it out of the job. Up to four blocks fit in a bin.</p>
+      <label class="fl">Job name<input id="jbName" maxlength="60" placeholder="e.g. Kit for order 1042"></label>
+      <div class="assign" id="jbAssign"></div>
+      <p class="sub" id="jbCheck" style="margin-top:10px"></p>
+      <div class="row2"><button class="b main" id="jbRun" type="button">Run now</button><button class="b" id="jbSave" type="button">Save job</button></div>
+    </div>
+    <div class="card"><h2>Throughput</h2><p class="sub">Every job run in this browser. Picks per minute are counted at 1× speed.</p><div class="tiles" id="jbTiles"></div><div class="scroll"><table class="stack" id="jbRuns"></table></div></div>
+  </div>
+</div></section>
+
+<section class="view" id="planner"><div class="sheet">
+  <h1 id="plTitle">What the arm believes, and what it will do next</h1>
+  <p class="lede">The arm never trusts its own plan. After every move it reads the blocks back from the scene, rebuilds this picture, and plans again from what is really there.</p>
+  <div class="g2">
+    <div class="card"><h2>Seen now</h2><p class="sub">Towers read from block positions, left to right by distance along the mat</p><div class="fig"><svg id="svNow"></svg></div></div>
+    <div class="card"><h2>Goal</h2><p class="sub" id="goalSub">No goal yet. Send a command.</p><div class="fig"><svg id="svGoal"></svg></div></div>
+    <div class="card"><h2>Moves still to make</h2><p class="sub">Each move is a pick and a place. Reasons come from the planner.</p><ol class="planlist" id="planList"></ol></div>
+    <div class="card"><h2>Joints, live</h2><p class="sub">Angles from the inverse kinematics solver, against each joint's range</p><div class="joints" id="joints"></div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h2>Perception</h2><p class="sub">What each block is resting on, read from the physics scene</p><div class="scroll"><table class="stack" id="percTable"></table></div></div>
+</div></section>
+
+<section class="view" id="history"><div class="sheet">
+  <h1 id="hiTitle">Command history</h1>
+  <p class="lede">Every command you give is kept in this browser, with how the arm understood it and what it took to finish.</p>
+  <div class="card" style="margin-bottom:16px"><h2>Training data</h2><p class="sub">Every goal the arm works on is recorded as an episode: the instruction, the goal it was turned into, the scene before and after, each pick and place with the joint angles at grasp and release, slips and knocks, and the joint trajectory 10 times a second. The format suits imitation learning and evaluation sets.</p>
+    <div class="tiles" id="epTiles"></div>
+    <div class="row2"><button class="b main dl" id="epJson" type="button" hidden>Download episodes (JSON)</button><button class="b dl" id="epJsonl" type="button" hidden>Download as JSON Lines</button><button class="b" id="epClear" type="button">Clear recorded episodes</button></div>
+    <p class="sub" id="epNote" style="margin-top:10px"></p></div>
+  <div class="card" style="margin-bottom:16px"><h2>Language test</h2><p class="sub">50 instructions labelled by hand with the goal they mean, including 6 the arm should refuse. Each is read against the same fixed scene (blue on red, the rest on the table) and the goal that comes back is compared with the label. Nothing moves.</p>
+    <div class="tiles" id="leTiles"></div>
+    <div class="row2"><button class="b main" id="leRun" type="button">Run the test with Claude</button><button class="b dl" id="leDl" type="button" hidden>Download results (JSON)</button></div>
+    <p class="sub" id="leNote" style="margin-top:10px"></p><div class="scroll"><table class="stack" id="leTable"></table></div></div>
+  <div class="card"><div class="scroll"><table class="stack" id="hiTable"></table></div><div style="margin-top:12px"><button class="b" id="hiClear">Clear history</button></div></div>
+</div></section>
+
+<section class="view" id="method"><div class="sheet prose">
+  <h1>Language in, physics out, and a loop that checks its own work</h1>
+  <p class="lede">This is the pattern robotics teams are betting on: a language model for meaning, classical planning and control for precision, and perception closing the loop.</p>
+  <div class="card" style="margin:6px 0 18px"><div class="fig" style="min-height:190px"><svg id="pipe" viewBox="0 0 760 190" preserveAspectRatio="xMidYMid meet"></svg></div></div>
+  <h2>Understanding the words</h2>
+  <p>Your sentence goes to Claude together with the current scene. Claude does not move the arm. It calls one tool, <code>set_goal</code>, describing the end state: which block should sit on what, or which blocks go in a row. The page checks the goal (no unknown blocks, no loops, no two blocks on one) and sends errors back so Claude can fix them. Questions about the scene are answered with a <code>get_scene</code> tool instead. When Claude is not available to the viewer, a small built-in parser handles the common commands.</p>
+  <h2>Planning the moves</h2>
+  <p>The goal becomes a blocks-world problem. The planner is the classic complete strategy: put a block in its final place whenever its support is already correct, otherwise clear away a block that is in the way. It solves the Sussman anomaly in three moves.</p>
+  <h2>Moving the arm</h2>
+  <p>Each move is a pick and a place. Inverse kinematics is solved analytically for a five-joint arm with the gripper pointing down: base yaw, then a two-link solution for shoulder and elbow, the wrist holding the tool vertical, and a roll joint that turns the fingers to match the cube's faces. Approaches are straight vertical lines; transfers sweep at a safe height above the tallest stack.</p>
+  <h2>Sorting, kitting and training data</h2>
+  <p>Bins turn the same loop into factory work: a job is a pick list that says which blocks go in which bin, and the arm chooses a free slot in each bin, clears anything in the way and repairs the result if it is disturbed. Every goal is also recorded as an episode, with the joint trajectory, so the runs can be downloaded as training or test data for a learned policy.</p>
+  <h2>Closing the loop</h2>
+  <p>The cubes live in a rigid-body physics engine. Grasps can slip (you choose how often), towers can be knocked over, and you can drag blocks yourself. After every place, and every second while it keeps the goal, the arm reads the scene back into symbols and plans again from the truth.</p>
+</div></section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+<script>
+// Robot arm core: geometry, inverse kinematics, perception, blocks-world planner, command parser.
+const ARM = { H0: 0.20, L1: 0.34, L2: 0.30, TOOL: 0.135, reachMin: 0.16, reachMax: 0.58 };
+const BLOCK = 0.05;
+const COLORS = {
+  red: 0xd8473b, blue: 0x2f6fd6, green: 0x2f9e62, yellow: 0xf0c330, purple: 0x8a5cd1, orange: 0xef7d2d, white: 0xf2f0ea, black: 0x2b2c30,
+};
+// Bins painted on the mat: square trays the arm sorts and kits into. Centres in metres from the arm base.
+const BINS = { A: { x: 0.40, z: 0.07, label: 'A' }, B: { x: -0.40, z: 0.07, label: 'B' }, C: { x: 0, z: -0.40, label: 'C' } };
+const BIN_HALF = 0.085, BIN_CAP = 4;
+function binAt(x, z, margin) { const m = margin || 0; for (const k in BINS) { const b = BINS[k]; if (Math.abs(x - b.x) < BIN_HALF + m && Math.abs(z - b.z) < BIN_HALF + m) return k; } return null; }
+function binSlots(k) { const b = BINS[k], d = 0.04; return [[b.x - d, b.z - d], [b.x + d, b.z - d], [b.x - d, b.z + d], [b.x + d, b.z + d]]; }
+// joint limits in radians: base yaw, shoulder, elbow, wrist, gripper roll
+const JOINT_LIMITS = [[-Math.PI, Math.PI], [-0.2, 2.6], [-2.8, 0.3], [-2.6, 1.6], [-Math.PI / 2, Math.PI / 2]];
+const wrapPi = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+
+// Inverse kinematics for a tool pointing straight down.
+// Returns joints [yaw, shoulder, elbow, wrist, roll] or null when out of reach.
+function ik(x, y, z, blockYaw, prevRoll) {
+  const yaw = Math.atan2(-z, x);
+  const r = Math.hypot(x, z);
+  const dx = r, dy = y + ARM.TOOL - ARM.H0;
+  const D = Math.hypot(dx, dy);
+  if (D > ARM.L1 + ARM.L2 - 1e-4 || D < Math.abs(ARM.L1 - ARM.L2) + 1e-4 || r < 0.05) return null;
+  const a = Math.acos(Math.max(-1, Math.min(1, (ARM.L1 * ARM.L1 + D * D - ARM.L2 * ARM.L2) / (2 * ARM.L1 * D))));
+  // try elbow up first, then elbow down; keep the first that respects every joint limit and keeps the elbow above the mat
+  let q = null;
+  for (const sgn of [1, -1]) {
+    const phi1 = Math.atan2(dy, dx) + sgn * a, ex = ARM.L1 * Math.cos(phi1), ey = ARM.L1 * Math.sin(phi1), phi2 = Math.atan2(dy - ey, dx - ex);
+    const c = [yaw, phi1, phi2 - phi1, -Math.PI / 2 - phi2];
+    if (ARM.H0 + ey < 0.02) continue;
+    if (c.every((v, i) => i === 0 || (v >= JOINT_LIMITS[i][0] && v <= JOINT_LIMITS[i][1]))) { q = c; break; }
+  }
+  if (!q) return null;
+  // gripper roll: align fingers with the block faces, cube symmetry = 90 degrees
+  let roll = wrapPi(yaw - (blockYaw || 0));
+  const ref = prevRoll === undefined ? 0 : prevRoll;
+  while (roll - ref > Math.PI / 4) roll -= Math.PI / 2;
+  while (roll - ref < -Math.PI / 4) roll += Math.PI / 2;
+  return [q[0], q[1], q[2], q[3], roll];
+}
+// Forward kinematics of the tool tip (for checks)
+function fk(q) {
+  const [yaw, s, e, w] = q;
+  const p1 = s, p2 = s + e, p3 = s + e + w;
+  const r = ARM.L1 * Math.cos(p1) + ARM.L2 * Math.cos(p2) + ARM.TOOL * Math.cos(p3);
+  const h = ARM.H0 + ARM.L1 * Math.sin(p1) + ARM.L2 * Math.sin(p2) + ARM.TOOL * Math.sin(p3);
+  return [r * Math.cos(yaw), h, -r * Math.sin(yaw)];
+}
+
+// ---------- perception: symbolic state from block poses ----------
+// blocks: [{id, x, y, z, yaw}]
+function perceive(blocks) {
+  const on = {}, issues = [];
+  for (const b of blocks) {
+    if (b.y < BLOCK * 0.5 + 0.008) { on[b.id] = 'table'; continue; }
+    let best = null, bd = 1;
+    for (const c of blocks) {
+      if (c === b) continue;
+      const dy = b.y - c.y;
+      if (dy > BLOCK * 0.7 && dy < BLOCK * 1.3) {
+        const d = Math.hypot(b.x - c.x, b.z - c.z);
+        if (d < BLOCK * 0.8 && d < bd) { bd = d; best = c; }
+      }
+    }
+    if (best) on[b.id] = best.id; else { on[b.id] = 'table'; issues.push(b.id); }
+  }
+  const above = {};
+  for (const id in on) if (on[id] !== 'table') above[on[id]] = id;
+  return { on, above };
+}
+function towers(state, ids) {
+  const out = [];
+  for (const id of ids) if (state.on[id] === 'table') { const t = [id]; let c = id; while (state.above[c]) { c = state.above[c]; t.push(c); } out.push(t); }
+  return out;
+}
+
+// ---------- planner (complete for blocks world) ----------
+// goal: { on: {blockId: 'table' | blockId}, row?: [ids] }
+function validateGoal(goal, ids) {
+  const on = goal.on || {};
+  for (const [a, b] of Object.entries(on)) {
+    if (!ids.includes(a)) throw new Error(`Unknown block "${a}"`);
+    if (b !== 'table' && !ids.includes(b)) throw new Error(`Unknown block "${b}"`);
+    if (a === b) throw new Error(`A block cannot sit on itself`);
+  }
+  const targets = {};
+  for (const [a, b] of Object.entries(on)) if (b !== 'table') { if (targets[b]) throw new Error(`Two blocks cannot both sit directly on ${b}`); targets[b] = a; }
+  // cycle check
+  for (const a of Object.keys(on)) { let c = a, n = 0; while (on[c] && on[c] !== 'table') { c = on[c]; if (++n > ids.length) throw new Error('That goal loops back on itself'); } }
+  if (goal.row) for (const id of goal.row) if (!ids.includes(id)) throw new Error(`Unknown block "${id}"`);
+  if (goal.bins) {
+    const count = {};
+    for (const [id, k] of Object.entries(goal.bins)) {
+      if (!ids.includes(id)) throw new Error(`Unknown block "${id}"`);
+      if (k !== 'none' && !BINS[k]) throw new Error(`There is no bin "${k}". The bins are A, B and C, or "none" for outside the bins`);
+      if (on[id] !== undefined && on[id] !== 'table') throw new Error(`${id} cannot be in a bin and on ${on[id]} at once`);
+      if (goal.row && goal.row.includes(id)) throw new Error(`${id} cannot be in a bin and in the row at once`);
+      if (k !== 'none' && (count[k] = (count[k] || 0) + 1) > BIN_CAP) throw new Error(`Bin ${k} holds at most ${BIN_CAP} blocks`);
+    }
+  }
+  return true;
+}
+function planSteps(state0, goal, ids) {
+  const st = { on: Object.assign({}, state0.on), above: Object.assign({}, state0.above) };
+  const gOn = Object.assign({}, goal.on || {});
+  if (goal.row) for (const id of goal.row) gOn[id] = 'table';
+  if (goal.bins) for (const id in goal.bins) gOn[id] = 'table';
+  const wanted = {}; for (const [a, b] of Object.entries(gOn)) if (b !== 'table') wanted[b] = a;
+  const clear = id => !st.above[id];
+  const well = (id, seen = 0) => {
+    if (seen > ids.length) return false;
+    const sup = st.on[id];
+    if (gOn[id] !== undefined && gOn[id] !== sup) return false;
+    if (sup === 'table') return true;
+    if (wanted[sup] && wanted[sup] !== id) return false;
+    return well(sup, seen + 1);
+  };
+  const steps = [];
+  const move = (a, to, why) => {
+    const from = st.on[a]; if (from !== 'table') delete st.above[from];
+    st.on[a] = to; if (to !== 'table') st.above[to] = a;
+    steps.push({ block: a, to, why });
+  };
+  for (let guard = 0; guard < 80; guard++) {
+    // constructive move: a block whose goal support is ready
+    let done = false;
+    for (const a of ids) {
+      const g = gOn[a]; if (g === undefined || st.on[a] === g && well(a)) continue;
+      if (!clear(a)) continue;
+      if (g === 'table') { if (st.on[a] !== 'table') { move(a, 'table', `goal puts ${a} on the table`); done = true; break; } continue; }
+      if (clear(g) && well(g)) { move(a, g, `${g} is ready to take ${a}`); done = true; break; }
+    }
+    if (done) continue;
+    // otherwise clear away a misplaced block on top of a stack
+    let freed = false;
+    for (const a of ids) {
+      if (!clear(a) || st.on[a] === 'table') continue;
+      if (!well(a)) { move(a, 'table', `${a} is in the way`); freed = true; break; }
+    }
+    if (freed) continue;
+    break;
+  }
+  const ok = Object.entries(gOn).every(([a, b]) => st.on[a] === b);
+  return { steps, ok, final: st };
+}
+function goalSatisfied(state, goal) {
+  const gOn = Object.assign({}, goal.on || {});
+  if (goal.row) for (const id of goal.row) gOn[id] = 'table';
+  if (goal.bins) for (const id in goal.bins) gOn[id] = 'table';
+  return Object.entries(gOn).every(([a, b]) => state.on[a] === b);
+}
+
+// ---------- built-in command parser (used when Claude is not available) ----------
+function parseCommand(text, ids, state) {
+  const t = ' ' + text.toLowerCase().replace(/[^a-z\s,]/g, ' ').replace(/\s+/g, ' ') + ' ';
+  const found = [];
+  const re = new RegExp(`\\b(${ids.join('|')})\\b`, 'g'); let m;
+  while ((m = re.exec(t))) found.push({ id: m[1], at: m.index });
+  const named = found.map(f => f.id);
+  const uniq = [...new Set(named)];
+  const all = /\b(all|every|everything|each)\b/.test(t);
+  // bins: "empty the bins", "red and blue in bin a", "warm colours into bin a and cool into bin b, the rest in bin c"
+  if (/\b(empty|clear|unload|unpack)\b[a-z\s]{0,12}\bbins?\b|\bout of (the )?bins?\b/.test(t)) {
+    const which = uniq.length ? uniq : ids, bins = {}; for (const id of which) bins[id] = 'none';
+    return { goal: { on: {}, bins }, say: `Taking ${uniq.length ? uniq.join(' and ') : 'every block'} out of the bins.` };
+  }
+  if (/\bbins?\b/.test(t)) {
+    const words = t.trim().split(/[\s,]+/), bins = {}; let pending = [];
+    const GROUPS = { warm: ['red', 'orange', 'yellow'], cool: ['green', 'blue', 'purple'], cold: ['green', 'blue', 'purple'] };
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (ids.includes(w)) pending.push(w);
+      else if (GROUPS[w]) pending.push(...GROUPS[w].filter(x => ids.includes(x)));
+      else if (/^(rest|others|remaining|everything|all|other)$/.test(w)) pending.push('*');
+      else if (w === 'bin' && /^[abc]$/.test(words[i + 1] || '')) {
+        const k = words[i + 1].toUpperCase();
+        for (const p of pending) if (p === '*') ids.filter(x => !bins[x] && !pending.includes(x)).forEach(x => bins[x] = k); else bins[p] = k;
+        pending = []; i++;
+      }
+    }
+    const keys = Object.keys(bins);
+    if (!keys.length) return { error: 'Say which blocks go in which bin, for example "red and blue in bin A, the rest in bin C".' };
+    for (const k of ['A', 'B', 'C']) { const n = keys.filter(id => bins[id] === k).length; if (n > BIN_CAP) return { error: `Bin ${k} only fits ${BIN_CAP} blocks, and that asks for ${n}.` }; }
+    const say = ['A', 'B', 'C'].map(k => { const l = keys.filter(id => bins[id] === k); return l.length ? `${l.join(', ')} into bin ${k}` : ''; }).filter(Boolean).join('; ');
+    return { goal: { on: {}, bins }, say: `Sorting ${say}.` };
+  }
+  if (/\b(unstack|knock down|flatten|spread|clear the|take apart|dismantle)\b/.test(t)) {
+    const on = {}; for (const id of ids) on[id] = 'table';
+    return { goal: { on }, say: 'Taking every stack apart so each block sits on the table.' };
+  }
+  if (/\b(row|line|sort|order)\b/.test(t)) {
+    const order = uniq.length >= 2 ? uniq.concat(ids.filter(i => !uniq.includes(i))) : ids.slice();
+    return { goal: { on: {}, row: order }, say: `Lining the blocks up in a row: ${order.join(', ')}.` };
+  }
+  if (/\breverse\b/.test(t)) {
+    const tw = towers(state, ids).filter(x => x.length > 1).sort((a, b) => b.length - a.length)[0];
+    if (!tw) return { error: 'There is no tower to reverse yet.' };
+    const r = tw.slice().reverse(), on = { [r[0]]: 'table' };
+    for (let i = 1; i < r.length; i++) on[r[i]] = r[i - 1];
+    return { goal: { on }, say: `Reversing the tower: ${r.join(' at the bottom, then ')} on top.`.replace(/, then ([a-z]+) on top/, ', then $1 on top') };
+  }
+  if (/\bswap\b/.test(t) && uniq.length >= 2) {
+    const [a, b] = uniq; const on = {};
+    const sa = state.on[a], sb = state.on[b];
+    on[a] = sb === a ? 'table' : (sb === 'table' ? 'table' : sb); on[b] = sa === b ? 'table' : sa;
+    if (sb === a) { on[b] = state.on[a]; on[a] = b; } else if (sa === b) { on[a] = state.on[b]; on[b] = a; }
+    return { goal: { on }, say: `Swapping ${a} and ${b}.` };
+  }
+  if (/\b(tower|stack|pile)\b/.test(t) && (all || uniq.length >= 3 || /\bone\b/.test(t))) {
+    let order = uniq.length >= 2 ? uniq.slice() : [];
+    const rest = ids.filter(i => !order.includes(i));
+    if (all || uniq.length < 2) order = order.concat(rest);
+    // "X at the bottom" / "X on top"
+    const bottom = (t.match(new RegExp(`\\b(${ids.join('|')})\\b[a-z\\s]{0,12}\\b(bottom|base)\\b`)) || [])[1];
+    const top = (t.match(new RegExp(`\\b(${ids.join('|')})\\b[a-z\\s]{0,12}\\b(top)\\b`)) || [])[1];
+    if (/\btop to bottom\b|\bfrom the top\b/.test(t)) order.reverse();
+    if (bottom) order = [bottom].concat(order.filter(i => i !== bottom));
+    if (top) order = order.filter(i => i !== top).concat([top]);
+    const on = { [order[0]]: 'table' }; for (let i = 1; i < order.length; i++) on[order[i]] = order[i - 1];
+    return { goal: { on }, say: `Building one tower, bottom to top: ${order.join(', ')}.` };
+  }
+  if (uniq.length >= 2 && /\b(on|onto|on top of|above|over)\b/.test(t)) {
+    // "put A on B" / "stack A on B" / "A on top of B"
+    const [a, b] = named.length >= 2 ? [named[0], named[1]] : uniq;
+    return { goal: { on: { [a]: b } }, say: `Putting ${a} on ${b}.` };
+  }
+  if (uniq.length >= 2 && /\b(under|beneath|below)\b/.test(t)) {
+    const [a, b] = uniq; return { goal: { on: { [b]: a } }, say: `Putting ${b} on ${a}, so ${a} is underneath.` };
+  }
+  if (uniq.length >= 1 && /\b(table|down|floor|off)\b/.test(t)) {
+    const on = {}; for (const id of uniq) on[id] = 'table';
+    return { goal: { on }, say: `Putting ${uniq.join(' and ')} on the table.` };
+  }
+  return { error: 'I could not turn that into a goal. Try "put red on blue", "stack all blocks with green at the bottom", "line them up" or "unstack everything".' };
+}
+if (typeof module !== 'undefined') module.exports = { JOINT_LIMITS, BINS, BIN_HALF, BIN_CAP, binAt, binSlots, ARM, BLOCK, COLORS, ik, fk, perceive, towers, planSteps, validateGoal, goalSatisfied, parseCommand };
+
+</script>
+<script>
+{
+const $ = s => document.querySelector(s);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const IDS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
+const hex = id => '#' + COLORS[id].toString(16).padStart(6, '0');
+const settings = Object.assign({ slip: 0.12, speed: 1, watch: true }, store.get('arm.settings', {}));
+const saveSettings = () => store.set('arm.settings', settings);
+
+// ---------- physics ----------
+const world = new CANNON.World(); world.gravity.set(0, -9.81, 0); world.broadphase = new CANNON.NaiveBroadphase(); world.solver.iterations = 25;
+const pmat = new CANNON.Material('m'); world.addContactMaterial(new CANNON.ContactMaterial(pmat, pmat, { friction: 0.6, restitution: 0.02, contactEquationStiffness: 1e7, contactEquationRelaxation: 3 }));
+const groundB = new CANNON.Body({ mass: 0, material: pmat }); groundB.addShape(new CANNON.Plane()); groundB.quaternion.setFromEuler(-Math.PI / 2, 0, 0); world.addBody(groundB);
+// low rim so blocks stay inside the arm's reach
+const RIM = 0.545;
+for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; const w = new CANNON.Body({ mass: 0, material: pmat }); w.addShape(new CANNON.Box(new CANNON.Vec3(0.012, 0.03, RIM * Math.PI / 36 + 0.004))); w.position.set(Math.cos(a) * (RIM + 0.012), 0.03, Math.sin(a) * (RIM + 0.012)); w.quaternion.setFromEuler(0, -a, 0); world.addBody(w); }
+const bodies = {};
+for (const id of IDS) { const b = new CANNON.Body({ mass: 0.12, material: pmat, linearDamping: 0.05, angularDamping: 0.12 }); b.addShape(new CANNON.Box(new CANNON.Vec3(BLOCK / 2, BLOCK / 2, BLOCK / 2))); world.addBody(b); bodies[id] = b; }
+function scatter(seed) {
+  let s = seed || (Date.now() % 100000) + 1; const rnd = () => (s = s * 16807 % 2147483647) / 2147483647;
+  const placed = [];
+  for (const id of IDS) {
+    let x, z, tries = 0;
+    do { const r = 0.27 + rnd() * 0.2, a = (rnd() - 0.5) * 2.2; x = r * Math.sin(a); z = r * Math.cos(a); tries++; } while (placed.some(p => Math.hypot(p[0] - x, p[1] - z) < 0.09) && tries < 200);
+    placed.push([x, z]); setBody(id, x, BLOCK / 2, z, rnd() * Math.PI);
+  }
+}
+function setBody(id, x, y, z, yaw) { const b = bodies[id]; b.position.set(x, y, z); b.quaternion.setFromEuler(0, yaw, 0); b.velocity.set(0, 0, 0); b.angularVelocity.set(0, 0, 0); }
+const saved = store.get('arm.scene', null);
+if (saved && saved.length === IDS.length) saved.forEach(s => { const b = bodies[s.id]; b.position.set(s.p[0], s.p[1] + 0.001, s.p[2]); b.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]); }); else scatter(4242);
+function saveScene() { store.set('arm.scene', IDS.map(id => { const b = bodies[id]; return { id, p: [b.position.x, b.position.y, b.position.z], q: [b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w] }; })); }
+
+// ---------- three.js ----------
+THREE.ColorManagement.legacyMode = false;
+const canvas = $('#gl'), stageEl = $('#stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xcfd6cf); scene.fog = new THREE.Fog(0xcfd6cf, 3, 9);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.02, 30);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6f7f76, 0.75));
+const key = new THREE.DirectionalLight(0xfff6ea, 1.1); key.position.set(0.9, 1.6, 1.1); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -0.8, right: 0.8, top: 0.8, bottom: -0.8, near: 0.1, far: 5 }); key.shadow.bias = -0.0004; scene.add(key);
+const fill = new THREE.DirectionalLight(0xdfeaff, 0.35); fill.position.set(-1.2, 0.8, -0.4); scene.add(fill);
+// bench and mat
+const bench = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.04, 2.2), new THREE.MeshStandardMaterial({ color: 0xb7bdb6, roughness: 0.9 })); bench.position.y = -0.021; bench.receiveShadow = true; scene.add(bench);
+const mc = document.createElement('canvas'); mc.width = mc.height = 1024; { const g = mc.getContext('2d'); g.fillStyle = '#24584a'; g.fillRect(0, 0, 1024, 1024); g.strokeStyle = 'rgba(220,240,230,.13)'; g.lineWidth = 1; for (let i = 0; i <= 1024; i += 1024 / 120) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 1024); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(1024, i); g.stroke(); } g.strokeStyle = 'rgba(220,240,230,.32)'; g.lineWidth = 2; for (let i = 0; i <= 1024; i += 1024 / 24) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 1024); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(1024, i); g.stroke(); } g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; g.beginPath(); g.arc(512, 512, 0.58 / 1.2 * 1024, 0, Math.PI * 2); g.stroke(); g.setLineDash([12, 10]); g.beginPath(); g.arc(512, 512, 0.16 / 1.2 * 1024, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+  const P = v => (v + 0.6) / 1.2 * 1024, S = v => v / 1.2 * 1024, tint = { A: 'rgba(240,195,48,.22)', B: 'rgba(127,216,182,.22)', C: 'rgba(255,138,118,.22)' };
+  for (const k in BINS) { const b = BINS[k], x = P(b.x - BIN_HALF), y = P(b.z - BIN_HALF), w = S(BIN_HALF * 2);
+    g.fillStyle = tint[k]; g.beginPath(); g.roundRect(x, y, w, w, 10); g.fill(); g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 4; g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 2; g.setLineDash([6, 6]); for (const [sx, sz] of binSlots(k)) g.strokeRect(P(sx - 0.026), P(sz - 0.026), S(0.052), S(0.052)); g.setLineDash([]);
+    const len = Math.hypot(b.x, b.z), lx = P(b.x - b.x / len * (BIN_HALF + 0.04)), ly = P(b.z - b.z / len * (BIN_HALF + 0.04));
+    g.fillStyle = 'rgba(255,255,255,.9)'; g.font = '700 46px Sora, Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(k, lx, ly); } }
+const mtex = new THREE.CanvasTexture(mc); mtex.encoding = THREE.sRGBEncoding; mtex.anisotropy = 8;
+const rim = new THREE.Mesh(new THREE.CylinderGeometry(RIM + 0.024, RIM + 0.024, 0.03, 96, 1, true), new THREE.MeshStandardMaterial({ color: 0xd9ded7, roughness: 0.7, side: THREE.DoubleSide })); rim.position.y = 0.015; rim.castShadow = rim.receiveShadow = true; scene.add(rim);
+const rimTop = new THREE.Mesh(new THREE.RingGeometry(RIM, RIM + 0.024, 96), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })); rimTop.rotation.x = -Math.PI / 2; rimTop.position.y = 0.0301; scene.add(rimTop);
+const mat = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), new THREE.MeshStandardMaterial({ map: mtex, roughness: 0.95 })); mat.rotation.x = -Math.PI / 2; mat.position.y = 0.0005; mat.receiveShadow = true; scene.add(mat);
+// arm
+const white = new THREE.MeshStandardMaterial({ color: 0xf1f2ee, roughness: 0.32, metalness: 0.02 });
+const dark = new THREE.MeshStandardMaterial({ color: 0x2a2f2e, roughness: 0.6 });
+const accent = new THREE.MeshStandardMaterial({ color: 0x24584a, roughness: 0.5 });
+const arm = new THREE.Group(); scene.add(arm);
+const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, 0.03, 40), dark); plinth.position.y = 0.015; plinth.receiveShadow = plinth.castShadow = true; arm.add(plinth);
+const yawJ = new THREE.Group(); yawJ.position.y = 0.03; arm.add(yawJ);
+const col = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.066, ARM.H0 - 0.03, 36), white); col.position.y = (ARM.H0 - 0.03) / 2; col.castShadow = true; yawJ.add(col);
+const ringM = (r, h) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 36), dark);
+const shJ = new THREE.Group(); shJ.position.y = ARM.H0 - 0.03; yawJ.add(shJ);
+const shHub = ringM(0.06, 0.1); shHub.rotation.x = Math.PI / 2; shHub.castShadow = true; shJ.add(shHub);
+const link = (len, r) => { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 8, 24), white); m.rotation.z = -Math.PI / 2; m.position.x = len / 2; m.castShadow = true; g.add(m); const stripe = new THREE.Mesh(new THREE.BoxGeometry(len * 0.55, 0.006, r * 2.02), accent); stripe.position.set(len / 2, r * 0.7, 0); g.add(stripe); return g; };
+shJ.add(link(ARM.L1, 0.04));
+const elJ = new THREE.Group(); elJ.position.x = ARM.L1; shJ.add(elJ);
+const elHub = ringM(0.046, 0.085); elHub.rotation.x = Math.PI / 2; elHub.castShadow = true; elJ.add(elHub);
+elJ.add(link(ARM.L2, 0.032));
+const wrJ = new THREE.Group(); wrJ.position.x = ARM.L2; elJ.add(wrJ);
+const wrHub = ringM(0.034, 0.07); wrHub.rotation.x = Math.PI / 2; wrHub.castShadow = true; wrJ.add(wrHub);
+const rollJ = new THREE.Group(); wrJ.add(rollJ);
+const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.05, 28), white); flange.rotation.z = -Math.PI / 2; flange.position.x = 0.035; flange.castShadow = true; rollJ.add(flange);
+const palm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.1), dark); palm.position.x = 0.075; palm.castShadow = true; rollJ.add(palm);
+const fingers = [0, 1].map(i => { const f = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.022, 0.009), dark); f.position.x = ARM.TOOL - 0.025; f.castShadow = true; rollJ.add(f); return f; });
+const tcp = new THREE.Object3D(); tcp.position.x = ARM.TOOL - 0.012; rollJ.add(tcp);
+// blocks
+const meshes = {};
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 });
+for (const id of IDS) { const g = new THREE.BoxGeometry(BLOCK, BLOCK, BLOCK); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: COLORS[id], roughness: 0.45 })); m.castShadow = m.receiveShadow = true; m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edgeMat)); m.userData.id = id; scene.add(m); meshes[id] = m; }
+// ghost target + path
+const ghost = new THREE.Mesh(new THREE.BoxGeometry(BLOCK * 1.02, BLOCK * 1.02, BLOCK * 1.02), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false }));
+ghost.add(new THREE.LineSegments(new THREE.EdgesGeometry(ghost.geometry), new THREE.LineBasicMaterial({ color: 0xffffff }))); ghost.visible = false; scene.add(ghost);
+const pathGeo = new THREE.BufferGeometry(); pathGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 64), 3)); pathGeo.setDrawRange(0, 0);
+const pathLine = new THREE.Line(pathGeo, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.012, gapSize: 0.01, transparent: true, opacity: 0.8 })); pathLine.frustumCulled = false; scene.add(pathLine);
+function showPath(pts) { const a = pathGeo.attributes.position; pts.forEach((p, i) => a.setXYZ(i, p[0], p[1], p[2])); a.needsUpdate = true; pathGeo.setDrawRange(0, pts.length); pathLine.computeLineDistances(); }
+
+// ---------- arm state & motion ----------
+const HOME = [-Math.PI / 2, 1.45, -2.1, -Math.PI / 2 - (1.45 - 2.1), 0];
+let q = HOME.slice(), gripOpen = 1, held = null, heldRel = null, motion = null, paused = false;
+const LIMITS = [[-Math.PI, Math.PI], [-0.2, 2.6], [-2.8, 0.3], [-2.6, 1.6], [-Math.PI / 2, Math.PI / 2]];
+function applyJoints() {
+  yawJ.rotation.y = q[0]; shJ.rotation.z = q[1]; elJ.rotation.z = q[2]; wrJ.rotation.z = q[3]; rollJ.rotation.x = q[4];
+  const gap = 0.028 + 0.022 * gripOpen; fingers[0].position.z = gap; fingers[1].position.z = -gap;
+  arm.updateMatrixWorld(true);
+}
+const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * t * (t * (6 * t - 15) + 10);
+function run(update) { return new Promise(res => { motion = { update, res }; }); }
+function tipPos() { const v = new THREE.Vector3(); tcp.getWorldPosition(v); return [v.x, v.y - 0.012, v.z]; }
+function linearTo(p1, yaw, T) {
+  const p0 = tipPos(); let t = 0;
+  return run(dt => { t += dt; const s = ease(t / T); const p = p0.map((v, i) => v + (p1[i] - v) * s); const sol = ik(p[0], p[1], p[2], yaw, q[4]); if (sol) q = sol; return t >= T; });
+}
+function sweepTo(p1, yaw, h, T, at) {
+  // transfer at safe height in cylindrical coordinates, so the tool never dips
+  const p0 = tipPos(); let t = 0;
+  const r0 = Math.hypot(p0[0], p0[2]), a0 = Math.atan2(p0[2], p0[0]), r1 = Math.hypot(p1[0], p1[2]);
+  let a1 = Math.atan2(p1[2], p1[0]); while (a1 - a0 > Math.PI) a1 -= 2 * Math.PI; while (a1 - a0 < -Math.PI) a1 += 2 * Math.PI;
+  const q40 = q[4]; let qEnd = ik(p1[0], h, p1[2], yaw, q40); const roll1 = qEnd ? qEnd[4] : q40;
+  return run(dt => { t += dt; const s = ease(t / T); const r = r0 + (r1 - r0) * s, a = a0 + (a1 - a0) * s, y = p0[1] + (h - p0[1]) * Math.min(1, s * 3) + 0.02 * Math.sin(Math.PI * s);
+    const sol = ik(r * Math.cos(a), y, r * Math.sin(a), 0, 0); if (sol) { sol[4] = q40 + (roll1 - q40) * s; q = sol; } if (at && !at.fired && t / T >= at.f) { at.fired = true; at.fn(); } return t >= T; });
+}
+function jointsTo(qt, T) { const q0 = q.slice(); let t = 0; return run(dt => { t += dt; const s = ease(t / T); q = q0.map((v, i) => v + (qt[i] - v) * s); return t >= T; }); }
+function gripTo(o, T) { const g0 = gripOpen; let t = 0; return run(dt => { t += dt; gripOpen = g0 + (o - g0) * ease(t / T); return t >= T; }); }
+function wait(T) { let t = 0; return run(dt => (t += dt) >= T); }
+function attach(id) {
+  const b = bodies[id]; held = id; b.type = CANNON.Body.KINEMATIC; b.mass = 0; b.updateMassProperties(); b.velocity.set(0, 0, 0); b.angularVelocity.set(0, 0, 0);
+  const tq = new THREE.Quaternion(), tp = new THREE.Vector3(); tcp.getWorldQuaternion(tq); tcp.getWorldPosition(tp);
+  const bq = new THREE.Quaternion(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w), bp = new THREE.Vector3(b.position.x, b.position.y, b.position.z);
+  const inv = tq.clone().invert(); heldRel = { q: inv.clone().multiply(bq), p: bp.sub(tp).applyQuaternion(inv) };
+  // snap the relative yaw to the nearest face so the cube sits square in the fingers
+  heldRel.p.set(0, 0, 0);
+}
+function detach() {
+  if (!held) return; const b = bodies[held]; b.type = CANNON.Body.DYNAMIC; b.mass = 0.12; b.updateMassProperties(); b.velocity.set(0, 0, 0); b.angularVelocity.set(0, 0, 0); b.wakeUp && b.wakeUp(); held = null;
+}
+function followHeld() {
+  if (!held) return; const b = bodies[held];
+  const tq = new THREE.Quaternion(), tp = new THREE.Vector3(); tcp.getWorldQuaternion(tq); tcp.getWorldPosition(tp);
+  const wq = tq.clone().multiply(heldRel.q), wp = heldRel.p.clone().applyQuaternion(tq).add(tp);
+  b.position.set(wp.x, wp.y, wp.z); b.quaternion.set(wq.x, wq.y, wq.z, wq.w);
+}
+
+// ---------- perception helpers ----------
+function yawOf(b) { const v = new CANNON.Vec3(1, 0, 0), w = b.quaternion.vmult(v); return Math.atan2(-w.z, w.x); }
+function tiltOf(b) { let best = 0; for (const ax of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) { const w = b.quaternion.vmult(new CANNON.Vec3(...ax)); best = Math.max(best, Math.abs(w.y)); } return Math.acos(Math.min(1, best)) * 180 / Math.PI; }
+function readBlocks() { return IDS.map(id => { const b = bodies[id]; return { id, x: b.position.x, y: b.position.y, z: b.position.z, yaw: yawOf(b), tilt: tiltOf(b) }; }); }
+function readState() { return perceive(readBlocks().filter(b => b.id !== held)); }
+function settled() { return IDS.every(id => { const b = bodies[id]; return id === held || (b.velocity.norm() < 0.02 && b.angularVelocity.norm() < 0.2); }); }
+function topHeight() { return Math.max(0.05, ...IDS.filter(i => i !== held).map(i => bodies[i].position.y + BLOCK / 2)); }
+function freeSpot(near, exclude, slot, avoidRow) {
+  if (slot) return slot;
+  const bl = readBlocks().filter(b => b.id !== exclude); let best = null, bd = Infinity;
+  for (let r = 0.25; r <= 0.5; r += 0.035) for (let a = -1.25; a <= 1.25; a += 0.11) {
+    const x = r * Math.sin(a), z = r * Math.cos(a);
+    if (bl.some(b => Math.hypot(b.x - x, b.z - z) < 0.09) || binAt(x, z, 0.05)) continue;
+    if (goal && goal.row && Math.abs(z - (0.36 - Math.abs(x) * 0.18)) < 0.07 && Math.abs(x) < goal.row.length * 0.045 + 0.05) continue;
+    if (!ik(x, BLOCK / 2 - 0.012, z, 0) || !ik(x, 0.32, z, 0)) continue;
+    const d = Math.hypot(x - near[0], z - near[2]);
+    if (d < bd) { bd = d; best = [x, BLOCK / 2, z]; }
+  }
+  return best;
+}
+function rowSlots(order) { const n = order.length, out = {}; order.forEach((id, i) => { const x = (i - (n - 1) / 2) * 0.085; out[id] = [x, BLOCK / 2, 0.36 - Math.abs(x) * 0.18]; }); return out; }
+
+// ---------- episodes (training data) ----------
+const r4 = v => Math.round(v * 1e4) / 1e4;
+let episode = null, lastPP = null, epClock = 0, epSampleT = 0;
+const epT = () => r4(epClock);
+function symbolic() { const st = readState(); return { on: st.on, towers: towers(st, IDS), bins: Object.fromEntries(IDS.map(id => [id, binAt(bodies[id].position.x, bodies[id].position.z)])) }; }
+function snapshot() { const bl = readBlocks(); return Object.assign({ blocks: bl.map(b => ({ id: b.id, x: r4(b.x), y: r4(b.y), z: r4(b.z), yaw: r4(b.yaw), tilt_deg: Math.round(b.tilt) })) }, symbolic()); }
+function startEpisode(source) {
+  episode = { id: 'ep-' + Date.now().toString(36), started_at: new Date().toISOString(), instruction: source ? source.text : null, trigger: source ? (source.job ? 'job' : 'command') : 'repair', interpreted_by: source ? source.who : 'watchdog', job: source && source.job || null,
+    goal: JSON.parse(JSON.stringify(goal)), settings: { slip_chance: settings.slip, speed: settings.speed }, initial: snapshot(), steps: [], events: [], trajectory: [] };
+  epClock = 0; epSampleT = -1;
+}
+function endEpisode(ok) {
+  if (!episode) return; const e = episode; episode = null;
+  Object.assign(e, { success: ok, duration_s: epT(), moves: stats.moves, slips: stats.slips, replans: stats.replans, final: snapshot() });
+  const all = store.get('arm.episodes', []); all.unshift(e);
+  let keep = all.slice(0, 25); while (keep.length > 1) { try { localStorage.setItem('arm.episodes', JSON.stringify(keep)); break; } catch (er) { keep = keep.slice(0, keep.length - 3); } }
+  if (keep.length <= 1) store.set('arm.episodes', keep);
+}
+
+// ---------- executive: plan, act, perceive, repeat ----------
+let goal = null, busy = false, stopReq = false, curPlan = [], stats = null, failedSig = null;
+const sceneSig = () => IDS.map(id => { const b = bodies[id]; return Math.round(b.position.x * 100) + ',' + Math.round(b.position.z * 100) + ',' + Math.round(b.position.y * 100); }).join('|');
+function binSlotFor(id) {
+  const k = goal.bins[id], b = bodies[id], slots = binSlots(k);
+  const here = slots.find(([x, z]) => Math.hypot(b.position.x - x, b.position.z - z) < 0.02 && b.position.y < BLOCK); if (here) return [here[0], BLOCK / 2, here[1]];
+  const free = slots.filter(([x, z]) => !IDS.some(o => o !== id && o !== held && Math.hypot(bodies[o].position.x - x, bodies[o].position.z - z) < 0.06));
+  const pick = (free.length ? free : slots).sort((a, c) => Math.hypot(a[0] - b.position.x, a[1] - b.position.z) - Math.hypot(c[0] - b.position.x, c[1] - b.position.z))[0];
+  return [pick[0], BLOCK / 2, pick[1]];
+}
+const slotOf = id => goal && goal.row && goal.row.includes(id) ? rowSlots(goal.row)[id] : goal && goal.bins && BINS[goal.bins[id]] ? binSlotFor(id) : null;
+function binOk(st) { if (!goal || !goal.bins) return true; return Object.entries(goal.bins).every(([id, k]) => { const b = bodies[id], z = binAt(b.position.x, b.position.z); return st.on[id] === 'table' && (k === 'none' ? !z : z === k); }); }
+const goalOk = st => goalSatisfied(st, goal) && rowOk(st) && binOk(st);
+function rowOk(st) { if (!goal || !goal.row) return true; const sl = rowSlots(goal.row); return goal.row.every(id => st.on[id] === 'table' && Math.hypot(bodies[id].position.x - sl[id][0], bodies[id].position.z - sl[id][2]) < 0.025); }
+function fullPlan(st) {
+  const p = planSteps(st, goal, IDS); let steps = p.steps.slice();
+  if (goal.row) {
+    // after the symbolic plan, slide row blocks onto their slots (clearing a slot first if something sits there)
+    const sl = rowSlots(goal.row);
+    for (const id of goal.row) { const b = bodies[id]; if (steps.some(s => s.block === id) || Math.hypot(b.position.x - sl[id][0], b.position.z - sl[id][2]) >= 0.025) { if (!steps.some(s => s.block === id && s.to === 'table')) steps.push({ block: id, to: 'table', why: `${id} goes in slot ${goal.row.indexOf(id) + 1} of the row` }); } }
+  }
+  if (goal.bins) for (const [id, k] of Object.entries(goal.bins)) {
+    if (steps.some(s => s.block === id && s.to === 'table')) { const s = steps.find(x => x.block === id && x.to === 'table'); if (k !== 'none') s.why = `${id} goes in bin ${k}`; continue; }
+    const b = bodies[id], z = binAt(b.position.x, b.position.z);
+    if (k === 'none' ? z : z !== k) steps.push({ block: id, to: 'table', why: k === 'none' ? `${id} comes out of bin ${z}` : `${id} goes in bin ${k}` });
+  }
+  return { ok: p.ok, steps };
+}
+async function execute(g, source) {
+  goal = g; busy = true; stopReq = false; setTag('Planning', 'busy'); $('#stop').disabled = false;
+  stats = { moves: 0, replans: 0, slips: 0, t0: performance.now() }; startEpisode(source);
+  let card = null, lastSig = '';
+  for (let guard = 0; guard < 30 && !stopReq; guard++) {
+    await waitSettled();
+    const st = readState();
+    if (goalOk(st)) { break; }
+    const p = fullPlan(st);
+    if (!p.steps.length) { event('No moves can reach that goal from here.', 'fault'); break; }
+    const sig = p.steps.map(s => s.block + s.to).join();
+    if (!card) card = planCard(p.steps); else if (sig !== lastSig) { stats.replans++; card = planCard(p.steps, true); }
+    lastSig = sig.split(',').slice(1).join(','); curPlan = p.steps; renderPlanner();
+    const s = p.steps[0]; markStep(card, 0);
+    setTag(`Moving ${s.block} ${s.to === 'table' ? 'to the table' : 'onto ' + s.to}`, 'busy');
+    const tStep = epT(), res = await pickPlace(s);
+    if (episode) episode.steps.push(Object.assign({ t_s: tStep, t_end_s: epT(), action: 'pick_place', block: s.block, to: s.to, reason: s.why, result: res }, lastPP || {}, { scene_after: symbolic() })); lastPP = null;
+    if (res === 'unreachable') { event(`${s.block} is out of the arm's reach. Drag it closer.`, 'fault'); break; }
+    if (res === 'slipped') { stats.slips++; event(`${s.block} slipped out of the gripper. Re-planning from what is on the mat.`, 'fault'); lastSig = ''; }
+    else { stats.moves++; doneStep(card, 0); }
+  }
+  const st = readState(); const ok = goalOk(st);
+  await homeArm();
+  busy = false; $('#stop').disabled = true; curPlan = []; ghost.visible = false; showPath([]);
+  setTag(ok ? (settings.watch ? 'Done. Keeping the goal' : 'Done') : stopReq ? 'Stopped' : 'Gave up', ok ? '' : 'fault');
+  if (stats) { const secs = (performance.now() - stats.t0) / 1000; if (ok) event(`Goal reached in ${stats.moves} move${stats.moves === 1 ? '' : 's'}${stats.slips ? `, recovered from ${stats.slips} slip${stats.slips > 1 ? 's' : ''}` : ''}.`); if (source) logHistory(source, ok, stats, secs); }
+  failedSig = ok ? null : sceneSig(); endEpisode(ok);
+  if (source && source.job) { const jr = store.get('arm.jobruns', []); jr.unshift({ at: new Date().toISOString(), name: source.job, ok, picks: stats.moves, slips: stats.slips, secs: epClock, speed: 1 }); store.set('arm.jobruns', jr.slice(0, 60)); }
+  saveScene(); renderPlanner();
+  return ok;
+}
+function waitSettled() { return new Promise(res => { const t0 = performance.now(); const tick = () => { if (settled() || performance.now() - t0 > 2500) res(); else setTimeout(tick, 60); }; setTimeout(tick, 120); }); }
+async function homeArm() { const p = tipPos(); const h = Math.max(topHeight() + 0.1, 0.25); if (p[1] < h - 0.01) await linearTo([p[0], h, p[2]], 0, 0.5); await jointsTo(HOME, 1.1); }
+async function pickPlace(s) {
+  const b = bodies[s.block], bx = b.position.x, by = b.position.y, bz = b.position.z, byaw = yawOf(b);
+  let dest, dyaw = 0;
+  if (s.to === 'table') { dest = freeSpot([bx, by, bz], s.block, s.avoidRow ? null : slotOf(s.block), s.avoidRow); dyaw = slotOf(s.block) ? 0 : byaw; }
+  else { const t = bodies[s.to]; dest = [t.position.x, t.position.y + BLOCK, t.position.z]; dyaw = yawOf(t); }
+  if (!dest) return 'unreachable';
+  if (s.to === 'table' && slotOf(s.block)) {
+    const occ = IDS.find(id => id !== s.block && id !== held && Math.hypot(bodies[id].position.x - dest[0], bodies[id].position.z - dest[2]) < 0.07);
+    if (occ) { setTag(`Clearing slot for ${s.block}`, 'busy'); const r = await pickPlace({ block: occ, to: 'table', why: 'clearing a row slot', avoidRow: true }); if (r !== 'ok') return r; }
+  }
+  const safe = Math.min(0.42, Math.max(topHeight() + 0.11, 0.2));
+  const pick = [bx, by - 0.012, bz], place = [dest[0], dest[1] + 0.004 - 0.012, dest[2]];
+  if (!ik(...pick, byaw) || !ik(bx, safe, bz, byaw)) return 'unreachable';
+  if (!ik(...place, dyaw) || !ik(dest[0], safe, dest[2], dyaw)) return 'unreachable';
+  ghost.position.set(dest[0], dest[1], dest[2]); ghost.rotation.set(0, dyaw, 0); ghost.visible = true;
+  showPath([[bx, safe, bz], ...Array.from({ length: 24 }, (_, i) => { const u = (i + 1) / 25; return [bx + (dest[0] - bx) * u, safe + 0.02 * Math.sin(Math.PI * u), bz + (dest[2] - bz) * u]; }), [dest[0], dest[1], dest[2]]]);
+  const tp = tipPos(); const dur = d => Math.max(0.45, d / 0.32);
+  await gripTo(1, 0.25);
+  if (tp[1] < safe - 0.02) await linearTo([tp[0], safe, tp[2]], q[4], 0.45);
+  await sweepTo([bx, safe, bz], byaw, safe, dur(Math.hypot(tp[0] - bx, tp[2] - bz)));
+  await linearTo(pick, byaw, dur(safe - pick[1]) * 0.8);
+  await gripTo(0, 0.3);
+  // did we actually get it? (the block may have moved while we were on the way)
+  const tq = tipPos(); const bb = bodies[s.block];
+  if (Math.hypot(bb.position.x - tq[0], bb.position.y - (tq[1] + 0.012), bb.position.z - tq[2]) > 0.02) { await gripTo(1, 0.2); await linearTo([tq[0], safe, tq[2]], q[4], 0.5); return 'slipped'; }
+  attach(s.block); lastPP = { pick_position_m: [bx, by, bz].map(r4), pick_yaw_rad: r4(byaw), grasp_joints_rad: q.map(r4), place_position_m: dest.map(r4), place_yaw_rad: r4(dyaw) };
+  await linearTo([bx, safe, bz], byaw, dur(safe - pick[1]) * 0.8);
+  const willSlip = Math.random() < settings.slip;
+  if (willSlip) {
+    const d = Math.hypot(dest[0] - bx, dest[2] - bz), T = dur(d);
+    await sweepTo([dest[0], safe, dest[2]], dyaw, safe, T, { f: 0.3 + Math.random() * 0.35, fn: () => { detach(); gripOpen = 0.6; } });
+    ghost.visible = false; await gripTo(1, 0.15);
+    return 'slipped';
+  }
+  await sweepTo([dest[0], safe, dest[2]], dyaw, safe, dur(Math.hypot(dest[0] - bx, dest[2] - bz)));
+  await linearTo(place, dyaw, dur(safe - place[1]) * 0.9);
+  if (lastPP) lastPP.release_joints_rad = q.map(r4); detach(); await gripTo(1, 0.25);
+  await linearTo([dest[0], safe, dest[2]], q[4], 0.5);
+  ghost.visible = false;
+  return 'ok';
+}
+// keep-goal watchdog
+setInterval(() => {
+  if (busy || !goal || !settings.watch || drag) return;
+  if (!settled()) return;
+  const st = readState(); if (goalOk(st)) return;
+  if (failedSig && sceneSig() === failedSig) return;
+  event('Something moved. Putting it back.', 'fault'); execute(goal, null);
+}, 1200);
+
+// ---------- conversation ----------
+const thread = $('#thread');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function bubble(cls, html) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; thread.appendChild(d); thread.scrollTop = thread.scrollHeight; return d; }
+function event(text, kind) { if (episode) episode.events.push({ t_s: epT(), text, kind: kind || 'info' }); const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); bubble('ev ' + (kind || ''), `<time>${t}</time><span>${esc(text)}</span>`); }
+function planCard(steps, re) {
+  const d = bubble('bot', `<span class="who">${re ? 'Re-planned' : 'Plan'}</span>${steps.length} move${steps.length === 1 ? '' : 's'}<ul class="steps">${steps.map(s => `<li><span class="sw" style="background:${hex(s.block)}"></span>${s.block} → ${s.to === 'table' ? 'table' : `<span class="sw" style="background:${hex(s.to)}"></span>${s.to}`}</li>`).join('')}</ul>`);
+  return d;
+}
+function markStep(card, i) { const li = card && card.querySelectorAll('li'); if (li && li[i]) { li.forEach(x => x.classList.remove('now')); const k = card.querySelectorAll('li.done').length; if (li[k]) li[k].classList.add('now'); } }
+function doneStep(card) { const li = card && card.querySelectorAll('li:not(.done)'); if (li && li[0]) { li[0].classList.remove('now'); li[0].classList.add('done'); } }
+function setTag(text, kind) { $('#tagText').textContent = text; $('#tagDot').className = kind || ''; }
+
+let sampleFn = null, claudeTried = false;
+(async () => { try { if (window.claude && window.claude.use) sampleFn = await window.claude.use('sample'); } catch (e) { sampleFn = null; } claudeTried = true; renderBrain(); })();
+setTimeout(() => { if (!claudeTried) { claudeTried = true; renderBrain(); } }, 11000);
+function renderBrain() { $('#brain').innerHTML = sampleFn ? 'Language: <b>Claude</b> turns your words into a goal; the arm plans and acts' : claudeTried ? 'Language: <b>built-in parser</b> (Claude is not available in this view)' : 'Language: <b>checking…</b>'; }
+function sceneForModel() {
+  const bl = readBlocks(), st = perceive(bl);
+  return { bins: 'Three square bins are painted on the mat. A is centred at x 40 cm, z 7 cm; B at x -40 cm, z 7 cm; C behind the arm at x 0, z -40 cm. Each holds up to 4 cubes side by side, not stacked.', blocks: bl.map(b => ({ id: b.id, on: st.on[b.id], in_bin: binAt(b.x, b.z), x_cm: +(b.x * 100).toFixed(1), z_cm: +(b.z * 100).toFixed(1), distance_from_arm_cm: +(Math.hypot(b.x, b.z) * 100).toFixed(1), height_cm: +((b.y - BLOCK / 2) * 100).toFixed(1) })), towers_bottom_to_top: towers(st, IDS), x_axis: 'x is left to right as seen from the front of the mat' };
+}
+async function interpretWithClaude(text, fixed) {
+  // fixed: {scene, state} to read the instruction against a set scene instead of the live mat (used by the language test)
+  let accepted = null; const sceneNow = () => fixed ? fixed.scene : sceneForModel();
+  const tools = [
+    { name: 'get_scene', description: 'Current blocks: what each rests on, positions in cm relative to the arm base, and towers listed bottom to top.', inputSchema: { type: 'object', properties: {} }, execute: () => sceneNow() },
+    { name: 'set_goal', description: 'Give the arm the end state to build. `on` maps a block to what it must sit directly on ("table" or another block id). `row` lists blocks to line up on the table, left to right. `bins` maps a block to the bin it must end up in ("A", "B" or "C", flat on the bottom, at most 4 per bin) or "none" to take it out of the bins. Include only blocks the instruction constrains. Call at most once, after which the arm plans and moves by itself.',
+      inputSchema: { type: 'object', properties: { on: { type: 'object', additionalProperties: { type: 'string' } }, row: { type: 'array', items: { type: 'string', enum: IDS } }, bins: { type: 'object', additionalProperties: { type: 'string', enum: ['A', 'B', 'C', 'none'] } }, summary: { type: 'string', description: 'One short sentence describing the end state for the user' } }, required: ['summary'] },
+      execute: (inp) => { const g = { on: Object.assign({}, inp.on || {}) }; if (inp.row && inp.row.length) g.row = inp.row; for (const k in g.on) g.on[k] = String(g.on[k]).toLowerCase(); if (inp.bins && Object.keys(inp.bins).length) { g.bins = {}; for (const k in inp.bins) { const v = String(inp.bins[k]).trim(); g.bins[k.toLowerCase()] = /^none$/i.test(v) ? 'none' : v.toUpperCase(); } } validateGoal(g, IDS); const p = planSteps(fixed ? fixed.state : readState(), g, IDS); if (!p.ok) throw new Error('The planner could not reach that state; check for contradictions.'); accepted = { goal: g, summary: inp.summary }; return { accepted: true, moves_planned: p.steps.length + (g.row ? g.row.length : 0) + (g.bins ? Object.keys(g.bins).length : 0) }; } },
+  ];
+  const prompt = `You are the language interface of a five-joint robot arm in a simulated workcell. On the mat are six 5 cm cubes: ${IDS.join(', ')}, and three bins painted on the mat (A, B, C) for sorting and kitting. There is nothing else to manipulate.
+Turn the user's instruction into an end state by calling set_goal once. Use get_scene when you need to know where things are. Then reply to the user in one or two short, plain sentences saying what the arm will build. Do not describe individual arm motions; the arm's own planner works those out.
+If the user asks a question about the scene, answer it from get_scene without calling set_goal. If the request cannot be done with these cubes, say so briefly and do not call set_goal.
+Current scene: ${JSON.stringify(sceneNow())}
+Instruction: ${text}`;
+  const r = await sampleFn(prompt, { tools, modelTier: 'default', cache: false });
+  return { goal: accepted && accepted.goal, say: (r.text || (accepted && accepted.summary) || '').trim() };
+}
+async function submit(text) {
+  text = text.trim(); if (!text) return;
+  if (busy) { bubble('bot', '<span class="who">Arm</span>Busy with the current goal. Press Stop first, or wait for it to finish.'); return; }
+  bubble('me', esc(text)); $('#cmd').value = '';
+  const typing = bubble('bot', '<span class="typing"><span></span><span></span><span></span></span>');
+  let res = null, who = 'Built-in parser';
+  if (sampleFn) {
+    try { res = await interpretWithClaude(text); who = 'Claude'; }
+    catch (e) { if (e && e.code === 'not_granted') { sampleFn = null; renderBrain(); } res = null; event(e && e.code === 'rate_limited' ? 'Claude is rate limited right now; using the built-in parser.' : 'Claude was not reachable; using the built-in parser.', 'fault'); }
+  }
+  if (!res) { const p = parseCommand(text, IDS, readState()); res = p.error ? { say: p.error } : { goal: p.goal, say: p.say }; who = 'Built-in parser'; }
+  typing.remove();
+  bubble('bot', `<span class="who">${who}</span>${esc(res.say || (res.goal ? 'Goal set.' : 'Done.'))}`);
+  if (res.goal) { lastCommand = { text, who }; await execute(res.goal, lastCommand); }
+  else logHistory({ text, who }, null, null, 0);
+}
+let lastCommand = null;
+$('#form').addEventListener('submit', e => { e.preventDefault(); submit($('#cmd').value); });
+$('#chips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) submit(b.textContent); });
+$('#stop').addEventListener('click', () => { stopReq = true; goal = null; setTag('Stopping after this move', 'fault'); });
+$('#bump').addEventListener('click', () => { const ba = Math.random() * Math.PI * 2, bumpDir = [Math.cos(ba), Math.sin(ba)]; for (const id of IDS) { if (id === held) continue; const b = bodies[id]; b.wakeUp && b.wakeUp(); const k = 0.15 + Math.max(0, b.position.y - 0.04) * 4.2; b.velocity.set(bumpDir[0] * k + (Math.random() - .5) * 0.08, 0.06 + Math.random() * 0.06, bumpDir[1] * k + (Math.random() - .5) * 0.08); b.angularVelocity.set((Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3); } shake = 0.35; event('Table bumped.', 'fault'); });
+$('#shuffle').addEventListener('click', () => { if (busy) return; goal = null; scatter(); saveScene(); setTag('Idle, watching the mat', ''); event('Blocks scattered. Goal cleared.'); renderPlanner(); });
+$('#watch').checked = settings.watch; $('#watch').addEventListener('change', e => { settings.watch = e.target.checked; saveSettings(); });
+const segInit = (sel, keyName) => { const el = $(sel); el.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === settings[keyName])); el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; settings[keyName] = +b.dataset.v; saveSettings(); el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); }); };
+segInit('#slip', 'slip'); segInit('#speed', 'speed');
+
+// ---------- camera + block dragging ----------
+let yaw = 0.95, pitch = 0.66, dist = 1.6, shake = 0;
+const target = new THREE.Vector3(0, 0.05, 0.18), ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let drag = null, orbit = null;
+const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function ndc(e) { const r = canvas.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(mouse, camera); }
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId); ndc(e);
+  const hit = ray.intersectObjects(IDS.filter(i => i !== held).map(i => meshes[i]), false)[0];
+  if (hit && !busy) { const id = hit.object.userData.id; const b = bodies[id]; drag = { id }; b.type = CANNON.Body.KINEMATIC; b.mass = 0; b.updateMassProperties(); plane.constant = -(b.position.y + 0.04); canvas.style.cursor = 'grabbing'; }
+  else if (hit && busy) { event('The arm is working. Wait, or press Stop, before moving blocks by hand.'); orbit = { x: e.clientX, y: e.clientY }; }
+  else orbit = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener('pointermove', e => {
+  if (drag) { ndc(e); const p = new THREE.Vector3(); if (ray.ray.intersectPlane(plane, p)) { const r = Math.hypot(p.x, p.z); const k = r > 0.5 ? 0.5 / r : 1; bodies[drag.id].position.set(p.x * k, -plane.constant, p.z * k); bodies[drag.id].velocity.set(0, 0, 0); } }
+  else if (orbit) { yaw -= (e.clientX - orbit.x) * 0.006; pitch = Math.max(0.12, Math.min(1.35, pitch + (e.clientY - orbit.y) * 0.005)); orbit = { x: e.clientX, y: e.clientY }; }
+  else { ndc(e); canvas.style.cursor = ray.intersectObjects(IDS.map(i => meshes[i]), false)[0] && !busy ? 'grab' : 'default'; }
+});
+const endDrag = () => { if (drag) { const b = bodies[drag.id]; b.type = CANNON.Body.DYNAMIC; b.mass = 0.12; b.updateMassProperties(); b.velocity.set(0, 0, 0); b.wakeUp && b.wakeUp(); event(`You moved ${drag.id}.`); setTimeout(saveScene, 1500); } drag = null; orbit = null; canvas.style.cursor = 'default'; };
+canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(0.6, Math.min(3, dist * (1 + e.deltaY * 0.001))); }, { passive: false });
+function resize() { const w = stageEl.clientWidth, h = stageEl.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+const ro = new ResizeObserver(resize); ro.observe(stageEl);
+
+// ---------- loop ----------
+let last = performance.now(), acc = 0, uiT = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (motion) { if (motion.update(dt * settings.speed)) { const m = motion; motion = null; m.res(); } }
+  if (episode) { epClock += dt * settings.speed; if (epClock - epSampleT >= 0.1 && episode.trajectory.length < 3000) { epSampleT = epClock; episode.trajectory.push([r4(epClock), ...q.map(r4), r4(gripOpen), held ? IDS.indexOf(held) : -1]); } }
+  applyJoints(); followHeld();
+  acc += dt * settings.speed; let n = 0; while (acc >= 1 / 240 && n < 24) { world.step(1 / 240); acc -= 1 / 240; n++; } if (n >= 24) acc = 0;
+  if (held) followHeld();
+  for (const id of IDS) { const b = bodies[id], m = meshes[id]; m.position.set(b.position.x, b.position.y, b.position.z); m.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w); if (b.position.y < -0.5) { setBody(id, 0.3, 0.2, 0.3, 0); } }
+  shake = Math.max(0, shake - dt);
+  const sx = shake ? (Math.random() - .5) * shake * 0.03 : 0;
+  camera.position.set(target.x + dist * Math.cos(pitch) * Math.sin(yaw) + sx, target.y + dist * Math.sin(pitch), target.z + dist * Math.cos(pitch) * Math.cos(yaw));
+  camera.lookAt(target);
+  if ($('#workcell').classList.contains('on')) renderer.render(scene, camera);
+  if (now - uiT > 120) { uiT = now; if ($('#planner').classList.contains('on')) renderJoints(); }
+  requestAnimationFrame(frame);
+}
+
+// ---------- planner view ----------
+function towersSvg(svg, st, rowOrder) {
+  const W = svg.clientWidth, H = svg.clientHeight; if (!W) return;
+  let tw = towers(st, IDS);
+  if (rowOrder) tw = rowOrder.map(id => [id]).concat(tw.filter(t => !rowOrder.includes(t[0]) || t.length > 1));
+  else tw.sort((a, b) => bodies[a[0]].position.x - bodies[b[0]].position.x);
+  const n = tw.length, s = Math.min(46, (W - 20) / Math.max(1, n) * 0.62, (H - 40) / 6.2), gap = Math.min(s * 0.6, (W - n * s) / (n + 1));
+  const x0 = (W - (n * s + (n - 1) * gap)) / 2, base = H - 22;
+  let out = `<line x1="8" x2="${W - 8}" y1="${base}" y2="${base}" stroke="var(--line)" stroke-width="2"/>`;
+  tw.forEach((t, i) => t.forEach((id, j) => { const x = x0 + i * (s + gap), y = base - (j + 1) * s; out += `<rect x="${x}" y="${y}" width="${s}" height="${s - 2}" rx="4" fill="${hex(id)}" style="animation:pop .4s ${j * 0.06}s both"/>`; }));
+  if (rowOrder) out += `<text x="${W / 2}" y="${H - 4}" text-anchor="middle">row, left to right</text>`;
+  svg.innerHTML = out;
+}
+function renderJoints() {
+  const names = ['Base yaw', 'Shoulder', 'Elbow', 'Wrist', 'Roll'];
+  $('#joints').innerHTML = names.map((n, i) => { const [lo, hi] = LIMITS[i]; const f = (q[i] - lo) / (hi - lo) * 100; return `<div class="joint"><span>${n}</span><div class="tr"><i style="left:calc(${Math.max(0, Math.min(100, f))}% - 2px)"></i></div><b>${(q[i] * 180 / Math.PI).toFixed(1)}°</b></div>`; }).join('') +
+    `<div class="joint"><span>Gripper</span><div class="tr"><i style="left:calc(${gripOpen * 100}% - 2px)"></i></div><b>${(56 + 44 * gripOpen).toFixed(0)} mm</b></div>`;
+}
+function renderPlanner() {
+  if (!$('#planner').classList.contains('on')) return;
+  const st = readState(); towersSvg($('#svNow'), st, null);
+  if (goal) { const fin = planSteps(st, goal, IDS).final; towersSvg($('#svGoal'), fin, goal.row || null); $('#goalSub').textContent = `${goal.bins ? ['A', 'B', 'C'].map(k => { const l = Object.keys(goal.bins).filter(i => goal.bins[i] === k); return l.length ? `bin ${k}: ${l.join(', ')}` : ''; }).filter(Boolean).join(' · ') + ' · ' : ''}${Object.keys(goal.on || {}).length + (goal.row ? goal.row.length : 0) + (goal.bins ? Object.keys(goal.bins).length : 0)} constraints${goalOk(st) ? ', all met' : ''}`; }
+  else { $('#svGoal').innerHTML = ''; $('#goalSub').textContent = 'No goal yet. Send a command.'; }
+  const steps = busy ? curPlan : goal ? fullPlan(st).steps : [];
+  $('#planList').outerHTML; $('#planList').innerHTML = steps.length ? steps.map(s => `<li><div><span class="chip"><i style="background:${hex(s.block)}"></i>${s.block}</span> → ${s.to === 'table' ? 'table' : `<span class="chip"><i style="background:${hex(s.to)}"></i>${s.to}</span>`}<small>${esc(s.why)}</small></div></li>`).join('') : `<div class="empty">${goal ? 'Nothing to do: the goal is met.' : 'No goal yet.'}</div>`;
+  const bl = readBlocks(), per = perceive(bl);
+  $('#percTable').innerHTML = `<thead><tr><th>Block</th><th>Resting on</th><th>Bin</th><th class="r">x</th><th class="r">z</th><th class="r">Height</th><th class="r">Tilt</th></tr></thead><tbody>${bl.map(b => `<tr><td><span class="chip"><i style="background:${hex(b.id)}"></i>${b.id}</span></td><td>${b.id === held ? 'in the gripper' : per.on[b.id]}</td><td>${binAt(b.x, b.z) || '–'}</td><td class="r">${(b.x * 100).toFixed(1)} cm</td><td class="r">${(b.z * 100).toFixed(1)} cm</td><td class="r">${Math.max(0, (b.y - BLOCK / 2) * 100).toFixed(1)} cm</td><td class="r">${b.tilt.toFixed(0)}°</td></tr>`).join('')}</tbody>`;
+  renderJoints();
+}
+['#svNow', '#svGoal'].forEach(s => { const r2 = new ResizeObserver(() => renderPlanner()); r2.observe($(s)); });
+setInterval(() => { if ($('#planner').classList.contains('on')) renderPlanner(); }, 1500);
+
+// ---------- history ----------
+function logHistory(cmd, ok, st, secs) { const h = store.get('arm.history', []); h.unshift({ at: new Date().toISOString(), text: cmd.text, who: cmd.who, ok, moves: st ? st.moves : 0, slips: st ? st.slips : 0, replans: st ? st.replans : 0, secs }); store.set('arm.history', h.slice(0, 80)); }
+function renderHistory() {
+  const h = store.get('arm.history', []); const done = h.filter(x => x.ok);
+  $('#hiTitle').textContent = h.length ? `${h.length} command${h.length === 1 ? '' : 's'}, ${done.length} goal${done.length === 1 ? '' : 's'} reached` : 'Command history';
+  $('#hiTable').innerHTML = h.length ? `<thead><tr><th>When</th><th>Command</th><th>Understood by</th><th>Result</th><th class="r">Moves</th><th class="r">Slips</th><th class="r">Time</th></tr></thead><tbody>${h.map(x => `<tr><td>${new Date(x.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td><td>${esc(x.text)}</td><td>${x.who}</td><td>${x.ok === null ? '<span class="pill n">Answered</span>' : x.ok ? '<span class="pill ok">Goal reached</span>' : '<span class="pill bad">Not reached</span>'}</td><td class="r">${x.moves}</td><td class="r">${x.slips}</td><td class="r">${x.secs ? x.secs.toFixed(0) + ' s' : '–'}</td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">No commands yet.</td></tr></tbody>';
+}
+$('#hiClear').addEventListener('click', () => { store.set('arm.history', []); renderHistory(); });
+
+// ---------- jobs ----------
+const JOB_PRESETS = [
+  { id: 'warmcool', name: 'Warm and cool', desc: 'Warm colours into bin A, cool colours into bin B.', bins: { red: 'A', orange: 'A', yellow: 'A', green: 'B', blue: 'B', purple: 'B' } },
+  { id: 'kits', name: 'Kit two orders', desc: 'Order 1 gets red, green and blue in bin A. Order 2 gets the rest in bin C.', bins: { red: 'A', green: 'A', blue: 'A', orange: 'C', yellow: 'C', purple: 'C' } },
+  { id: 'pairs', name: 'Three pairs', desc: 'Neighbouring colours paired up, one pair per bin.', bins: { red: 'A', orange: 'A', yellow: 'B', green: 'B', blue: 'C', purple: 'C' } },
+  { id: 'empty', name: 'Empty the bins', desc: 'Every block back out onto the open mat.', bins: Object.fromEntries(IDS.map(i => [i, 'none'])) },
+];
+let jobDraft = Object.assign(Object.fromEntries(IDS.map(i => [i, ''])), store.get('arm.jobdraft', {}));
+function jobSvg(bins) {
+  const pos = { A: 30, B: 120, C: 210 }; let o = '';
+  for (const k of ['A', 'B', 'C']) { const x = pos[k], l = IDS.filter(i => bins[i] === k); o += `<rect x="${x}" y="8" width="72" height="62" rx="10" fill="var(--soft)" stroke="var(--line)"/><text x="${x + 36}" y="82" text-anchor="middle" style="font:600 12px Inter;fill:var(--mute)">bin ${k}</text>`;
+    l.forEach((id, j) => o += `<rect x="${x + 8 + (j % 2) * 30}" y="${14 + Math.floor(j / 2) * 27}" width="24" height="22" rx="4" fill="${hex(id)}" style="animation:pop .35s ${j * 0.05}s both"/>`); }
+  const out = IDS.filter(i => bins[i] === 'none'); if (out.length) { o += `<rect x="40" y="27" width="232" height="24" rx="12" fill="var(--card)" stroke="var(--line)"/>`; out.forEach((id, j) => o += `<rect x="${62 + j * 16}" y="33" width="12" height="12" rx="3" fill="${hex(id)}" style="animation:pop .35s ${j * 0.05}s both"/>`); o += `<text x="${62 + out.length * 16 + 6}" y="43" style="font:600 12px Inter;fill:var(--mute)">out of the bins</text>`; }
+  return `<svg viewBox="0 0 312 88" aria-hidden="true">${o}</svg>`;
+}
+function jobList() { return JOB_PRESETS.concat(store.get('arm.jobs', []).map(j => Object.assign({ custom: true }, j))); }
+function renderJobs() {
+  $('#jobList').innerHTML = jobList().map(j => `<div class="job"><div>${jobSvg(j.bins)}</div><h3>${esc(j.name)}</h3><p>${esc(j.desc || describeBins(j.bins))}</p><div class="acts"><button class="b main" data-run="${j.id}" type="button">Run</button><button class="b" data-edit="${j.id}" type="button">Edit</button>${j.custom ? `<button class="b warn" data-del="${j.id}" type="button">Delete</button>` : ''}</div></div>`).join('');
+  $('#jbAssign').innerHTML = IDS.map(id => `<div class="arow"><span class="chip"><i style="background:${hex(id)}"></i>${id}</span><div class="seg" data-id="${id}">${[['', 'Leave'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['none', 'Out']].map(([v, l]) => `<button type="button" data-v="${v}" class="${jobDraft[id] === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>`).join('');
+  checkDraft(); renderJobRuns();
+}
+function draftBins() { const b = {}; for (const id of IDS) if (jobDraft[id]) b[id] = jobDraft[id]; return b; }
+function describeBins(bins) { return ['A', 'B', 'C'].map(k => { const l = IDS.filter(i => bins[i] === k); return l.length ? `${l.join(', ')} into bin ${k}` : ''; }).filter(Boolean).join('; ') + (IDS.some(i => bins[i] === 'none') ? `${IDS.some(i => BINS[bins[i]]) ? '; ' : ''}${IDS.filter(i => bins[i] === 'none').join(', ')} out of the bins` : '') || 'Nothing assigned'; }
+function checkDraft() {
+  const b = draftBins(), n = Object.keys(b).length; let err = null;
+  try { if (!n) throw new Error('Pick a bin for at least one block.'); validateGoal({ on: {}, bins: b }, IDS); } catch (e) { err = e.message; }
+  $('#jbCheck').textContent = err || `${describeBins(b)}.`; $('#jbCheck').className = 'sub' + (err && n ? ' bad-t' : '');
+  $('#jbRun').disabled = $('#jbSave').disabled = !!err; return !err;
+}
+$('#jbAssign').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const id = b.closest('.seg').dataset.id; jobDraft[id] = b.dataset.v; store.set('arm.jobdraft', jobDraft); b.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); checkDraft(); });
+function runJobDef(name, bins) {
+  if (busy) { $('#jbCheck').textContent = 'The arm is busy. Stop it on the Workcell view first.'; $('#jbCheck').className = 'sub bad-t'; return; }
+  const g = { on: {}, bins: Object.assign({}, bins) }; try { validateGoal(g, IDS); } catch (e) { $('#jbCheck').textContent = e.message; return; }
+  location.hash = 'workcell'; bubble('me', esc(`Run job: ${name}`)); bubble('bot', `<span class="who">Job</span>${esc(describeBins(bins))}.`);
+  setTimeout(() => execute(g, { text: `Job: ${name}`, who: 'Job', job: name }), 450);
+}
+$('#jbRun').addEventListener('click', () => { if (checkDraft()) runJobDef($('#jbName').value.trim() || 'Custom job', draftBins()); });
+$('#jbSave').addEventListener('click', () => { if (!checkDraft()) return; const jobs = store.get('arm.jobs', []); const name = $('#jbName').value.trim() || `Job ${jobs.length + 1}`; jobs.push({ id: 'j' + Date.now().toString(36), name, bins: draftBins() }); store.set('arm.jobs', jobs); $('#jbName').value = ''; renderJobs(); });
+$('#jobList').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return; const j = jobList().find(x => x.id === (b.dataset.run || b.dataset.edit || b.dataset.del)); if (!j) return;
+  if (b.dataset.run) runJobDef(j.name, j.bins);
+  else if (b.dataset.edit) { jobDraft = Object.fromEntries(IDS.map(i => [i, j.bins[i] || ''])); store.set('arm.jobdraft', jobDraft); $('#jbName').value = j.custom ? j.name : `${j.name} (copy)`; renderJobs(); $('#jbName').focus(); }
+  else if (b.dataset.del) { store.set('arm.jobs', store.get('arm.jobs', []).filter(x => x.id !== j.id)); renderJobs(); }
+});
+function renderJobRuns() {
+  const jr = store.get('arm.jobruns', []), ok = jr.filter(r => r.ok), picks = ok.reduce((a, r) => a + r.picks, 0), mins = ok.reduce((a, r) => a + r.secs * (r.speed || 1) / 60, 0);
+  $('#jbTitle').textContent = jr.length ? `Sorting and kitting jobs · ${ok.length} of ${jr.length} runs finished` : 'Sorting and kitting jobs';
+  $('#jbTiles').innerHTML = [['Job runs', jr.length], ['Finished', jr.length ? `${Math.round(ok.length / jr.length * 100)}%` : '–'], ['Picks per minute', mins ? (picks / mins).toFixed(1) : '–']].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $('#jbRuns').innerHTML = jr.length ? `<thead><tr><th>When</th><th>Job</th><th>Result</th><th class="r">Picks</th><th class="r">Slips</th><th class="r">Time at 1×</th></tr></thead><tbody>${jr.map(r => `<tr><td>${new Date(r.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td><td>${esc(r.name)}</td><td>${r.ok ? '<span class="pill ok">Finished</span>' : '<span class="pill bad">Not finished</span>'}</td><td class="r">${r.picks}</td><td class="r">${r.slips}</td><td class="r">${(r.secs * (r.speed || 1)).toFixed(0)} s</td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">No job runs yet. Run one of the jobs above.</td></tr></tbody>';
+}
+
+// ---------- training data export ----------
+let dlCap = null;
+(async () => { try { if (window.claude && window.claude.use) dlCap = await window.claude.use('downloads'); } catch (e) { dlCap = null; }
+  // outside claude.ai: an ordinary browser download
+  if (!dlCap && !window.claude) dlCap = { save: async ({ filename, data }) => { const a = document.createElement('a'), u = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return { status: 'saved' }; } }; await null; document.querySelectorAll('.dl').forEach(b => b.hidden = !dlCap); renderEpisodes(); })();
+function renderEpisodes() {
+  const eps = store.get('arm.episodes', []), steps = eps.reduce((a, e) => a + e.steps.length, 0), samples = eps.reduce((a, e) => a + e.trajectory.length, 0), slips = eps.reduce((a, e) => a + e.slips, 0);
+  $('#epTiles').innerHTML = [['Episodes', eps.length], ['Pick and place steps', steps], ['Trajectory samples', samples.toLocaleString()]].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $('#epNote').textContent = eps.length ? `${eps.filter(e => e.success).length} succeeded, ${slips} slip${slips === 1 ? '' : 's'} recovered. The last 25 episodes are kept in this browser.` + (dlCap ? '' : ' Downloads are not available in this view.') : 'No episodes yet. Give the arm a command or run a job and each one is recorded here.';
+  $('#epJson').disabled = $('#epJsonl').disabled = !eps.length;
+}
+function datasetHeader() { return { format: 'robot-arm-episodes', version: 1, exported_at: new Date().toISOString(), robot: { joints: ['base_yaw', 'shoulder', 'elbow', 'wrist', 'roll'], joint_limits_rad: LIMITS, link_lengths_m: { base_height: ARM.H0, upper_arm: ARM.L1, forearm: ARM.L2, tool: ARM.TOOL }, gripper: 'parallel, 56 to 100 mm opening' }, objects: { cube_size_m: BLOCK, ids: IDS }, bins: Object.fromEntries(Object.entries(BINS).map(([k, b]) => [k, { centre_m: [b.x, b.z], half_size_m: BIN_HALF, capacity: BIN_CAP }])), frame: 'metres from the arm base; y up', trajectory_columns: ['t_s', 'base_yaw', 'shoulder', 'elbow', 'wrist', 'roll', 'gripper_open_0_to_1', 'held_block_index'] }; }
+async function saveText(btn, filename, text, type) { if (!dlCap) return; const old = btn.textContent; try { await dlCap.save({ filename, data: new Blob([text], { type }) }); btn.textContent = 'Saved'; } catch (e) { btn.textContent = 'Could not save'; } setTimeout(() => btn.textContent = old, 1800); }
+const dstamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+$('#epJson').addEventListener('click', e => saveText(e.currentTarget, `arm-episodes-${dstamp()}.json`, JSON.stringify(Object.assign(datasetHeader(), { episodes: store.get('arm.episodes', []).slice().reverse() }), null, 1), 'application/json'));
+$('#epJsonl').addEventListener('click', e => { const h = datasetHeader(); saveText(e.currentTarget, `arm-episodes-${dstamp()}.jsonl`, store.get('arm.episodes', []).slice().reverse().map(ep => JSON.stringify(Object.assign({ dataset: { format: h.format, version: h.version, trajectory_columns: h.trajectory_columns } }, ep))).join('\n') + '\n', 'application/x-ndjson'); });
+$('#epClear').addEventListener('click', () => { store.set('arm.episodes', []); renderEpisodes(); });
+
+// ---------- language test ----------
+const LANG_EVAL = (() => { const module = {}; // Labelled command set for the language step. Each item says what the sentence MEANS
+// (written by hand, not copied from any parser output). Used by bench/parser.js, and the
+// same file can be scored against Claude.
+const ids = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
+const tower = o => { const on = { [o[0]]: 'table' }; for (let i = 1; i < o.length; i++) on[o[i]] = o[i - 1]; return { on }; };
+const table = l => ({ on: Object.fromEntries(l.map(i => [i, 'table'])) });
+const row = o => ({ on: {}, row: o });
+const bins = m => ({ on: {}, bins: m });
+const rainbow = ids;
+// scene the commands are read against: blue sits on red, everything else on the table
+const state = { on: { red: 'table', orange: 'table', yellow: 'table', green: 'table', blue: 'red', purple: 'table' }, above: { red: 'blue' } };
+const C = [
+  // simple placement
+  ['Put blue on yellow', { on: { blue: 'yellow' } }],
+  ['place the green block on top of the red one', { on: { green: 'red' } }],
+  ['Stack purple onto orange', { on: { purple: 'orange' } }],
+  ['move yellow over to green and set it on top', { on: { yellow: 'green' } }],
+  ['I want red sitting on purple', { on: { red: 'purple' } }],
+  ['Can you put orange on blue please?', { on: { orange: 'blue' } }],
+  ['green under yellow', { on: { yellow: 'green' } }],
+  ['put the purple block beneath the orange block', { on: { orange: 'purple' } }],
+  ['Take blue off red and put it on the table', table(['blue'])],
+  ['set orange down on the table', table(['orange'])],
+  ['put green and yellow on the table', table(['green', 'yellow'])],
+  // towers
+  ['Stack all the blocks, red at the bottom', tower(rainbow)],
+  ['Build one tower with every block, purple on top', tower(rainbow)],
+  ['Make a single stack of all six blocks', tower(rainbow)],
+  ['Stack all blocks with green at the bottom', tower(['green', 'red', 'orange', 'yellow', 'blue', 'purple'])],
+  ['build a tower: blue, green, red', tower(['blue', 'green', 'red'])],
+  ['stack red, orange and yellow', tower(['red', 'orange', 'yellow'])],
+  ['Pile everything up with yellow at the base', tower(['yellow', 'red', 'orange', 'green', 'blue', 'purple'])],
+  ['Make a tower of purple, blue and green from the top', tower(['green', 'blue', 'purple'])],
+  // rows
+  ['Line them up in rainbow order', row(rainbow)],
+  ['Put all the blocks in a row', row(rainbow)],
+  ['line up purple, blue, green, yellow, orange, red', row(['purple', 'blue', 'green', 'yellow', 'orange', 'red'])],
+  ['Sort the blocks into a line: green first then red', row(['green', 'red', 'orange', 'yellow', 'blue', 'purple'])],
+  // unstack / reverse / swap
+  ['Unstack everything', table(ids)],
+  ['knock down all the towers', table(ids)],
+  ['Spread every block out on the mat', table(ids)],
+  ['Take apart the stack', table(ids)],
+  ['Reverse the tallest tower', { on: { blue: 'table', red: 'blue' } }],
+  ['flip the tower upside down', { on: { blue: 'table', red: 'blue' } }],
+  ['swap red and blue', { on: { blue: 'table', red: 'blue' } }],
+  // bins
+  ['Sort warm colours into bin A and cool ones into bin B', bins({ red: 'A', orange: 'A', yellow: 'A', green: 'B', blue: 'B', purple: 'B' })],
+  ['Kit red, green and blue into bin C', bins({ red: 'C', green: 'C', blue: 'C' })],
+  ['Empty the bins', bins(Object.fromEntries(ids.map(i => [i, 'none'])))],
+  ['put red and blue in bin a, the rest in bin c', bins({ red: 'A', blue: 'A', orange: 'C', yellow: 'C', green: 'C', purple: 'C' })],
+  ['take yellow out of the bins', bins({ yellow: 'none' })],
+  ['orange in bin B', bins({ orange: 'B' })],
+  ['purple goes to bin c and green goes to bin a', bins({ purple: 'C', green: 'A' })],
+  ['Put the warm colours in bin c', bins({ red: 'C', orange: 'C', yellow: 'C' })],
+  // harder phrasing
+  ['Put the red block on the blue one, then the green on the red', { on: { red: 'blue', green: 'red' } }],
+  ['Build two towers: red on orange, and blue on green', { on: { red: 'orange', blue: 'green' } }],
+  ['make yellow the base and put blue on it', { on: { yellow: 'table', blue: 'yellow' } }],
+  ['Put blue next to green', null],
+  ['Move the block that is on red onto purple', { on: { blue: 'purple' } }],
+  ['Leave red alone but put everything else in a row', row(['orange', 'yellow', 'green', 'blue', 'purple'])],
+  ['stack the three warm colours', tower(['red', 'orange', 'yellow'])],
+  // not possible or not a manipulation: the right answer is to refuse
+  ['Put the red block on itself', null],
+  ['Which block is closest to the arm?', null],
+  ['Paint the blue block red', null],
+  ['put the black block on red', null],
+  ['Put all six blocks in bin A', null],
+];
+module.exports = { ids, state, commands: C };
+
+  return module.exports; })();
+const normGoal = g => g ? JSON.stringify({ on: Object.fromEntries(Object.entries(g.on || {}).sort()), row: g.row || null, bins: g.bins ? Object.fromEntries(Object.entries(g.bins).sort()) : null }) : 'refused';
+const evalScene = () => ({ note: 'Fixed test scene; positions are not given.', blocks: IDS.map(id => ({ id, on: LANG_EVAL.state.on[id] })), towers_bottom_to_top: towers(LANG_EVAL.state, IDS) });
+function parserScore() { let ok = 0; for (const [t, want] of LANG_EVAL.commands) { const r = parseCommand(t, IDS, LANG_EVAL.state); let g = r.goal || null; try { g && validateGoal(g, IDS); } catch (e) { g = null; } if (normGoal(g) === normGoal(want)) ok++; } return ok; }
+let leRunning = false;
+function renderLangEval() {
+  const last = store.get('arm.langeval', null), n = LANG_EVAL.commands.length, ps = parserScore();
+  const right = last ? last.rows.filter(r => r.ok).length : 0, done = last ? last.rows.length : 0;
+  $('#leTiles').innerHTML = [['Claude', last ? `${right}/${done}` : '–'], ['Built-in parser', `${ps}/${n}`], ['Refusals right (Claude)', last ? `${last.rows.filter(r => r.want === 'refused' && r.ok).length}/${last.rows.filter(r => r.want === 'refused').length}` : '–']].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $('#leRun').disabled = leRunning || !sampleFn; $('#leRun').textContent = leRunning ? 'Running…' : last ? 'Run the test again' : 'Run the test with Claude';
+  $('#leNote').textContent = !sampleFn ? 'Claude is not available in this view, so only the built-in parser is scored.' : leRunning ? `${done} of ${n} instructions read…` : last ? `Last run ${new Date(last.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}: ${Math.round(right / Math.max(1, done) * 100)}% exact match.` : 'Takes a minute or two. Each instruction is one Claude call.';
+  $('#leDl').hidden = !dlCap || !last;
+  $('#leTable').innerHTML = last ? `<thead><tr><th>Instruction</th><th>Result</th><th>Goal Claude set</th></tr></thead><tbody>${last.rows.map(r => `<tr><td>${esc(r.text)}</td><td>${r.ok ? '<span class="pill ok">Right</span>' : '<span class="pill bad">Wrong</span>'}</td><td><code style="font-size:12px">${esc(r.got)}</code>${r.ok ? '' : `<br><small style="color:var(--mute)">wanted ${esc(r.want)}</small>`}</td></tr>`).join('')}</tbody>` : '';
+}
+$('#leRun').addEventListener('click', async () => {
+  if (leRunning || !sampleFn) return; leRunning = true; const run = { at: new Date().toISOString(), rows: [] }; store.set('arm.langeval', run); renderLangEval();
+  for (const [text, want] of LANG_EVAL.commands) {
+    let got = null;
+    try { const r = await interpretWithClaude(text, { scene: evalScene(), state: LANG_EVAL.state }); got = r.goal || null; } catch (e) { got = null; }
+    run.rows.push({ text, want: normGoal(want), got: normGoal(got), ok: normGoal(got) === normGoal(want) }); store.set('arm.langeval', run); renderLangEval();
+  }
+  leRunning = false; renderLangEval();
+});
+$('#leDl').addEventListener('click', e => { const last = store.get('arm.langeval', null); if (last) saveText(e.currentTarget, `language-test-${dstamp()}.json`, JSON.stringify(Object.assign({ scene: LANG_EVAL.state, parser_correct: parserScore(), total: LANG_EVAL.commands.length }, last), null, 1), 'application/json'); });
+
+// ---------- method diagram ----------
+function pipe() {
+  const box = (x, label, sub, fill) => `<g style="animation:pop .5s ${x / 2000}s both"><rect x="${x}" y="40" width="128" height="66" rx="14" fill="${fill}" stroke="var(--line)"/><text x="${x + 64}" y="68" text-anchor="middle" style="font:600 15px Sora;fill:var(--ink)">${label}</text><text x="${x + 64}" y="90" text-anchor="middle">${sub}</text></g>`;
+  const arrow = x => `<path d="M${x} 73h18" stroke="var(--mint)" stroke-width="2.5" marker-end="url(#ah)"/>`;
+  $('#pipe').innerHTML = `<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--mint)"/></marker></defs>` +
+    box(6, 'Claude', 'words → goal', 'var(--mat2)') + arrow(136) + box(158, 'Planner', 'goal → moves', 'var(--card)') + arrow(288) + box(310, 'IK', 'moves → joints', 'var(--card)') + arrow(440) + box(462, 'Physics', 'joints → world', 'var(--card)') + arrow(592) + box(614, 'Perception', 'world → symbols', 'var(--card)') +
+    `<path d="M678 110 C678 170 222 170 222 110" fill="none" stroke="var(--coral)" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#ah2)"/><defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--coral)"/></marker></defs><text x="450" y="182" text-anchor="middle">re-plan from what is really there, after every move</text>`;
+}
+
+// ---------- router ----------
+const VIEWS = ['workcell', 'jobs', 'planner', 'history', 'method'];
+function route() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'workcell';
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === v));
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + v));
+  if (v === 'workcell') requestAnimationFrame(resize);
+  if (v === 'planner') requestAnimationFrame(renderPlanner);
+  if (v === 'history') { renderHistory(); renderEpisodes(); renderLangEval(); }
+  if (v === 'jobs') renderJobs();
+  if (v === 'method') pipe();
+  window.scrollTo(0, 0);
+}
+addEventListener('hashchange', route);
+bubble('bot', '<span class="who">Arm</span>Six cubes on the mat. Tell me what to build, or drag a block somewhere and watch me deal with it.');
+applyJoints(); route(); requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

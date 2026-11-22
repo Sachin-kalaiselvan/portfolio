@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inventory Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f6f4;--panel:#fff;--panel2:#f3f3f0;--line:#e5e4df;--line2:#d3d2cc;--tx:#1a1a18;--tx2:#55544e;--mute:#8b8a83;
+  --lime:#24508a;--lime2:#1b3f6e;--amber:#a86512;--red:#b3261e;--sky:#7b8ea5;--violet:#24508a;--good:#2f7a4f;--ease:cubic-bezier(.25,.8,.25,1);
+  --head:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 var(--head);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+header.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:28px;padding:0 clamp(14px,3vw,32px);height:56px;background:#fff;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;flex:none}
+.logo .mark{width:26px;height:26px;border-radius:5px;background:var(--tx);display:grid;place-items:center;position:relative;overflow:hidden}
+.logo .mark i{position:absolute;bottom:6px;width:3px;background:#fff;border-radius:1px;animation:bar 3s var(--ease) infinite}
+.logo .mark i:nth-child(1){left:6px}.logo .mark i:nth-child(2){left:10.5px}.logo .mark i:nth-child(3){left:15px}.logo .mark i:nth-child(4){display:none}
+@keyframes bar{0%,100%{height:6px}50%{height:13px}}
+.logo b{font:600 15px/1 var(--head);letter-spacing:-.01em}
+.logo small{display:none}
+nav.tabs{display:flex;gap:4px;position:relative;align-self:stretch;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{all:unset;cursor:pointer;position:relative;z-index:1;padding:0 12px;display:flex;align-items:center;font:500 13.5px var(--head);color:var(--tx2);white-space:nowrap;transition:color .2s}
+nav.tabs button:hover{color:var(--tx)}
+nav.tabs button.on{color:var(--tx)}
+nav.tabs .ink{position:absolute;bottom:-1px;height:2px;left:0;background:var(--tx);transition:transform .4s var(--ease),width .4s var(--ease)}
+.top .sp{flex:1}
+.status{font:400 12px var(--mono);color:var(--mute);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--good)}
+.status.busy i{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+main{padding:28px clamp(14px,3vw,32px) 70px;max-width:1440px;margin:0 auto}
+.view{display:none}.view.on{display:block;animation:in .45s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h1{font:600 24px/1.2 var(--head);letter-spacing:-.015em;margin:0 0 4px}
+.lede{color:var(--tx2);margin:0 0 22px;max-width:760px}
+.grid{display:grid;gap:16px;align-items:start}.g2{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}.g2e{grid-template-columns:1fr 1fr}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px;position:relative}
+.panel h3{margin:0 0 2px;font:600 14px var(--head)}
+.panel .hint{color:var(--mute);font-size:12.5px;margin:0 0 14px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:8px}
+.kpi{padding:16px 20px;position:relative;border-left:1px solid var(--line);animation:rise .5s var(--ease) both}
+.kpi:first-child{border-left:0}
+.kpi:nth-child(2){animation-delay:.04s}.kpi:nth-child(3){animation-delay:.08s}.kpi:nth-child(4){animation-delay:.12s}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.kpi span{font:500 12px var(--head);color:var(--mute)}
+.kpi b{display:block;font:600 26px/1.15 var(--head);margin-top:6px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi small{color:var(--tx2);font-size:12px}
+.kpi .bc{display:none}
+table{width:100%;border-collapse:collapse}
+th{font:500 12px var(--head);color:var(--mute);text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:#fafaf8}
+td{padding:10px;border-bottom:1px solid #efeee9;vertical-align:middle}
+td.n,th.n{text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+tbody tr{animation:rise .4s var(--ease) both;transition:background .15s}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:#f7f7f4}
+tr.best td{background:#eef3f9}
+.sku b{display:block;font-weight:500}.sku small{color:var(--mute);font:400 11.5px var(--mono)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:4px;font:500 12px var(--head);white-space:nowrap;border:1px solid transparent}
+.chip.ok{background:#edf6f0;color:var(--good)}.chip.warn{background:#fbf3e6;color:var(--amber)}.chip.bad{background:#fbeceb;color:var(--red)}.chip.info{background:#eef3f9;color:var(--lime)}.chip.dim{background:var(--panel2);color:var(--tx2)}
+.chip.bad:before,.chip.warn:before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.cover{display:flex;align-items:center;gap:8px;min-width:120px}
+.cover .tr{flex:1;height:4px;background:var(--panel2);border-radius:2px;overflow:hidden}
+.cover .tr i{display:block;height:100%;border-radius:2px;transition:width .8s var(--ease)}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:6px;font:500 13px var(--head);background:var(--tx);color:#fff;transition:background .15s;white-space:nowrap}
+.btn:hover{background:#333}
+.btn.ghost{background:#fff;color:var(--tx);border:1px solid var(--line2)}
+.btn.ghost:hover{background:var(--panel2)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select.pick,.f input,.f select{background:#fff;border:1px solid var(--line2);border-radius:6px;padding:7px 10px;font:400 13.5px var(--mono);min-width:0;width:100%}
+select.pick{width:auto;font-family:var(--head);font-weight:500}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font:500 12px var(--head);color:var(--tx2)}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.f input:focus,.f select:focus{outline:2px solid rgba(36,80,138,.25);border-color:var(--lime)}
+svg text{font-family:var(--mono)}
+.chart path.ln{fill:none;stroke-width:1.6;stroke-linejoin:round}
+.draw{animation:draw 1.2s var(--ease) both}
+@keyframes draw{from{stroke-dasharray:1 1;stroke-dashoffset:1}to{stroke-dasharray:1 1;stroke-dashoffset:0}}
+.fadein{animation:fade .8s var(--ease) both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.stat{padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.stat span{font:500 12px var(--head);color:var(--mute)}
+.stat b{display:block;font:600 19px/1.2 var(--head);margin-top:4px;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px}
+.seg button{all:unset;cursor:pointer;padding:4px 10px;border-radius:4px;font:500 12.5px var(--head);color:var(--tx2);transition:all .15s}
+.seg button.on{background:#fff;color:var(--tx);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.supplier{margin-bottom:16px}
+.supplier h4{margin:0 0 10px;font:600 14px var(--head);display:flex;gap:10px;align-items:center}
+.drop{border:1.5px dashed var(--line2);border-radius:8px;padding:24px;text-align:center;color:var(--tx2);transition:all .2s;display:block;cursor:pointer}
+.drop.on,.drop:hover{border-color:var(--lime);background:#f4f7fb}
+.prose{max-width:760px}.prose h3{font:600 16px var(--head);margin:22px 0 6px}.prose h3:first-child{margin-top:0}.prose p,.prose li{color:var(--tx2)}
+.prose code{font:400 12.5px var(--mono);background:var(--panel2);padding:1px 6px;border-radius:4px;color:var(--tx)}
+.toast{position:fixed;right:22px;bottom:22px;background:var(--tx);color:#fff;font-weight:500;padding:10px 16px;border-radius:6px;transform:translateY(80px);opacity:0;transition:all .35s var(--ease);z-index:60}
+.toast.on{transform:none;opacity:1}
+.progress{height:2px;background:transparent;position:fixed;left:0;right:0;top:0;z-index:70}
+.progress i{display:block;height:100%;background:var(--lime);width:0;transition:width .3s}
+.scroll{overflow-x:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--tx2);margin-top:8px}
+.legend i{display:inline-block;width:14px;height:2px;border-radius:1px;margin-right:6px;vertical-align:3px}
+@media (max-width:1100px){.g2,.g2e{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(3){border-left:0}.kpi:nth-child(n+3){border-top:1px solid var(--line)}}
+@media (max-width:720px){
+  header.top{flex-wrap:wrap;gap:0 12px;height:auto;padding:10px 12px 0}
+  nav.tabs{order:3;width:100%;height:42px}
+  .status{display:none}
+  main{padding:18px 12px 60px}
+  .stats{grid-template-columns:1fr 1fr}
+  .fgrid{grid-template-columns:1fr 1fr}
+  .hide-m{display:none}
+}
+</style>
+</head>
+<body>
+<div class="progress"><i id="prog"></i></div>
+<header class="top">
+  <div class="logo"><div class="mark"><i style="left:7px;animation-delay:0s"></i><i style="left:13px;animation-delay:.2s"></i><i style="left:19px;animation-delay:.4s"></i><i style="left:25px;animation-delay:.6s"></i></div><div><b>Inventory Planner</b><small id="brandSub">forecast · reorder · buy</small></div></div>
+  <nav class="tabs" id="tabs"><div class="ink" id="ink"></div>
+    <button data-v="items">Items</button><button data-v="forecast">Forecast</button><button data-v="policy">Reorder policy</button><button data-v="orders">Purchase orders</button><button data-v="data">Data</button><button data-v="bench">Benchmark</button><button data-v="how">How it works</button>
+  </nav>
+  <div class="sp"></div>
+  <div class="status" id="status"><i></i><span>ready</span></div>
+</header>
+<main>
+  <section class="view" id="v-items">
+    <h1 id="bizName">Stock position</h1><p class="lede" id="itemsLede"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h3>Every item</h3><div class="seg" id="filt"><button data-f="all" class="on">All</button><button data-f="reorder">Reorder now</button><button data-f="risk">At risk</button><button data-f="over">Overstocked</button></div></div>
+      <div class="scroll"><table id="itemTable"></table></div></div>
+  </section>
+
+  <section class="view" id="v-forecast">
+    <div class="row" style="justify-content:space-between;margin-bottom:14px"><div><h1 id="fTitle"></h1><p class="lede" id="fLede" style="margin:0"></p></div><select class="pick" id="fSku"></select></div>
+    <div class="grid g2">
+      <div class="panel"><div class="row" style="justify-content:space-between"><h3>History and forecast</h3><div class="seg" id="fRange"><button data-r="90">90 days</button><button data-r="180" class="on">180 days</button><button data-r="365">1 year</button></div></div>
+        <svg class="chart" id="fChart" viewBox="0 0 820 340" style="width:100%;margin-top:8px"></svg>
+        <div class="legend"><span><i style="background:var(--tx2)"></i>Daily sales</span><span><i style="background:var(--lime)"></i>Forecast</span><span><i style="background:rgba(36,80,138,.25);height:8px"></i>80% range</span><span><i style="background:var(--sky)"></i>Fitted</span></div></div>
+      <div class="grid" style="align-content:start">
+        <div class="panel"><h3>Method contest</h3><p class="hint" id="contestHint"></p><table id="contest"></table></div>
+        <div class="panel"><h3>Next weeks</h3><p class="hint">Forecast units per week, chosen method.</p><svg id="weekBars" viewBox="0 0 380 150" style="width:100%"></svg></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-policy">
+    <div class="row" style="justify-content:space-between;margin-bottom:14px"><div><h1 id="pTitle"></h1><p class="lede" style="margin:0">Set how fast the supplier delivers and how often you can order. Safety stock gets sized off how wrong the forecast has actually been over that window.</p></div><select class="pick" id="pSku"></select></div>
+    <div class="grid g2">
+      <div class="grid" style="align-content:start">
+        <div class="panel"><h3>The last year, replayed with this policy</h3><p class="hint" id="simHint"></p><svg class="chart" id="simChart" viewBox="0 0 820 300" style="width:100%"></svg>
+          <div class="legend"><span><i style="background:var(--lime)"></i>Stock on hand</span><span><i style="background:var(--amber)"></i>Reorder point</span><span><i style="background:var(--sky)"></i>Delivery arriving</span><span><i style="background:var(--red)"></i>Ran out</span></div></div>
+        <div class="panel"><h3>Service against stock held</h3><p class="hint">Every extra point of service costs more stock than the last. The dot is you.</p><svg id="tradeoff" viewBox="0 0 820 220" style="width:100%"></svg></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="panel"><h3>Settings</h3><p class="hint">Saved per item.</p><div class="fgrid" id="pForm"></div></div>
+        <div class="panel"><h3>Result</h3><div class="stats" id="pStats"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-orders">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><div><h1>Purchase orders</h1><p class="lede" style="margin:0" id="oLede"></p></div><div class="row"><button class="btn ghost" id="oCsv">Export CSV</button><button class="btn" id="oPlace">Mark all as ordered</button></div></div>
+    <div id="oList" style="margin-top:16px"></div>
+  </section>
+
+  <section class="view" id="v-data">
+    <h1>Data</h1><p class="lede">Bring your own sales. Csv with columns <code style="font-family:var(--mono)">date, sku, qty</code> (one row per sale or per day) and the demo's gone. Item settings + stock on hand you edit below.</p>
+    <div class="grid g2e">
+      <div class="panel"><h3>Import sales</h3><p class="hint">Dates as YYYY-MM-DD. Missing days = zero sales.</p>
+        <label class="drop" id="drop"><input type="file" id="file" accept=".csv,text/csv" hidden><b>Drop a CSV here</b><br><span style="font-size:12.5px">or click to choose a file</span></label>
+        <div class="row" style="margin-top:14px"><button class="btn ghost" id="sample">Download a sample CSV</button><button class="btn ghost" id="reset">Reload the demo shop</button></div></div>
+      <div class="panel"><h3>Items</h3><p class="hint">Stock on hand, cost, supplier per item.</p><div class="scroll"><table id="itemEdit"></table></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-bench">
+    <h1>Benchmark</h1><p class="lede">Measured, not vibes. The forecasting engine on this page ran 1,000 series from the M4 competition next to nixtla's statsforecast on the exact same series. Croston & co were diffed value by value. The reorder policy got stress-tested in simulation.</p>
+    <div class="kpis" id="bKpis"></div>
+    <div class="grid g2e">
+      <div class="panel"><h3>M4 Monthly, 1,000 series, 18 months ahead</h3><p class="hint">Lower is better. SMAPE and MASE as defined by the M4 competition.</p><table id="bTable"></table><p class="hint" style="margin-top:12px">Heads up: SES, holt, damped and comb here deseasonalize first (the M4 benchmark recipe), statsforecast's SES and holt run raw, so those two rows aren't apples to apples. Naive + seasonal naive matching to the last digit proves both sides score the same way.</p></div>
+      <div class="grid" style="align-content:start">
+        <div class="panel"><h3>SMAPE by method</h3><svg id="bChart" viewBox="0 0 520 300" style="width:100%"></svg><div class="legend"><span><i style="background:var(--lime)"></i>This engine</span><span><i style="background:var(--sky)"></i>statsforecast</span></div></div>
+        <div class="panel"><h3>Service level, promised vs delivered</h3><p class="hint">200,000 simulated days per row.</p><table id="pTable"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-how">
+    <div class="panel prose">
+      <h3>1 · sort the demand</h3><p>Every item gets classed by how often it sells (avg gap between sales, ADI) and how jumpy the quantities are (CV²), syntetos / boylan / croston style. Stuff that sells most days is <b>smooth</b> or <b>erratic</b>. Stuff with lots of zero days is <b>intermittent</b> or <b>lumpy</b>.</p>
+      <h3>2 · methods fight it out</h3><p>Smooth items try seasonal naive, SES, damped trend, holt-winters (additive or multiplicative, AICc picks), theta and the M4 "comb" average. Intermittent ones try croston, croston SBA and TSB. Each one gets refit at 3 earlier dates and scored on the 28 days after. Lowest MASE wins. You can override it.</p>
+      <h3>3 · safety stock from real misses</h3><p>The winner gets refit at 8 earlier dates and the planner logs how far off its total was over the protection window (lead time + review period). The spread of those actual misses sets the safety stock, not some textbook formula. Cycle service target → normal quantile. Fill rate target → solves the normal loss function so expected shortage per cycle = (1 − target) × order size.</p>
+      <h3>4 · when + how much</h3><p><b>Top up every review</b> orders up to S on a fixed day. <b>order when low</b> only fires when stock + what's on the way drops to the reorder point s, and orders an economic quantity. That reorder point also bakes in how far stock usually dips below s before the next check.</p>
+      <h3>5 · test it on your own history</h3><p>The policy screen replays last year's real sales day by day, deliveries landing after the lead time, so you can see every stock-out it would've had.</p>
+      <h3>What it doesn't do</h3><p>No promos or price effects, no festival calendar (a diwali spike is just noise unless you've got a few years of it), no multi-warehouse transfers, no supplier capacity limits.</p>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>// Inventory Planner core: demand forecasting (exponential smoothing, Holt-Winters, Theta, Croston/SBA/TSB),
+// rolling-origin backtests, reorder-point / (s,S) policies and a day-by-day inventory simulation.
+// Plain JS, runs in the browser and in Node.
+(function (root) {
+  'use strict';
+  const sum = (a) => { let s = 0; for (const x of a) s += x; return s; };
+  const mean = (a) => (a.length ? sum(a) / a.length : 0);
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+  // ---------- optimiser ----------
+  // Nelder-Mead on a box: parameters are clamped to [lo, hi].
+  function nelderMead(f, x0, lo, hi, iters = 300) {
+    const n = x0.length, cl = (x) => x.map((v, i) => clamp(v, lo[i], hi[i]));
+    let S = [cl(x0)];
+    for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] = x[i] + (hi[i] - lo[i]) * 0.15; S.push(cl(x)); }
+    let F = S.map(f);
+    for (let it = 0; it < iters; it++) {
+      const ord = F.map((v, i) => i).sort((a, b) => F[a] - F[b]); S = ord.map((i) => S[i]); F = ord.map((i) => F[i]);
+      if (Math.abs(F[n] - F[0]) <= 1e-10 * (Math.abs(F[0]) + 1e-12)) break;
+      const c = new Array(n).fill(0); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += S[i][j] / n;
+      const pt = (t) => cl(c.map((v, j) => v + t * (S[n][j] - v)));
+      const xr = pt(-1), fr = f(xr);
+      if (fr < F[0]) { const xe = pt(-2), fe = f(xe); if (fe < fr) { S[n] = xe; F[n] = fe; } else { S[n] = xr; F[n] = fr; } }
+      else if (fr < F[n - 1]) { S[n] = xr; F[n] = fr; }
+      else { const xc = pt(fr < F[n] ? -0.5 : 0.5), fc = f(xc);
+        if (fc < Math.min(fr, F[n])) { S[n] = xc; F[n] = fc; }
+        else for (let i = 1; i <= n; i++) { S[i] = cl(S[i].map((v, j) => S[0][j] + 0.5 * (v - S[0][j]))); F[i] = f(S[i]); } }
+    }
+    let b = 0; for (let i = 1; i <= n; i++) if (F[i] < F[b]) b = i;
+    return { x: S[b], f: F[b] };
+  }
+
+  // ---------- exponential smoothing family ----------
+  // spec: {trend: 'N'|'A'|'Ad', season: 'N'|'A'|'M'}; params [alpha, beta, gamma, phi, l0, b0]
+  function etsRun(y, m, spec, p, init, keepFitted) {
+    const [a, bt, g, phi] = p;
+    let l = init.l, b = init.b; const s = init.s.slice();
+    const fitted = keepFitted ? new Float64Array(y.length) : null;
+    let sse = 0;
+    const damp = spec.trend === 'Ad' ? phi : 1, hasT = spec.trend !== 'N';
+    for (let t = 0; t < y.length; t++) {
+      const si = spec.season === 'N' ? (spec.season === 'M' ? 1 : 0) : s[t % m];
+      const base = l + (hasT ? damp * b : 0);
+      const yhat = spec.season === 'M' ? base * si : base + (spec.season === 'A' ? si : 0);
+      const e = y[t] - yhat; sse += e * e; if (fitted) fitted[t] = yhat;
+      const lPrev = l;
+      if (spec.season === 'M') l = a * (y[t] / si) + (1 - a) * base;
+      else if (spec.season === 'A') l = a * (y[t] - si) + (1 - a) * base;
+      else l = a * y[t] + (1 - a) * base;
+      if (hasT) b = bt * (l - lPrev) + (1 - bt) * damp * b;
+      if (spec.season === 'A') s[t % m] = g * (y[t] - lPrev - (hasT ? damp * b : 0)) + (1 - g) * si;
+      if (spec.season === 'M') s[t % m] = g * (y[t] / (lPrev + (hasT ? damp * b : 0))) + (1 - g) * si;
+      if (!isFinite(l) || (spec.season === 'M' && l <= 0)) return { sse: Infinity };
+    }
+    return { sse, l, b, s, fitted };
+  }
+  function etsInit(y, m, spec) {
+    if (spec.season !== 'N' && y.length >= 2 * m) {
+      const s1 = mean(y.slice(0, m)), s2 = mean(y.slice(m, 2 * m));
+      const s = y.slice(0, m).map((v) => (spec.season === 'M' ? v / s1 : v - s1));
+      return { l: s1, b: spec.trend === 'N' ? 0 : (s2 - s1) / m, s };
+    }
+    const k = Math.min(y.length, 10);
+    return { l: y[0], b: spec.trend === 'N' || y.length < 2 ? 0 : (y[k - 1] - y[0]) / Math.max(1, k - 1), s: new Array(Math.max(1, m)).fill(spec.season === 'M' ? 1 : 0) };
+  }
+  function fitETS(y, m, spec) {
+    if (spec.season === 'M' && y.some((v) => v <= 0)) return null;
+    if (spec.season !== 'N' && y.length < 2 * m + 2) return null;
+    const init = etsInit(y, m, spec);
+    const lo = [0.0001, 0.0001, 0.0001, 0.8], hi = [0.9999, 0.9999, 0.9999, 0.98];
+    const free = [true, spec.trend !== 'N', spec.season !== 'N', spec.trend === 'Ad'];
+    const x0 = [0.3, 0.05, 0.05, 0.95];
+    const idx = free.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);
+    const full = (x) => { const p = x0.slice(); if (!free[1]) p[1] = 0; if (!free[2]) p[2] = 0; if (!free[3]) p[3] = 1; idx.forEach((i, k) => (p[i] = x[k])); return p; };
+    const obj = (x) => { const p = full(x); if (p[1] > p[0]) return 1e300; const r = etsRun(y, m, spec, p, init, false); return isFinite(r.sse) ? r.sse : 1e300; };
+    const best = nelderMead(obj, idx.map((i) => x0[i]), idx.map((i) => lo[i]), idx.map((i) => hi[i]), 400);
+    const p = full(best.x), r = etsRun(y, m, spec, p, init, true);
+    if (!isFinite(r.sse)) return null;
+    const n = y.length, k = idx.length + 1 + (spec.trend !== 'N' ? 1 : 0) + (spec.season !== 'N' ? m - 1 : 0);
+    const sigma2 = r.sse / Math.max(1, n - k);
+    const aicc = n * Math.log(r.sse / n) + 2 * k + (2 * k * (k + 1)) / Math.max(1, n - k - 1);
+    const damp = spec.trend === 'Ad' ? p[3] : 1;
+    const forecast = (h) => {
+      const out = []; let dsum = 0;
+      for (let j = 1; j <= h; j++) {
+        dsum += Math.pow(damp, j);
+        const base = r.l + (spec.trend === 'N' ? 0 : (spec.trend === 'Ad' ? dsum : j) * r.b);
+        const si = spec.season === 'N' ? null : r.s[(n + j - 1) % m];
+        out.push(spec.season === 'M' ? base * si : base + (si || 0));
+      }
+      return out;
+    };
+    // h-step variance (additive-error approximation): sigma^2 * (1 + sum c_j^2)
+    const cj = (j) => p[0] * (1 + (spec.trend === 'N' ? 0 : (spec.trend === 'Ad' ? sumPow(damp, j) : j) * p[1])) + (spec.season !== 'N' && j % m === 0 ? p[2] * (1 - p[0]) : 0);
+    const sd = (h) => { const out = []; let acc = 0; for (let j = 1; j <= h; j++) { out.push(Math.sqrt(sigma2 * (1 + acc))); acc += cj(j) * cj(j); } return out; };
+    return { name: 'ETS(' + ['A', spec.trend, spec.season].join(',') + ')', spec, params: p, fitted: Array.from(r.fitted), sigma: Math.sqrt(sigma2), aicc, forecast, sd };
+  }
+  const sumPow = (phi, j) => { let s = 0; for (let i = 1; i <= j; i++) s += Math.pow(phi, i); return s; };
+
+  // ---------- seasonality (as in the M4 benchmarks) ----------
+  function acf(y, k) { const mu = mean(y); let num = 0, den = 0; for (let t = 0; t < y.length; t++) { den += (y[t] - mu) ** 2; if (t >= k) num += (y[t] - mu) * (y[t - k] - mu); } return den ? num / den : 0; }
+  function isSeasonal(y, m) {
+    if (m <= 1 || y.length < 3 * m) return false;
+    let s = 0; for (let k = 1; k < m; k++) s += acf(y, k) ** 2;
+    const limit = 1.645 * Math.sqrt((1 + 2 * s) / y.length);
+    return Math.abs(acf(y, m)) > limit;
+  }
+  // classical multiplicative decomposition: seasonal indices from a centred moving average
+  function seasonIndex(y, m) {
+    const n = y.length, ratio = Array.from({ length: m }, () => []);
+    for (let t = Math.floor(m / 2); t < n - Math.floor(m / 2); t++) {
+      let ma;
+      if (m % 2 === 0) { let s = 0; for (let k = -m / 2; k <= m / 2; k++) s += (Math.abs(k) === m / 2 ? 0.5 : 1) * y[t + k]; ma = s / m; }
+      else { let s = 0; for (let k = -(m - 1) / 2; k <= (m - 1) / 2; k++) s += y[t + k]; ma = s / m; }
+      if (ma > 0) ratio[t % m].push(y[t] / ma);
+    }
+    let idx = ratio.map((r) => (r.length ? mean(r) : 1));
+    const c = mean(idx); idx = idx.map((v) => v / c);
+    return idx;
+  }
+  function deseason(y, m) {
+    if (!isSeasonal(y, m) || y.some((v) => v <= 0)) return { y: y.slice(), si: null };
+    const si = seasonIndex(y, m);
+    return { y: y.map((v, t) => v / si[t % m]), si };
+  }
+  const reseason = (fc, si, n, m) => (si ? fc.map((v, j) => v * si[(n + j) % m]) : fc);
+
+  // ---------- Theta (Assimakopoulos & Nikolopoulos 2000, as in the M4 benchmark code) ----------
+  function fitTheta(y0, m) {
+    const ds = deseason(y0, m), y = ds.y, n = y.length;
+    const ses = fitETS(y, m, { trend: 'N', season: 'N' });
+    const tm = (n - 1) / 2, ym = mean(y); let num = 0, den = 0;
+    for (let t = 0; t < n; t++) { num += (t - tm) * (y[t] - ym); den += (t - tm) ** 2; }
+    const b0 = den ? num / den : 0, a = ses.params[0];
+    const forecast = (h) => reseason(ses.forecast(h).map((v, j) => v + 0.5 * b0 * (j + (1 / a) - Math.pow(1 - a, n) / a)), ds.si, n, m);
+    return { name: 'Theta', forecast, sigma: ses.sigma, sd: ses.sd, fitted: ses.fitted.map((v, t) => (ds.si ? v * ds.si[t % m] : v)) };
+  }
+  // Seasonally adjusted SES / Holt / damped and their average ("Comb S-H-D", the M4 benchmark)
+  function fitDeseasoned(y0, m, trend) {
+    const ds = deseason(y0, m), f = fitETS(ds.y, m, { trend, season: 'N' });
+    return { name: { N: 'SES', A: 'Holt', Ad: 'Damped' }[trend], forecast: (h) => reseason(f.forecast(h), ds.si, y0.length, m), sigma: f.sigma, sd: f.sd, params: f.params,
+      fitted: f.fitted.map((v, t) => (ds.si ? v * ds.si[t % m] : v)) };
+  }
+  function fitComb(y, m) {
+    const fs = ['N', 'A', 'Ad'].map((t) => fitDeseasoned(y, m, t));
+    return { name: 'Comb', forecast: (h) => { const a = fs.map((f) => f.forecast(h)); return a[0].map((_, j) => (a[0][j] + a[1][j] + a[2][j]) / 3); }, sigma: fs[2].sigma, sd: fs[2].sd, fitted: fs[0].fitted.map((_, t) => (fs[0].fitted[t] + fs[1].fitted[t] + fs[2].fitted[t]) / 3) };
+  }
+  // Holt-Winters: best of additive and multiplicative seasonality, with and without damping, by AICc
+  function fitHW(y, m) {
+    let best = null;
+    for (const season of ['A', 'M']) for (const trend of ['N', 'A', 'Ad']) {
+      const f = fitETS(y, m, { trend, season });
+      if (f && (!best || f.aicc < best.aicc)) best = f;
+    }
+    if (best) best.name = 'Holt-Winters ' + best.name;
+    return best;
+  }
+  // AutoETS-style: every additive-error model with additive/damped/no trend and none/add/mult season, by AICc
+  function fitAutoETS(y, m) {
+    let best = null;
+    for (const season of m > 1 ? ['N', 'A', 'M'] : ['N']) for (const trend of ['N', 'A', 'Ad']) {
+      const f = fitETS(y, m, { trend, season });
+      if (f && (!best || f.aicc < best.aicc)) best = f;
+    }
+    return best;
+  }
+  function fitNaive(y, m, seasonal) {
+    const n = y.length, k = seasonal && n >= m ? m : 1;
+    const res = []; for (let t = k; t < n; t++) res.push(y[t] - y[t - k]);
+    const sigma = Math.sqrt(mean(res.map((e) => e * e)) || 0);
+    return { name: seasonal ? 'Seasonal naive' : 'Naive', forecast: (h) => Array.from({ length: h }, (_, j) => y[n - k + (j % k)]), sigma, sd: (h) => Array.from({ length: h }, (_, j) => sigma * Math.sqrt(Math.floor(j / k) + 1)), fitted: y.map((v, t) => (t >= k ? y[t - k] : v)) };
+  }
+
+  // ---------- intermittent demand ----------
+  // Croston (1972), SBA (Syntetos & Boylan 2005), TSB (Teunter, Syntetos & Babai 2011).
+  // Initialisation follows statsforecast: first non-zero demand and its interval.
+  function crostonCore(y, alpha) {
+    const nz = []; let last = -1;
+    for (let t = 0; t < y.length; t++) if (y[t] > 0) { nz.push({ size: y[t], gap: t - last }); last = t; }
+    if (!nz.length) return 0;
+    let z = nz[0].size, p = nz[0].gap;
+    for (let i = 1; i < nz.length; i++) { z += alpha * (nz[i].size - z); p += alpha * (nz[i].gap - p); }
+    return z / p;
+  }
+  function fitCroston(y, variant = 'classic', alpha = 0.1, beta = 0.1) {
+    let level;
+    if (variant === 'tsb') {
+      const nzIdx = y.findIndex((v) => v > 0);
+      if (nzIdx < 0) level = 0;
+      else {
+        // statsforecast TSB: demand size smoothed on non-zero periods, probability every period
+        let z = y[nzIdx], d = y.filter((v) => v > 0).length ? (y[0] > 0 ? 1 : 0) : 0;
+        d = y[0] > 0 ? 1 : 0;
+        for (let t = 1; t < y.length; t++) { const occ = y[t] > 0 ? 1 : 0; d += beta * (occ - d); if (occ && t > nzIdx) z += alpha * (y[t] - z); }
+        level = z * d;
+      }
+    } else {
+      level = crostonCore(y, alpha) * (variant === 'sba' ? 1 - alpha / 2 : 1);
+    }
+    const res = y.map((v) => v - level);
+    const sigma = Math.sqrt(mean(res.map((e) => e * e)));
+    return { name: { classic: 'Croston', sba: 'Croston SBA', tsb: 'TSB' }[variant], forecast: (h) => new Array(h).fill(level), sigma, sd: (h) => Array.from({ length: h }, () => sigma), fitted: y.map(() => level), level };
+  }
+  // demand classification (Syntetos, Boylan & Croston 2005): ADI and CV²
+  function classify(y) {
+    const nz = y.filter((v) => v > 0);
+    if (!nz.length) return { adi: Infinity, cv2: 0, kind: 'no demand' };
+    const adi = y.length / nz.length, mu = mean(nz), cv2 = nz.length > 1 ? mean(nz.map((v) => (v - mu) ** 2)) / (mu * mu) : 0;
+    const kind = adi < 1.32 ? (cv2 < 0.49 ? 'smooth' : 'erratic') : cv2 < 0.49 ? 'intermittent' : 'lumpy';
+    return { adi, cv2, kind };
+  }
+
+  // ---------- model registry ----------
+  const METHODS = {
+    naive: { label: 'Naive', fit: (y, m) => fitNaive(y, m, false) },
+    snaive: { label: 'Seasonal naive', fit: (y, m) => fitNaive(y, m, true) },
+    ses: { label: 'SES', fit: (y, m) => fitDeseasoned(y, m, 'N') },
+    holt: { label: 'Holt', fit: (y, m) => fitDeseasoned(y, m, 'A') },
+    damped: { label: 'Damped trend', fit: (y, m) => fitDeseasoned(y, m, 'Ad') },
+    hw: { label: 'Holt-Winters', fit: (y, m) => fitHW(y, m) || fitDeseasoned(y, m, 'Ad') },
+    ets: { label: 'Auto ETS', fit: (y, m) => fitAutoETS(y, m) },
+    theta: { label: 'Theta', fit: (y, m) => fitTheta(y, m) },
+    comb: { label: 'Comb (SES+Holt+Damped)', fit: (y, m) => fitComb(y, m) },
+    croston: { label: 'Croston', fit: (y) => fitCroston(y, 'classic') },
+    sba: { label: 'Croston SBA', fit: (y) => fitCroston(y, 'sba') },
+    tsb: { label: 'TSB', fit: (y) => fitCroston(y, 'tsb', 0.1, 0.1) },
+  };
+  const SMOOTH = ['snaive', 'ses', 'damped', 'hw', 'theta', 'comb'];
+  const INTERMITTENT = ['croston', 'sba', 'tsb', 'ses'];
+
+  // ---------- accuracy ----------
+  function smape(a, f) { let s = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i]) + Math.abs(f[i]); s += d ? (2 * Math.abs(a[i] - f[i])) / d : 0; } return (100 * s) / a.length; }
+  function mase(insample, a, f, m) {
+    const k = insample.length > m ? m : 1; let s = 0;
+    for (let t = k; t < insample.length; t++) s += Math.abs(insample[t] - insample[t - k]);
+    const scale = s / (insample.length - k) || 1e-9;
+    return mean(a.map((v, i) => Math.abs(v - f[i]))) / scale;
+  }
+  // Rolling-origin backtest: refit at `folds` origins, each forecasting h ahead
+  function backtest(y, m, key, h, folds = 3, step) {
+    step = step || h;
+    const out = { mase: [], smape: [], bias: [] };
+    for (let k = folds; k >= 1; k--) {
+      const cut = y.length - h - (k - 1) * step;
+      if (cut < Math.max(2 * m + 4, 8)) continue;
+      const tr = y.slice(0, cut), te = y.slice(cut, cut + h);
+      const f = METHODS[key].fit(tr, m); if (!f) continue;
+      const fc = f.forecast(te.length).map((v) => Math.max(0, v));
+      out.mase.push(mase(tr, te, fc, m)); out.smape.push(smape(te, fc)); out.bias.push((sum(fc) - sum(te)) / Math.max(1e-9, sum(te)));
+    }
+    return { mase: mean(out.mase), smape: mean(out.smape), bias: mean(out.bias), folds: out.mase.length };
+  }
+  // Picks the method with the lowest backtest MASE among the candidates for this demand type
+  function autoSelect(y, m, h, folds = 3) {
+    const cls = classify(y);
+    const keys = cls.adi >= 1.32 ? INTERMITTENT : SMOOTH;
+    const scores = keys.map((k) => ({ key: k, ...backtest(y, m, k, h, folds) })).filter((s) => s.folds > 0 && isFinite(s.mase));
+    scores.sort((a, b) => a.mase - b.mase);
+    return { best: scores.length ? scores[0].key : keys[0], scores, cls };
+  }
+
+  // ---------- inventory policy ----------
+  const erf = (x) => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const yv = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * yv; };
+  const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+  const phi = (z) => Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  function invPhi(p) { // Acklam's rational approximation
+    const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2, -3.066479806614716e1, 2.506628277459239];
+    const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];
+    const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
+    p = clamp(p, 1e-9, 1 - 1e-9);
+    if (p < 0.02425) { const q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    if (p > 1 - 0.02425) { const q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    const q = p - 0.5, r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  const lossG = (z) => phi(z) - z * (1 - Phi(z)); // standard normal loss function
+  // Solve G(z) = target for z (G is decreasing)
+  function invLoss(target) { let lo = -6, hi = 8; for (let i = 0; i < 100; i++) { const mid = (lo + hi) / 2; if (lossG(mid) > target) lo = mid; else hi = mid; } return (lo + hi) / 2; }
+
+  // Policy for one item. Review every R days, lead time L days. Protection interval = R + L.
+  // mu: mean daily demand over the protection interval, sdP: sd of demand over the protection interval.
+  // target: {type:'csl'|'fill', value}. Order quantity Q (for fill rate) defaults to EOQ.
+  const protectionDays = (o) => (o.mode === 'RS' ? o.review + o.lead : o.lead + o.review - 1);
+  function policy(o) {
+    // protection interval: R + L for (R,S); for (s,S) the order goes in at the review where position first drops below s,
+    // so the exposure is L plus the review period minus one day (o.sdP must be measured over the same interval)
+    const P = protectionDays(o), muP = o.muDaily * P, sdP = o.sdP;
+    const annual = o.muDaily * 365;
+    const eoq = o.orderCost && o.holdCost ? Math.sqrt((2 * annual * o.orderCost) / (o.holdCost * o.unitCost)) : o.muDaily * o.review;
+    // 'RS': order up to S at every review (Q is one review's demand); 'sS': order only when position <= s, then Q ~ EOQ
+    const Q = o.mode === 'RS' ? o.muDaily * o.review : Math.max(o.moq || 1, Math.max(eoq, o.muDaily * o.review));
+    let z;
+    if (o.target.type === 'fill') z = sdP > 0 ? invLoss(((1 - o.target.value) * Q) / sdP) : 0;
+    else z = invPhi(o.target.value);
+    const ss = Math.max(0, z * sdP);
+    // (s,S): the position usually crosses s between reviews, overshooting by E[D_R^2] / (2 E[D_R]) on average
+    const sdDay = o.sdDaily != null ? o.sdDaily : sdP / Math.sqrt(Math.max(1, P));
+    const muR = o.muDaily * o.review, varR = sdDay * sdDay * o.review;
+    const undershoot = o.mode === 'RS' || muR <= 0 ? 0 : (varR + muR * muR) / (2 * muR);
+    const s = muP + ss + undershoot; // reorder point: order when inventory position <= s
+    const S = o.mode === 'RS' ? s : s + Q;           // order up to S
+    const sOrder = o.mode === 'RS' ? S : s;
+    const fill = sdP > 0 ? 1 - (sdP * lossG(z)) / Q : 1;
+    return { s: sOrder, S, Q, eoq, ss, z, undershoot, csl: Phi(z), fill, muP, sdP, mode: o.mode || 'sS' };
+  }
+
+  // Day-by-day simulation of an (R, s, S) policy with lost sales or backorders.
+  // demand: array of daily demand. Orders placed at review points when position <= s, arrive after `lead` days.
+  function simulate(o) {
+    const { demand, review, lead, s, S } = o, n = demand.length;
+    let onHand = o.start == null ? S : o.start, backlog = 0;
+    const pipe = []; // {due, qty}
+    const trace = []; let demandTot = 0, served = 0, stockoutDays = 0, cyclesWithStockout = 0, cycles = 0, orders = 0, holdingUnits = 0, ordered = 0;
+    let cycleShort = false;
+    for (let t = 0; t < n; t++) {
+      for (let i = pipe.length - 1; i >= 0; i--) if (pipe[i].due === t) { onHand += pipe[i].qty; pipe.splice(i, 1); }
+      if (backlog > 0 && onHand > 0 && o.backorder) { const x = Math.min(backlog, onHand); backlog -= x; onHand -= x; }
+      let arrivedOrder = null;
+      if (t % review === 0) {
+        const position = onHand - backlog + pipe.reduce((a, p) => a + p.qty, 0);
+        cycles++; if (cycleShort) cyclesWithStockout++; cycleShort = false;
+        if (position <= s && position < S) { const q = Math.max(0, Math.ceil(S - position)); if (q > 0) { pipe.push({ due: t + lead, qty: q }); orders++; ordered += q; arrivedOrder = q; } }
+      }
+      const d = demand[t]; demandTot += d;
+      const sell = Math.min(onHand, d); served += sell; onHand -= sell;
+      if (sell < d) { stockoutDays++; cycleShort = true; if (o.backorder) backlog += d - sell; }
+      holdingUnits += onHand;
+      trace.push({ t, onHand, demand: d, sold: sell, order: arrivedOrder, backlog });
+    }
+    return { trace, fillRate: demandTot ? served / demandTot : 1, csl: cycles ? 1 - cyclesWithStockout / cycles : 1, stockoutDays, orders, avgOnHand: holdingUnits / n, ordered, demand: demandTot };
+  }
+
+  // Lead-time demand spread from rolling one-origin forecast errors over the protection interval.
+  // Model-agnostic: refits the chosen method at several origins and measures the error of the P-day total.
+  function protectionError(y, m, key, P, folds = 8) {
+    const errs = [];
+    const step = Math.max(1, Math.floor(P / 2));
+    for (let k = 0; k < folds; k++) {
+      const cut = y.length - P - k * step;
+      if (cut < Math.max(2 * m + 4, 14)) break;
+      const f = METHODS[key].fit(y.slice(0, cut), m); if (!f) continue;
+      const fc = f.forecast(P).map((v) => Math.max(0, v));
+      errs.push(sum(y.slice(cut, cut + P)) - sum(fc));
+    }
+    const mu = mean(errs);
+    return { sd: Math.sqrt(mean(errs.map((e) => (e - mu) ** 2)) + mu * mu), bias: mu, n: errs.length };
+  }
+
+  const api = { nelderMead, fitETS, fitAutoETS, fitHW, fitTheta, fitComb, fitDeseasoned, fitNaive, fitCroston, classify, isSeasonal, seasonIndex,
+    protectionDays, METHODS, SMOOTH, INTERMITTENT, smape, mase, backtest, autoSelect, Phi, invPhi, lossG, invLoss, policy, simulate, protectionError, mean, sum };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Inventory = api;
+})(typeof self !== 'undefined' ? self : this);
+</script>
+<script>const CORE_SRC = "// Inventory Planner core: demand forecasting (exponential smoothing, Holt-Winters, Theta, Croston/SBA/TSB),\n// rolling-origin backtests, reorder-point / (s,S) policies and a day-by-day inventory simulation.\n// Plain JS, runs in the browser and in Node.\n(function (root) {\n  'use strict';\n  const sum = (a) => { let s = 0; for (const x of a) s += x; return s; };\n  const mean = (a) => (a.length ? sum(a) / a.length : 0);\n  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));\n\n  // ---------- optimiser ----------\n  // Nelder-Mead on a box: parameters are clamped to [lo, hi].\n  function nelderMead(f, x0, lo, hi, iters = 300) {\n    const n = x0.length, cl = (x) => x.map((v, i) => clamp(v, lo[i], hi[i]));\n    let S = [cl(x0)];\n    for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] = x[i] + (hi[i] - lo[i]) * 0.15; S.push(cl(x)); }\n    let F = S.map(f);\n    for (let it = 0; it < iters; it++) {\n      const ord = F.map((v, i) => i).sort((a, b) => F[a] - F[b]); S = ord.map((i) => S[i]); F = ord.map((i) => F[i]);\n      if (Math.abs(F[n] - F[0]) <= 1e-10 * (Math.abs(F[0]) + 1e-12)) break;\n      const c = new Array(n).fill(0); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += S[i][j] / n;\n      const pt = (t) => cl(c.map((v, j) => v + t * (S[n][j] - v)));\n      const xr = pt(-1), fr = f(xr);\n      if (fr < F[0]) { const xe = pt(-2), fe = f(xe); if (fe < fr) { S[n] = xe; F[n] = fe; } else { S[n] = xr; F[n] = fr; } }\n      else if (fr < F[n - 1]) { S[n] = xr; F[n] = fr; }\n      else { const xc = pt(fr < F[n] ? -0.5 : 0.5), fc = f(xc);\n        if (fc < Math.min(fr, F[n])) { S[n] = xc; F[n] = fc; }\n        else for (let i = 1; i <= n; i++) { S[i] = cl(S[i].map((v, j) => S[0][j] + 0.5 * (v - S[0][j]))); F[i] = f(S[i]); } }\n    }\n    let b = 0; for (let i = 1; i <= n; i++) if (F[i] < F[b]) b = i;\n    return { x: S[b], f: F[b] };\n  }\n\n  // ---------- exponential smoothing family ----------\n  // spec: {trend: 'N'|'A'|'Ad', season: 'N'|'A'|'M'}; params [alpha, beta, gamma, phi, l0, b0]\n  function etsRun(y, m, spec, p, init, keepFitted) {\n    const [a, bt, g, phi] = p;\n    let l = init.l, b = init.b; const s = init.s.slice();\n    const fitted = keepFitted ? new Float64Array(y.length) : null;\n    let sse = 0;\n    const damp = spec.trend === 'Ad' ? phi : 1, hasT = spec.trend !== 'N';\n    for (let t = 0; t < y.length; t++) {\n      const si = spec.season === 'N' ? (spec.season === 'M' ? 1 : 0) : s[t % m];\n      const base = l + (hasT ? damp * b : 0);\n      const yhat = spec.season === 'M' ? base * si : base + (spec.season === 'A' ? si : 0);\n      const e = y[t] - yhat; sse += e * e; if (fitted) fitted[t] = yhat;\n      const lPrev = l;\n      if (spec.season === 'M') l = a * (y[t] / si) + (1 - a) * base;\n      else if (spec.season === 'A') l = a * (y[t] - si) + (1 - a) * base;\n      else l = a * y[t] + (1 - a) * base;\n      if (hasT) b = bt * (l - lPrev) + (1 - bt) * damp * b;\n      if (spec.season === 'A') s[t % m] = g * (y[t] - lPrev - (hasT ? damp * b : 0)) + (1 - g) * si;\n      if (spec.season === 'M') s[t % m] = g * (y[t] / (lPrev + (hasT ? damp * b : 0))) + (1 - g) * si;\n      if (!isFinite(l) || (spec.season === 'M' && l <= 0)) return { sse: Infinity };\n    }\n    return { sse, l, b, s, fitted };\n  }\n  function etsInit(y, m, spec) {\n    if (spec.season !== 'N' && y.length >= 2 * m) {\n      const s1 = mean(y.slice(0, m)), s2 = mean(y.slice(m, 2 * m));\n      const s = y.slice(0, m).map((v) => (spec.season === 'M' ? v / s1 : v - s1));\n      return { l: s1, b: spec.trend === 'N' ? 0 : (s2 - s1) / m, s };\n    }\n    const k = Math.min(y.length, 10);\n    return { l: y[0], b: spec.trend === 'N' || y.length < 2 ? 0 : (y[k - 1] - y[0]) / Math.max(1, k - 1), s: new Array(Math.max(1, m)).fill(spec.season === 'M' ? 1 : 0) };\n  }\n  function fitETS(y, m, spec) {\n    if (spec.season === 'M' && y.some((v) => v <= 0)) return null;\n    if (spec.season !== 'N' && y.length < 2 * m + 2) return null;\n    const init = etsInit(y, m, spec);\n    const lo = [0.0001, 0.0001, 0.0001, 0.8], hi = [0.9999, 0.9999, 0.9999, 0.98];\n    const free = [true, spec.trend !== 'N', spec.season !== 'N', spec.trend === 'Ad'];\n    const x0 = [0.3, 0.05, 0.05, 0.95];\n    const idx = free.map((v, i) => (v ? i : -1)).filter((i) => i >= 0);\n    const full = (x) => { const p = x0.slice(); if (!free[1]) p[1] = 0; if (!free[2]) p[2] = 0; if (!free[3]) p[3] = 1; idx.forEach((i, k) => (p[i] = x[k])); return p; };\n    const obj = (x) => { const p = full(x); if (p[1] > p[0]) return 1e300; const r = etsRun(y, m, spec, p, init, false); return isFinite(r.sse) ? r.sse : 1e300; };\n    const best = nelderMead(obj, idx.map((i) => x0[i]), idx.map((i) => lo[i]), idx.map((i) => hi[i]), 400);\n    const p = full(best.x), r = etsRun(y, m, spec, p, init, true);\n    if (!isFinite(r.sse)) return null;\n    const n = y.length, k = idx.length + 1 + (spec.trend !== 'N' ? 1 : 0) + (spec.season !== 'N' ? m - 1 : 0);\n    const sigma2 = r.sse / Math.max(1, n - k);\n    const aicc = n * Math.log(r.sse / n) + 2 * k + (2 * k * (k + 1)) / Math.max(1, n - k - 1);\n    const damp = spec.trend === 'Ad' ? p[3] : 1;\n    const forecast = (h) => {\n      const out = []; let dsum = 0;\n      for (let j = 1; j <= h; j++) {\n        dsum += Math.pow(damp, j);\n        const base = r.l + (spec.trend === 'N' ? 0 : (spec.trend === 'Ad' ? dsum : j) * r.b);\n        const si = spec.season === 'N' ? null : r.s[(n + j - 1) % m];\n        out.push(spec.season === 'M' ? base * si : base + (si || 0));\n      }\n      return out;\n    };\n    // h-step variance (additive-error approximation): sigma^2 * (1 + sum c_j^2)\n    const cj = (j) => p[0] * (1 + (spec.trend === 'N' ? 0 : (spec.trend === 'Ad' ? sumPow(damp, j) : j) * p[1])) + (spec.season !== 'N' && j % m === 0 ? p[2] * (1 - p[0]) : 0);\n    const sd = (h) => { const out = []; let acc = 0; for (let j = 1; j <= h; j++) { out.push(Math.sqrt(sigma2 * (1 + acc))); acc += cj(j) * cj(j); } return out; };\n    return { name: 'ETS(' + ['A', spec.trend, spec.season].join(',') + ')', spec, params: p, fitted: Array.from(r.fitted), sigma: Math.sqrt(sigma2), aicc, forecast, sd };\n  }\n  const sumPow = (phi, j) => { let s = 0; for (let i = 1; i <= j; i++) s += Math.pow(phi, i); return s; };\n\n  // ---------- seasonality (as in the M4 benchmarks) ----------\n  function acf(y, k) { const mu = mean(y); let num = 0, den = 0; for (let t = 0; t < y.length; t++) { den += (y[t] - mu) ** 2; if (t >= k) num += (y[t] - mu) * (y[t - k] - mu); } return den ? num / den : 0; }\n  function isSeasonal(y, m) {\n    if (m <= 1 || y.length < 3 * m) return false;\n    let s = 0; for (let k = 1; k < m; k++) s += acf(y, k) ** 2;\n    const limit = 1.645 * Math.sqrt((1 + 2 * s) / y.length);\n    return Math.abs(acf(y, m)) > limit;\n  }\n  // classical multiplicative decomposition: seasonal indices from a centred moving average\n  function seasonIndex(y, m) {\n    const n = y.length, ratio = Array.from({ length: m }, () => []);\n    for (let t = Math.floor(m / 2); t < n - Math.floor(m / 2); t++) {\n      let ma;\n      if (m % 2 === 0) { let s = 0; for (let k = -m / 2; k <= m / 2; k++) s += (Math.abs(k) === m / 2 ? 0.5 : 1) * y[t + k]; ma = s / m; }\n      else { let s = 0; for (let k = -(m - 1) / 2; k <= (m - 1) / 2; k++) s += y[t + k]; ma = s / m; }\n      if (ma > 0) ratio[t % m].push(y[t] / ma);\n    }\n    let idx = ratio.map((r) => (r.length ? mean(r) : 1));\n    const c = mean(idx); idx = idx.map((v) => v / c);\n    return idx;\n  }\n  function deseason(y, m) {\n    if (!isSeasonal(y, m) || y.some((v) => v <= 0)) return { y: y.slice(), si: null };\n    const si = seasonIndex(y, m);\n    return { y: y.map((v, t) => v / si[t % m]), si };\n  }\n  const reseason = (fc, si, n, m) => (si ? fc.map((v, j) => v * si[(n + j) % m]) : fc);\n\n  // ---------- Theta (Assimakopoulos & Nikolopoulos 2000, as in the M4 benchmark code) ----------\n  function fitTheta(y0, m) {\n    const ds = deseason(y0, m), y = ds.y, n = y.length;\n    const ses = fitETS(y, m, { trend: 'N', season: 'N' });\n    const tm = (n - 1) / 2, ym = mean(y); let num = 0, den = 0;\n    for (let t = 0; t < n; t++) { num += (t - tm) * (y[t] - ym); den += (t - tm) ** 2; }\n    const b0 = den ? num / den : 0, a = ses.params[0];\n    const forecast = (h) => reseason(ses.forecast(h).map((v, j) => v + 0.5 * b0 * (j + (1 / a) - Math.pow(1 - a, n) / a)), ds.si, n, m);\n    return { name: 'Theta', forecast, sigma: ses.sigma, sd: ses.sd, fitted: ses.fitted.map((v, t) => (ds.si ? v * ds.si[t % m] : v)) };\n  }\n  // Seasonally adjusted SES / Holt / damped and their average (\"Comb S-H-D\", the M4 benchmark)\n  function fitDeseasoned(y0, m, trend) {\n    const ds = deseason(y0, m), f = fitETS(ds.y, m, { trend, season: 'N' });\n    return { name: { N: 'SES', A: 'Holt', Ad: 'Damped' }[trend], forecast: (h) => reseason(f.forecast(h), ds.si, y0.length, m), sigma: f.sigma, sd: f.sd, params: f.params,\n      fitted: f.fitted.map((v, t) => (ds.si ? v * ds.si[t % m] : v)) };\n  }\n  function fitComb(y, m) {\n    const fs = ['N', 'A', 'Ad'].map((t) => fitDeseasoned(y, m, t));\n    return { name: 'Comb', forecast: (h) => { const a = fs.map((f) => f.forecast(h)); return a[0].map((_, j) => (a[0][j] + a[1][j] + a[2][j]) / 3); }, sigma: fs[2].sigma, sd: fs[2].sd, fitted: fs[0].fitted.map((_, t) => (fs[0].fitted[t] + fs[1].fitted[t] + fs[2].fitted[t]) / 3) };\n  }\n  // Holt-Winters: best of additive and multiplicative seasonality, with and without damping, by AICc\n  function fitHW(y, m) {\n    let best = null;\n    for (const season of ['A', 'M']) for (const trend of ['N', 'A', 'Ad']) {\n      const f = fitETS(y, m, { trend, season });\n      if (f && (!best || f.aicc < best.aicc)) best = f;\n    }\n    if (best) best.name = 'Holt-Winters ' + best.name;\n    return best;\n  }\n  // AutoETS-style: every additive-error model with additive/damped/no trend and none/add/mult season, by AICc\n  function fitAutoETS(y, m) {\n    let best = null;\n    for (const season of m > 1 ? ['N', 'A', 'M'] : ['N']) for (const trend of ['N', 'A', 'Ad']) {\n      const f = fitETS(y, m, { trend, season });\n      if (f && (!best || f.aicc < best.aicc)) best = f;\n    }\n    return best;\n  }\n  function fitNaive(y, m, seasonal) {\n    const n = y.length, k = seasonal && n >= m ? m : 1;\n    const res = []; for (let t = k; t < n; t++) res.push(y[t] - y[t - k]);\n    const sigma = Math.sqrt(mean(res.map((e) => e * e)) || 0);\n    return { name: seasonal ? 'Seasonal naive' : 'Naive', forecast: (h) => Array.from({ length: h }, (_, j) => y[n - k + (j % k)]), sigma, sd: (h) => Array.from({ length: h }, (_, j) => sigma * Math.sqrt(Math.floor(j / k) + 1)), fitted: y.map((v, t) => (t >= k ? y[t - k] : v)) };\n  }\n\n  // ---------- intermittent demand ----------\n  // Croston (1972), SBA (Syntetos & Boylan 2005), TSB (Teunter, Syntetos & Babai 2011).\n  // Initialisation follows statsforecast: first non-zero demand and its interval.\n  function crostonCore(y, alpha) {\n    const nz = []; let last = -1;\n    for (let t = 0; t < y.length; t++) if (y[t] > 0) { nz.push({ size: y[t], gap: t - last }); last = t; }\n    if (!nz.length) return 0;\n    let z = nz[0].size, p = nz[0].gap;\n    for (let i = 1; i < nz.length; i++) { z += alpha * (nz[i].size - z); p += alpha * (nz[i].gap - p); }\n    return z / p;\n  }\n  function fitCroston(y, variant = 'classic', alpha = 0.1, beta = 0.1) {\n    let level;\n    if (variant === 'tsb') {\n      const nzIdx = y.findIndex((v) => v > 0);\n      if (nzIdx < 0) level = 0;\n      else {\n        // statsforecast TSB: demand size smoothed on non-zero periods, probability every period\n        let z = y[nzIdx], d = y.filter((v) => v > 0).length ? (y[0] > 0 ? 1 : 0) : 0;\n        d = y[0] > 0 ? 1 : 0;\n        for (let t = 1; t < y.length; t++) { const occ = y[t] > 0 ? 1 : 0; d += beta * (occ - d); if (occ && t > nzIdx) z += alpha * (y[t] - z); }\n        level = z * d;\n      }\n    } else {\n      level = crostonCore(y, alpha) * (variant === 'sba' ? 1 - alpha / 2 : 1);\n    }\n    const res = y.map((v) => v - level);\n    const sigma = Math.sqrt(mean(res.map((e) => e * e)));\n    return { name: { classic: 'Croston', sba: 'Croston SBA', tsb: 'TSB' }[variant], forecast: (h) => new Array(h).fill(level), sigma, sd: (h) => Array.from({ length: h }, () => sigma), fitted: y.map(() => level), level };\n  }\n  // demand classification (Syntetos, Boylan & Croston 2005): ADI and CV\u00b2\n  function classify(y) {\n    const nz = y.filter((v) => v > 0);\n    if (!nz.length) return { adi: Infinity, cv2: 0, kind: 'no demand' };\n    const adi = y.length / nz.length, mu = mean(nz), cv2 = nz.length > 1 ? mean(nz.map((v) => (v - mu) ** 2)) / (mu * mu) : 0;\n    const kind = adi < 1.32 ? (cv2 < 0.49 ? 'smooth' : 'erratic') : cv2 < 0.49 ? 'intermittent' : 'lumpy';\n    return { adi, cv2, kind };\n  }\n\n  // ---------- model registry ----------\n  const METHODS = {\n    naive: { label: 'Naive', fit: (y, m) => fitNaive(y, m, false) },\n    snaive: { label: 'Seasonal naive', fit: (y, m) => fitNaive(y, m, true) },\n    ses: { label: 'SES', fit: (y, m) => fitDeseasoned(y, m, 'N') },\n    holt: { label: 'Holt', fit: (y, m) => fitDeseasoned(y, m, 'A') },\n    damped: { label: 'Damped trend', fit: (y, m) => fitDeseasoned(y, m, 'Ad') },\n    hw: { label: 'Holt-Winters', fit: (y, m) => fitHW(y, m) || fitDeseasoned(y, m, 'Ad') },\n    ets: { label: 'Auto ETS', fit: (y, m) => fitAutoETS(y, m) },\n    theta: { label: 'Theta', fit: (y, m) => fitTheta(y, m) },\n    comb: { label: 'Comb (SES+Holt+Damped)', fit: (y, m) => fitComb(y, m) },\n    croston: { label: 'Croston', fit: (y) => fitCroston(y, 'classic') },\n    sba: { label: 'Croston SBA', fit: (y) => fitCroston(y, 'sba') },\n    tsb: { label: 'TSB', fit: (y) => fitCroston(y, 'tsb', 0.1, 0.1) },\n  };\n  const SMOOTH = ['snaive', 'ses', 'damped', 'hw', 'theta', 'comb'];\n  const INTERMITTENT = ['croston', 'sba', 'tsb', 'ses'];\n\n  // ---------- accuracy ----------\n  function smape(a, f) { let s = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i]) + Math.abs(f[i]); s += d ? (2 * Math.abs(a[i] - f[i])) / d : 0; } return (100 * s) / a.length; }\n  function mase(insample, a, f, m) {\n    const k = insample.length > m ? m : 1; let s = 0;\n    for (let t = k; t < insample.length; t++) s += Math.abs(insample[t] - insample[t - k]);\n    const scale = s / (insample.length - k) || 1e-9;\n    return mean(a.map((v, i) => Math.abs(v - f[i]))) / scale;\n  }\n  // Rolling-origin backtest: refit at `folds` origins, each forecasting h ahead\n  function backtest(y, m, key, h, folds = 3, step) {\n    step = step || h;\n    const out = { mase: [], smape: [], bias: [] };\n    for (let k = folds; k >= 1; k--) {\n      const cut = y.length - h - (k - 1) * step;\n      if (cut < Math.max(2 * m + 4, 8)) continue;\n      const tr = y.slice(0, cut), te = y.slice(cut, cut + h);\n      const f = METHODS[key].fit(tr, m); if (!f) continue;\n      const fc = f.forecast(te.length).map((v) => Math.max(0, v));\n      out.mase.push(mase(tr, te, fc, m)); out.smape.push(smape(te, fc)); out.bias.push((sum(fc) - sum(te)) / Math.max(1e-9, sum(te)));\n    }\n    return { mase: mean(out.mase), smape: mean(out.smape), bias: mean(out.bias), folds: out.mase.length };\n  }\n  // Picks the method with the lowest backtest MASE among the candidates for this demand type\n  function autoSelect(y, m, h, folds = 3) {\n    const cls = classify(y);\n    const keys = cls.adi >= 1.32 ? INTERMITTENT : SMOOTH;\n    const scores = keys.map((k) => ({ key: k, ...backtest(y, m, k, h, folds) })).filter((s) => s.folds > 0 && isFinite(s.mase));\n    scores.sort((a, b) => a.mase - b.mase);\n    return { best: scores.length ? scores[0].key : keys[0], scores, cls };\n  }\n\n  // ---------- inventory policy ----------\n  const erf = (x) => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const yv = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * yv; };\n  const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));\n  const phi = (z) => Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);\n  function invPhi(p) { // Acklam's rational approximation\n    const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2, -3.066479806614716e1, 2.506628277459239];\n    const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];\n    const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];\n    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];\n    p = clamp(p, 1e-9, 1 - 1e-9);\n    if (p < 0.02425) { const q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }\n    if (p > 1 - 0.02425) { const q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }\n    const q = p - 0.5, r = q * q;\n    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);\n  }\n  const lossG = (z) => phi(z) - z * (1 - Phi(z)); // standard normal loss function\n  // Solve G(z) = target for z (G is decreasing)\n  function invLoss(target) { let lo = -6, hi = 8; for (let i = 0; i < 100; i++) { const mid = (lo + hi) / 2; if (lossG(mid) > target) lo = mid; else hi = mid; } return (lo + hi) / 2; }\n\n  // Policy for one item. Review every R days, lead time L days. Protection interval = R + L.\n  // mu: mean daily demand over the protection interval, sdP: sd of demand over the protection interval.\n  // target: {type:'csl'|'fill', value}. Order quantity Q (for fill rate) defaults to EOQ.\n  const protectionDays = (o) => (o.mode === 'RS' ? o.review + o.lead : o.lead + o.review - 1);\n  function policy(o) {\n    // protection interval: R + L for (R,S); for (s,S) the order goes in at the review where position first drops below s,\n    // so the exposure is L plus the review period minus one day (o.sdP must be measured over the same interval)\n    const P = protectionDays(o), muP = o.muDaily * P, sdP = o.sdP;\n    const annual = o.muDaily * 365;\n    const eoq = o.orderCost && o.holdCost ? Math.sqrt((2 * annual * o.orderCost) / (o.holdCost * o.unitCost)) : o.muDaily * o.review;\n    // 'RS': order up to S at every review (Q is one review's demand); 'sS': order only when position <= s, then Q ~ EOQ\n    const Q = o.mode === 'RS' ? o.muDaily * o.review : Math.max(o.moq || 1, Math.max(eoq, o.muDaily * o.review));\n    let z;\n    if (o.target.type === 'fill') z = sdP > 0 ? invLoss(((1 - o.target.value) * Q) / sdP) : 0;\n    else z = invPhi(o.target.value);\n    const ss = Math.max(0, z * sdP);\n    // (s,S): the position usually crosses s between reviews, overshooting by E[D_R^2] / (2 E[D_R]) on average\n    const sdDay = o.sdDaily != null ? o.sdDaily : sdP / Math.sqrt(Math.max(1, P));\n    const muR = o.muDaily * o.review, varR = sdDay * sdDay * o.review;\n    const undershoot = o.mode === 'RS' || muR <= 0 ? 0 : (varR + muR * muR) / (2 * muR);\n    const s = muP + ss + undershoot; // reorder point: order when inventory position <= s\n    const S = o.mode === 'RS' ? s : s + Q;           // order up to S\n    const sOrder = o.mode === 'RS' ? S : s;\n    const fill = sdP > 0 ? 1 - (sdP * lossG(z)) / Q : 1;\n    return { s: sOrder, S, Q, eoq, ss, z, undershoot, csl: Phi(z), fill, muP, sdP, mode: o.mode || 'sS' };\n  }\n\n  // Day-by-day simulation of an (R, s, S) policy with lost sales or backorders.\n  // demand: array of daily demand. Orders placed at review points when position <= s, arrive after `lead` days.\n  function simulate(o) {\n    const { demand, review, lead, s, S } = o, n = demand.length;\n    let onHand = o.start == null ? S : o.start, backlog = 0;\n    const pipe = []; // {due, qty}\n    const trace = []; let demandTot = 0, served = 0, stockoutDays = 0, cyclesWithStockout = 0, cycles = 0, orders = 0, holdingUnits = 0, ordered = 0;\n    let cycleShort = false;\n    for (let t = 0; t < n; t++) {\n      for (let i = pipe.length - 1; i >= 0; i--) if (pipe[i].due === t) { onHand += pipe[i].qty; pipe.splice(i, 1); }\n      if (backlog > 0 && onHand > 0 && o.backorder) { const x = Math.min(backlog, onHand); backlog -= x; onHand -= x; }\n      let arrivedOrder = null;\n      if (t % review === 0) {\n        const position = onHand - backlog + pipe.reduce((a, p) => a + p.qty, 0);\n        cycles++; if (cycleShort) cyclesWithStockout++; cycleShort = false;\n        if (position <= s && position < S) { const q = Math.max(0, Math.ceil(S - position)); if (q > 0) { pipe.push({ due: t + lead, qty: q }); orders++; ordered += q; arrivedOrder = q; } }\n      }\n      const d = demand[t]; demandTot += d;\n      const sell = Math.min(onHand, d); served += sell; onHand -= sell;\n      if (sell < d) { stockoutDays++; cycleShort = true; if (o.backorder) backlog += d - sell; }\n      holdingUnits += onHand;\n      trace.push({ t, onHand, demand: d, sold: sell, order: arrivedOrder, backlog });\n    }\n    return { trace, fillRate: demandTot ? served / demandTot : 1, csl: cycles ? 1 - cyclesWithStockout / cycles : 1, stockoutDays, orders, avgOnHand: holdingUnits / n, ordered, demand: demandTot };\n  }\n\n  // Lead-time demand spread from rolling one-origin forecast errors over the protection interval.\n  // Model-agnostic: refits the chosen method at several origins and measures the error of the P-day total.\n  function protectionError(y, m, key, P, folds = 8) {\n    const errs = [];\n    const step = Math.max(1, Math.floor(P / 2));\n    for (let k = 0; k < folds; k++) {\n      const cut = y.length - P - k * step;\n      if (cut < Math.max(2 * m + 4, 14)) break;\n      const f = METHODS[key].fit(y.slice(0, cut), m); if (!f) continue;\n      const fc = f.forecast(P).map((v) => Math.max(0, v));\n      errs.push(sum(y.slice(cut, cut + P)) - sum(fc));\n    }\n    const mu = mean(errs);\n    return { sd: Math.sqrt(mean(errs.map((e) => (e - mu) ** 2)) + mu * mu), bias: mu, n: errs.length };\n  }\n\n  const api = { nelderMead, fitETS, fitAutoETS, fitHW, fitTheta, fitComb, fitDeseasoned, fitNaive, fitCroston, classify, isSeasonal, seasonIndex,\n    protectionDays, METHODS, SMOOTH, INTERMITTENT, smape, mase, backtest, autoSelect, Phi, invPhi, lossG, invLoss, policy, simulate, protectionError, mean, sum };\n  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Inventory = api;\n})(typeof self !== 'undefined' ? self : this);\n";const BENCH = {"ours": {"series": 1000, "h": 18, "methods": {"naive": {"label": "Naive", "smape": 16.56204601180896, "mase": 1.1810723945451282, "msPerSeries": 0.04274203100000012}, "snaive": {"label": "Seasonal naive", "smape": 17.186792955140678, "mase": 1.2092767583774047, "msPerSeries": 0.024925425999999997}, "ses": {"label": "SES", "smape": 14.507204942109121, "mase": 0.9719210193244561, "msPerSeries": 0.36855130800000024}, "holt": {"label": "Holt", "smape": 16.00732385488383, "mase": 0.9820768939830833, "msPerSeries": 0.3713323730000007}, "damped": {"label": "Damped trend", "smape": 14.401884232145933, "mase": 0.9361021690669992, "msPerSeries": 0.6983261820000007}, "comb": {"label": "Comb (SES+Holt+Damped)", "smape": 14.374712815382997, "mase": 0.9289986629232552, "msPerSeries": 1.4854224920000016}, "theta": {"label": "Theta", "smape": 13.957711567766376, "mase": 0.9238539285520823, "msPerSeries": 0.315667945}, "hw": {"label": "Holt-Winters", "smape": 14.768288842501512, "mase": 0.9339755541403302, "msPerSeries": 5.096094625999987}, "ets": {"label": "Auto ETS", "smape": 14.585933064427977, "mase": 0.9284467353628943, "msPerSeries": 6.042249084000011}}}, "sf": {"series": 1000, "h": 18, "seconds": 156.90593361854553, "version": "2.1.1", "methods": {"Naive": {"smape": 16.56204601180896, "mase": 1.181072394545129}, "SeasonalNaive": {"smape": 17.186792955140653, "mase": 1.2092767583774058}, "SESOpt": {"smape": 15.585441977708925, "mase": 1.1236620805568178}, "Holt": {"smape": 15.876760630418369, "mase": 1.090292096494942}, "AutoETS": {"smape": 14.440196619019085, "mase": 0.9225118550618435}, "Theta": {"smape": 13.904709353471212, "mase": 0.9224135620493439}, "AutoTheta": {"smape": 14.201201794798166, "mase": 0.9133617540582969}}}, "croston": {"series": 300, "worst": 4.863389695620051e-15}, "policy": [{"case": "Normal demand 100\u00b125/day, review 7, lead 5, (R,S)", "label": "RS cycle service 90.0%", "want": 0.9, "got": 0.9017569648607028, "ok": true, "s": 1310.9856210805058, "S": 1310.9856210805058, "safety": 110.98562108050577, "avgOnHand": 412.81166059720044, "orders": 28571}, {"case": "Normal demand 100\u00b125/day, review 7, lead 5, (R,S)", "label": "RS cycle service 95.0%", "want": 0.95, "got": 0.9500559988800223, "ok": true, "s": 1342.4485024872708, "S": 1342.4485024872708, "safety": 142.44850248727093, "avgOnHand": 443.9363431200186, "orders": 28571}, {"case": "Normal demand 100\u00b125/day, review 7, lead 5, (R,S)", "label": "RS fill rate 98.0%", "want": 0.98, "got": 0.9803819772816991, "ok": true, "s": 1254.2119356430517, "S": 1254.2119356430517, "safety": 54.21193564305174, "avgOnHand": 357.5416134599362, "orders": 28571}, {"case": "Normal demand 100\u00b125/day, review 7, lead 5, (R,S)", "label": "RS fill rate 99.5%", "want": 0.995, "got": 0.9950736442268504, "ok": true, "s": 1317.3883218922401, "S": 1317.3883218922401, "safety": 117.38832189224024, "avgOnHand": 419.12526068500097, "orders": 28571}, {"case": "Poisson demand 4/day, review 7, lead 10, (R,S)", "label": "RS cycle service 90.0%", "want": 0.9, "got": 0.8964020719585608, "ok": true, "s": 78.56794492725078, "S": 78.56794492725078, "safety": 10.567944927250782, "avgOnHand": 22.61026897161081, "orders": 28571}, {"case": "Poisson demand 4/day, review 7, lead 10, (R,S)", "label": "RS cycle service 95.0%", "want": 0.95, "got": 0.9467310653786924, "ok": true, "s": 81.56381047021272, "S": 81.56381047021272, "safety": 13.563810470212713, "avgOnHand": 25.55986099353931, "orders": 28571}, {"case": "Poisson demand 4/day, review 7, lead 10, (R,S)", "label": "RS fill rate 98.0%", "want": 0.98, "got": 0.9787031600533546, "ok": true, "s": 77.11413933535351, "S": 77.11413933535351, "safety": 9.114139335353512, "avgOnHand": 21.19313034170848, "orders": 28571}, {"case": "Poisson demand 4/day, review 7, lead 10, (R,S)", "label": "RS fill rate 99.5%", "want": 0.995, "got": 0.9940680037159783, "ok": true, "s": 82.26890588815337, "S": 82.26890588815337, "safety": 14.26890588815337, "avgOnHand": 26.258148927130485, "orders": 28571}, {"case": "Normal demand 60\u00b120/day, daily review, lead 6, (s,S) with EOQ", "label": "sS fill rate 98.0%", "want": 0.98, "got": 0.9823573161453094, "ok": true, "s": 393.3333333333333, "S": 1601.6379306927904, "safety": 0, "avgOnHand": 595.1046852577581, "orders": 9664}, {"case": "Normal demand 60\u00b120/day, daily review, lead 6, (s,S) with EOQ", "label": "sS fill rate 99.5%", "want": 0.995, "got": 0.9937629741000701, "ok": true, "s": 431.812025563707, "S": 1640.1166229231642, "safety": 38.47869223037366, "avgOnHand": 632.7778831181748, "orders": 9664}]};</script>
+<script>
+(() => {
+'use strict';
+const I = window.Inventory, $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const KEY = 'invp:v1', H = 60, BT = 28;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const inr = (x) => '₹' + Math.round(x).toLocaleString('en-IN');
+const inrS = (x) => (x >= 1e7 ? '₹' + (x / 1e7).toFixed(2) + ' Cr' : x >= 1e5 ? '₹' + (x / 1e5).toFixed(2) + ' L' : inr(x));
+const n0 = (x) => Math.round(x).toLocaleString('en-IN');
+const dayMs = 86400000;
+const iso = (d) => new Date(d).toISOString().slice(0, 10);
+const nice = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+// ---------- demo shop ----------
+function demo() {
+  let seed = 2026; const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const gamma = (k) => { let s = 0; for (let i = 0; i < Math.round(k * 3); i++) s -= Math.log(r() || 1e-9); return s / 3; };
+  const pois = (l) => { if (l > 40) return Math.max(0, Math.round(l + Math.sqrt(l) * Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r()))); let k = 0, p = 1; const L = Math.exp(-l); do { k++; p *= r(); } while (p > L); return k - 1; };
+  const end = Date.UTC(2026, 10, 21), days = 730, start = end - (days - 1) * dayMs;
+  const spec = [
+    ['MB-GM-200', 'Garam masala 200 g', 'Spices', 'Kaveri Spice Mills', 85, 48, 1.0, 0.0006, 'smooth', 7, 96, 500],
+    ['MB-SP-100', 'Sambar powder 100 g', 'Spices', 'Kaveri Spice Mills', 140, 32, 1.0, 0.0003, 'smooth', 7, 64, 500],
+    ['MB-RP-100', 'Rasam powder 100 g', 'Spices', 'Kaveri Spice Mills', 60, 30, 1.0, -0.0002, 'smooth', 7, 60, 300],
+    ['MB-KC-250', 'Kashmiri chilli 250 g', 'Spices', 'Guntur Agro Traders', 38, 95, 1.0, 0.0012, 'erratic', 12, 190, 200],
+    ['MB-BM-500', 'Banana chips 500 g', 'Snacks', 'Kerala Snacks Co.', 52, 120, 1.25, 0.0008, 'smooth', 5, 240, 120],
+    ['MB-MX-400', 'Mysore mixture 400 g', 'Snacks', 'Sri Lakshmi Foods', 70, 95, 1.3, 0.0004, 'smooth', 4, 190, 150],
+    ['MB-CK-250', 'Chakli 250 g', 'Snacks', 'Sri Lakshmi Foods', 26, 80, 1.35, 0.0, 'erratic', 4, 160, 100],
+    ['MB-FP-1KG', 'Filter coffee powder 1 kg', 'Beverages', 'Chikmagalur Estates', 22, 520, 1.0, 0.0009, 'smooth', 10, 1040, 50],
+    ['MB-TE-250', 'Nilgiri tea 250 g', 'Beverages', 'Nilgiri Leaf Co.', 30, 180, 0.95, 0.0005, 'smooth', 9, 360, 100],
+    ['MB-GH-DLX', 'Diwali gift hamper', 'Gifting', 'In-house packing', 0.35, 1450, 1.4, 0, 'lumpy', 6, 2900, 10],
+    ['MB-BK-5KG', 'Bulk sambar pack 5 kg', 'Wholesale', 'Kaveri Spice Mills', 0.6, 1250, 1, 0, 'intermittent', 7, 2500, 5],
+    ['MB-JG-1KG', 'Organic jaggery 1 kg', 'Pantry', 'Mandya Organics', 18, 110, 1.0, 0.001, 'smooth', 6, 220, 100],
+  ];
+  const week = [0.86, 0.9, 0.93, 0.97, 1.05, 1.18, 1.11]; // Mon..Sun
+  const items = [], sales = {};
+  for (const [sku, name, cat, supplier, base, cost, wk, trend, kind, lead, price, moq] of spec) {
+    const y = [];
+    for (let t = 0; t < days; t++) {
+      const d = new Date(start + t * dayMs), dow = (d.getUTCDay() + 6) % 7, doy = Math.floor((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / dayMs);
+      const fest = 1 + 0.9 * Math.exp(-(((doy - 300) / 9) ** 2)) + 0.25 * Math.exp(-(((doy - 245) / 6) ** 2)); // Diwali, Onam
+      const seasonal = Math.pow(week[dow], wk) * fest * (1 + trend * t);
+      if (kind === 'lumpy') { const p = 0.18 * Math.pow(fest, 2.2); y.push(r() < p ? 1 + Math.floor(gamma(1.2) * 4) : 0); }
+      else if (kind === 'intermittent') y.push(r() < 0.16 ? 1 + Math.floor(r() * 3) : 0);
+      else { const lam = base * seasonal * (kind === 'erratic' ? gamma(2) / 2 : 1); y.push(pois(lam)); }
+    }
+    sales[sku] = y;
+    const avg = I.mean(y.slice(-28));
+    items.push({ sku, name, cat, supplier, cost, price, moq, lead, review: kind === 'smooth' || kind === 'erratic' ? 7 : 14, onHand: Math.round(avg * (8 + r() * 26)), onOrder: 0,
+      target: { type: 'fill', value: kind === 'lumpy' || kind === 'intermittent' ? 0.95 : 0.98 }, orderCost: 1500, holdPct: 0.24, mode: kind === 'smooth' ? 'RS' : 'sS', method: 'auto' });
+  }
+  items.find((i) => i.sku === 'MB-KC-250').onHand = 140; // running low
+  items.find((i) => i.sku === 'MB-FP-1KG').onHand = 900; // overstocked
+  return { biz: 'Masala Box · Bengaluru', start: iso(start), items, sales, placed: [] };
+}
+
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!S || !S.items) S = demo();
+S.view = S.view || 'items'; S.sel = S.sel || S.items[0].sku;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const today = () => new Date(S.start).getTime() + (S.sales[S.items[0].sku].length - 1) * dayMs;
+
+// ---------- analysis in a worker ----------
+const worker = new Worker(URL.createObjectURL(new Blob([CORE_SRC + `
+self.onmessage = (e) => {
+  const { items, sales, H, BT } = e.data, I = self.Inventory;
+  items.forEach((it, k) => {
+    const y = sales[it.sku].slice(-400), m = 7;
+    const sel = I.autoSelect(y, m, BT, 3);
+    const key = it.method && it.method !== 'auto' ? it.method : sel.best;
+    const f = I.METHODS[key].fit(y, m);
+    const P = I.protectionDays({ mode: it.mode, review: it.review, lead: it.lead });
+    const pe = I.protectionError(y, m, key, P, 8);
+    const fc = f.forecast(H).map((v) => Math.max(0, v)), sd = f.sd(H);
+    self.postMessage({ type: 'item', k, sku: it.sku, res: { cls: sel.cls, best: sel.best, key, scores: sel.scores, fc, sd, fitted: f.fitted.slice(-365), protection: pe, P, name: f.name } });
+  });
+  self.postMessage({ type: 'done' });
+};`], { type: 'text/javascript' })));
+const A = {}; let busy = false;
+function analyse(onlySku) {
+  busy = true; const st = $('#status'); st.classList.add('busy'); $('span', st).textContent = 'Fitting models…';
+  const items = onlySku ? S.items.filter((i) => i.sku === onlySku) : S.items;
+  let done = 0;
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === 'item') { A[m.sku] = m.res; done++; $('#prog').style.width = (done / items.length * 100) + '%'; }
+    if (m.type === 'done') { busy = false; st.classList.remove('busy'); $('span', st).textContent = `${S.items.length} items · updated ${nice(today())}`; setTimeout(() => ($('#prog').style.width = '0'), 400); render(); }
+  };
+  worker.postMessage({ items, sales: Object.fromEntries(items.map((i) => [i.sku, S.sales[i.sku]])), H, BT });
+}
+
+// ---------- planning maths per item ----------
+function plan(it) {
+  const a = A[it.sku]; if (!a) return null;
+  const P = I.protectionDays(it);
+  const muDaily = I.mean(a.fc.slice(0, Math.max(P, 28)));
+  const sdP = Math.max(a.protection.sd, 1e-6);
+  const pol = I.policy({ muDaily, sdP, review: it.review, lead: it.lead, target: it.target, mode: it.mode, orderCost: it.orderCost, holdCost: it.holdPct, unitCost: it.cost, moq: it.moq });
+  const pipeline = (S.placed || []).filter((p) => p.sku === it.sku && new Date(p.due).getTime() > today()).reduce((s, p) => s + p.qty, 0);
+  const position = it.onHand + pipeline;
+  const need = position <= pol.s;
+  let qty = need ? Math.max(0, pol.S - position) : 0;
+  if (qty > 0) qty = Math.max(it.moq, Math.ceil(qty / it.moq) * it.moq);
+  const cover = muDaily > 0 ? it.onHand / muDaily : Infinity;
+  const status = need && cover < it.lead ? 'risk' : need ? 'reorder' : cover > 3 * (P + pol.Q / Math.max(muDaily, 1e-9)) ? 'over' : 'ok';
+  return { ...pol, P, muDaily, position, pipeline, need, qty, cover, status, next30: a.fc.slice(0, 30).reduce((s, v) => s + v, 0) };
+}
+
+// ---------- navigation ----------
+function go(v) {
+  S.view = v; save();
+  $$('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v));
+  $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  moveInk(); render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function moveInk() { const b = $(`#tabs button[data-v="${S.view}"]`); if (!b) return; $('#ink').style.width = b.offsetWidth + 'px'; $('#ink').style.transform = `translateX(${b.offsetLeft - 4}px)`; }
+$$('#tabs button').forEach((b) => (b.onclick = () => go(b.dataset.v)));
+window.addEventListener('resize', moveInk);
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t.h); t.h = setTimeout(() => t.classList.remove('on'), 2000); }
+function tween(el, to, fmt) { const from = +el.dataset.v || 0; el.dataset.v = to; const t0 = performance.now(); const f = (now) => { const k = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+const bc = () => `<div class="bc">${[2, 1, 3, 1, 2, 1, 1, 3].map((w) => `<i style="width:${w}px"></i>`).join('')}</div>`;
+
+// ---------- items ----------
+let filter = 'all';
+$$('#filt button').forEach((b) => (b.onclick = () => { filter = b.dataset.f; $$('#filt button').forEach((x) => x.classList.toggle('on', x === b)); renderItems(); }));
+const STATUS = { risk: ['bad', 'Stock-out risk'], reorder: ['warn', 'Reorder now'], over: ['info', 'Overstocked'], ok: ['ok', 'Healthy'] };
+function spark(y, w = 120, h = 30) { const max = Math.max(1, ...y); const pts = y.map((v, i) => `${(i / (y.length - 1) * w).toFixed(1)},${(h - v / max * (h - 2) - 1).toFixed(1)}`).join(' '); return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="#8b8a83" stroke-width="1.2"/></svg>`; }
+function renderItems() {
+  $('#bizName').textContent = S.biz || 'Stock position';
+  const P = S.items.map((it) => [it, plan(it)]).filter(([, p]) => p);
+  $('#itemsLede').textContent = P.length ? `Forecasts and reorder points for ${S.items.length} items, worked out from ${n0(S.sales[S.items[0].sku].length)} days of sales up to ${nice(today())}.` : 'Fitting forecasts…';
+  const stockVal = P.reduce((s, [it]) => s + it.onHand * it.cost, 0), toBuy = P.filter(([, p]) => p.need), buyVal = toBuy.reduce((s, [it, p]) => s + p.qty * it.cost, 0), risk = P.filter(([, p]) => p.status === 'risk').length;
+  const k = $('#kpis');
+  if (!k.children.length) k.innerHTML = `<div class="kpi">${bc()}<span>Stock on hand</span><b data-k="a">0</b><small>at cost</small></div><div class="kpi" style="--c:var(--amber)">${bc()}<span>Orders to raise</span><b data-k="b">0</b><small data-k="bs"></small></div><div class="kpi" style="--c:var(--red)">${bc()}<span>At risk</span><b data-k="c">0</b><small>would run out before a new order lands</small></div><div class="kpi" style="--c:var(--sky)">${bc()}<span>Next 30 days</span><b data-k="d">0</b><small>forecast revenue</small></div>`;
+  tween($('[data-k=a]', k), stockVal, inrS); tween($('[data-k=b]', k), toBuy.length, (x) => Math.round(x)); $('[data-k=bs]', k).textContent = `worth ${inrS(buyVal)} at cost`;
+  tween($('[data-k=c]', k), risk, (x) => Math.round(x)); tween($('[data-k=d]', k), P.reduce((s, [it, p]) => s + p.next30 * it.price, 0), inrS);
+  const rows = P.filter(([, p]) => filter === 'all' || (filter === 'reorder' ? p.need : p.status === filter));
+  $('#itemTable').innerHTML = `<thead><tr><th>Item</th><th class="hide-m">Last 90 days</th><th>Demand</th><th class="hide-m">Method</th><th class="n">Next 30 d</th><th class="n">On hand</th><th>Days of cover</th><th class="n">Reorder at</th><th>Status</th></tr></thead><tbody>` +
+    rows.map(([it, p], i) => { const a = A[it.sku], [c, t] = STATUS[p.status], cov = Math.min(p.cover, 120);
+      return `<tr class="click" data-s="${it.sku}" style="animation-delay:${i * 0.03}s"><td class="sku"><b>${esc(it.name)}</b><small>${it.sku} · ${esc(it.supplier)}</small></td><td class="hide-m">${spark(S.sales[it.sku].slice(-90))}</td><td><span class="chip dim">${a.cls.kind}</span></td><td class="hide-m" style="color:var(--tx2)">${esc(I.METHODS[a.key].label)}</td><td class="n">${n0(p.next30)}</td><td class="n">${n0(it.onHand)}${p.pipeline ? `<br><small style="color:var(--sky)">+${n0(p.pipeline)} coming</small>` : ''}</td><td><div class="cover"><div class="tr"><i style="width:${cov / 120 * 100}%;background:${p.cover < it.lead ? 'var(--red)' : p.cover < p.P ? 'var(--amber)' : 'var(--good)'}"></i></div><span style="font:500 12px var(--mono);width:34px;text-align:right">${isFinite(p.cover) ? Math.round(p.cover) : '∞'}</span></div></td><td class="n">${n0(p.s)}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }).join('') + '</tbody>';
+  $$('#itemTable tr[data-s]').forEach((r) => (r.onclick = () => { S.sel = r.dataset.s; go('forecast'); }));
+}
+
+// ---------- forecast ----------
+function skuPicker(sel) { sel.innerHTML = S.items.map((i) => `<option value="${i.sku}" ${i.sku === S.sel ? 'selected' : ''}>${esc(i.name)}</option>`).join(''); sel.onchange = () => { S.sel = sel.value; save(); render(); }; }
+let range = 180;
+$$('#fRange button').forEach((b) => (b.onclick = () => { range = +b.dataset.r; $$('#fRange button').forEach((x) => x.classList.toggle('on', x === b)); renderForecast(); }));
+function renderForecast() {
+  skuPicker($('#fSku'));
+  const it = S.items.find((i) => i.sku === S.sel), a = A[it.sku]; if (!a) return;
+  const y = S.sales[it.sku], hist = y.slice(-range), fit = a.fitted.slice(-Math.min(range, a.fitted.length));
+  $('#fTitle').textContent = it.name;
+  $('#fLede').textContent = `${a.cls.kind} demand (sells on ${Math.round(100 / a.cls.adi)}% of days) · forecast by ${I.METHODS[a.key].label}${it.method !== 'auto' ? ' (your choice)' : ' (won the contest)'}`;
+  const W = 820, Hh = 340, L = 46, R = 12, T = 14, B = 300;
+  const all = hist.length + H, max = Math.max(1, ...hist, ...a.fc.map((v, j) => v + 1.28 * a.sd[j])) * 1.08;
+  const X = (i) => L + i / (all - 1) * (W - L - R), Y = (v) => B - v / max * (B - T);
+  let g = '';
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#ecebe6"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="10" fill="#8b8a83">${Math.round(v)}</text>`; }
+  const t0 = today() - (hist.length - 1) * dayMs;
+  for (let i = 0; i < all; i += Math.ceil(all / 8)) g += `<text x="${X(i)}" y="${B + 18}" text-anchor="middle" font-size="10" fill="#8b8a83">${nice(t0 + i * dayMs)}</text>`;
+  const n = hist.length;
+  const band = (z) => a.fc.map((v, j) => `${X(n + j).toFixed(1)},${Y(v + z * a.sd[j]).toFixed(1)}`).join(' ') + ' ' + a.fc.map((v, j) => [X(n + j).toFixed(1), Y(Math.max(0, v - z * a.sd[j])).toFixed(1)]).reverse().map((p) => p.join(',')).join(' ');
+  const path = (arr, off) => arr.map((v, i) => `${i ? 'L' : 'M'}${X(off + i).toFixed(1)} ${Y(v).toFixed(1)}`).join('');
+  $('#fChart').innerHTML = g + `<rect x="${X(n)}" y="${T}" width="${W - R - X(n)}" height="${B - T}" fill="rgba(36,80,138,.035)"/><line x1="${X(n - 0.5)}" x2="${X(n - 0.5)}" y1="${T}" y2="${B}" stroke="#c9c8c2" stroke-dasharray="3 4"/><text x="${X(n) + 6}" y="${T + 12}" font-size="10" fill="#24508a">FORECAST</text>
+    <polygon class="fadein" points="${band(1.28)}" fill="rgba(36,80,138,.12)"/>
+    <path pathLength="1" class="ln draw" d="${path(hist, 0)}" stroke="#2b2b28" stroke-width="1.2"/>
+    <path class="ln" d="${path(fit, n - fit.length)}" stroke="#7b8ea5" stroke-width="1" stroke-dasharray="3 3" opacity=".6" style="animation:fade 1s .3s both"/>
+    <path pathLength="1" class="ln draw" d="${path(a.fc, n)}" stroke="#24508a" stroke-width="2.2" style="animation-delay:.4s"/>`;
+  $('#contestHint').textContent = `Each method refit at 3 earlier dates and scored on the next ${BT} days. Lowest MASE wins. Click a row to use that method.`;
+  $('#contest').innerHTML = `<thead><tr><th>Method</th><th class="n">MASE</th><th class="n">sMAPE</th><th class="n">Bias</th></tr></thead><tbody>${a.scores.map((s, i) => `<tr class="click ${s.key === a.key ? 'best' : ''}" data-m="${s.key}" style="animation-delay:${i * 0.04}s"><td>${s.key === a.key ? '<span class="chip ok" style="margin-right:6px">in use</span>' : ''}${esc(I.METHODS[s.key].label)}</td><td class="n">${s.mase.toFixed(3)}</td><td class="n">${s.smape.toFixed(1)}%</td><td class="n" style="color:${Math.abs(s.bias) > 0.1 ? 'var(--amber)' : 'inherit'}">${s.bias >= 0 ? '+' : ''}${(s.bias * 100).toFixed(1)}%</td></tr>`).join('')}
+    <tr class="click" data-m="auto"><td colspan="4" style="color:var(--tx2)">${it.method === 'auto' ? 'Picking automatically' : '↺ Go back to automatic choice'}</td></tr></tbody>`;
+  $$('#contest tr[data-m]').forEach((r) => (r.onclick = () => { it.method = r.dataset.m; save(); analyse(it.sku); }));
+  // weekly bars
+  const wk = [...Array(8)].map((_, w) => a.fc.slice(w * 7, w * 7 + 7).reduce((s, v) => s + v, 0)).filter((_, w) => (w + 1) * 7 <= H);
+  const mx = Math.max(1, ...wk);
+  $('#weekBars').innerHTML = wk.map((v, w) => { const h2 = v / mx * 110, x = 10 + w * (360 / wk.length); return `<rect x="${x}" y="${125 - h2}" width="${360 / wk.length - 10}" height="${h2}" rx="2" fill="${w ? '#c9d6e6' : '#24508a'}" style="transform-origin:${x}px 125px;animation:grow .7s var(--ease) ${w * 0.06}s both"/><text x="${x + (360 / wk.length - 10) / 2}" y="${120 - h2}" text-anchor="middle" font-size="10" fill="#1a1a18">${n0(v)}</text><text x="${x + (360 / wk.length - 10) / 2}" y="142" text-anchor="middle" font-size="9.5" fill="#8b8a83">wk ${w + 1}</text>`; }).join('') + '<style>@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}</style>';
+}
+
+// ---------- policy ----------
+function renderPolicy() {
+  skuPicker($('#pSku'));
+  const it = S.items.find((i) => i.sku === S.sel), a = A[it.sku]; if (!a) return;
+  $('#pTitle').textContent = it.name;
+  const F = (label, key, val, type = 'num', opts) => type === 'sel' ? `<div class="f"><label>${label}</label><select data-k="${key}">${opts.map(([v, t]) => `<option value="${v}" ${String(val) === String(v) ? 'selected' : ''}>${t}</option>`).join('')}</select></div>` : `<div class="f"><label>${label}</label><input data-k="${key}" value="${val}" inputmode="decimal"></div>`;
+  if ($('#pForm').dataset.sku !== it.sku) {
+    $('#pForm').dataset.sku = it.sku;
+    $('#pForm').innerHTML = F('Supplier lead time (days)', 'lead', it.lead) + F('Review every (days)', 'review', it.review) +
+      F('Ordering', 'mode', it.mode, 'sel', [['RS', 'Top up every review'], ['sS', 'Order when low']]) + F('Target', 'ttype', it.target.type, 'sel', [['fill', 'Fill rate (share of units)'], ['csl', 'Cycle service (no stock-out)']]) +
+      F('Target %', 'tval', +(it.target.value * 100).toFixed(1)) + F('Minimum order (units)', 'moq', it.moq) + F('Unit cost (₹)', 'cost', it.cost) + F('Cost per order (₹)', 'orderCost', it.orderCost) + F('Holding cost (% a year)', 'hold', Math.round(it.holdPct * 100)) + F('On hand now', 'onHand', it.onHand);
+    $$('#pForm [data-k]').forEach((el) => (el.onchange = el.oninput = () => {
+      const v = parseFloat(el.value), k = el.dataset.k;
+      if (k === 'mode') it.mode = el.value; else if (k === 'ttype') it.target.type = el.value; else if (!isFinite(v)) return;
+      else if (k === 'tval') it.target.value = Math.min(0.999, Math.max(0.5, v / 100)); else if (k === 'hold') it.holdPct = v / 100; else it[k] = k === 'lead' || k === 'review' ? Math.max(1, Math.round(v)) : v;
+      save(); clearTimeout(window.__pd);
+      window.__pd = setTimeout(() => (k === 'lead' || k === 'review' || k === 'mode' ? analyse(it.sku) : renderPolicy()), 220);
+    }));
+  }
+  const p = plan(it), y = S.sales[it.sku].slice(-365);
+  const sim = I.simulate({ demand: y, review: it.review, lead: it.lead, s: p.s, S: p.S, start: p.S, backorder: false });
+  const sl = (v, l) => `<div class="stat"><span>${l}</span><b>${v}</b></div>`;
+  $('#pStats').innerHTML = sl(n0(p.s), it.mode === 'RS' ? 'Order up to' : 'Reorder point') + sl(it.mode === 'RS' ? `every ${it.review} d` : n0(p.S), it.mode === 'RS' ? 'Ordering' : 'Order up to') + sl(n0(p.ss), 'Safety stock') +
+    sl(inrS(p.ss * it.cost), 'Safety stock value') + sl((it.target.type === 'fill' ? p.fill : p.csl) * 100 >= 99.95 ? '>99.9%' : ((it.target.type === 'fill' ? p.fill : p.csl) * 100).toFixed(1) + '%', 'Promised') + sl((sim.fillRate * 100).toFixed(1) + '%', 'Last year, fill rate') +
+    sl(n0(p.muDaily * p.P), `Expected demand in ${p.P} d`) + sl('±' + n0(p.sdP), 'Forecast error over that') + sl(sim.stockoutDays, 'Days it would have run out');
+  $('#simHint').textContent = `Actual daily sales from ${nice(today() - 364 * dayMs)} to ${nice(today())}, starting full. ${sim.orders} orders placed, average ${n0(sim.avgOnHand)} units on the shelf, ${(sim.fillRate * 100).toFixed(1)}% of units sold from stock.`;
+  // sim chart
+  const W = 820, L = 46, R = 10, T = 12, B = 262, tr = sim.trace, max = Math.max(...tr.map((d) => d.onHand), p.S) * 1.08 || 1;
+  const X = (i) => L + i / (tr.length - 1) * (W - L - R), Y = (v) => B - v / max * (B - T);
+  let g = ''; for (let k = 0; k <= 4; k++) { const v = max * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#ecebe6"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="10" fill="#8b8a83">${Math.round(v)}</text>`; }
+  for (let i = 0; i < tr.length; i += 61) g += `<text x="${X(i)}" y="${B + 18}" text-anchor="middle" font-size="10" fill="#8b8a83">${nice(today() - (364 - i) * dayMs)}</text>`;
+  const d = tr.map((q, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(q.onHand).toFixed(1)}`).join('');
+  const arrivals = []; tr.forEach((q, i) => { if (q.order) arrivals.push(i + it.lead); });
+  const outs = tr.map((q, i) => (q.sold < q.demand ? i : -1)).filter((i) => i >= 0);
+  $('#simChart').innerHTML = g + `<path d="${d} L${X(tr.length - 1)} ${B} L${X(0)} ${B}Z" fill="rgba(36,80,138,.07)" class="fadein"/><path pathLength="1" class="ln draw" d="${d}" stroke="#24508a" stroke-width="1.6"/>
+    <line x1="${L}" x2="${W - R}" y1="${Y(p.s)}" y2="${Y(p.s)}" stroke="#a86512" stroke-dasharray="5 4"/><text x="${W - R}" y="${Y(p.s) - 5}" text-anchor="end" font-size="10" fill="#a86512">${it.mode === 'RS' ? 'order up to' : 'reorder point'} ${n0(p.s)}</text>
+    ${arrivals.filter((i) => i < tr.length).map((i, k) => `<g style="animation:fade .4s ${0.6 + k * 0.01}s both"><line x1="${X(i)}" x2="${X(i)}" y1="${B}" y2="${B - 10}" stroke="#7b8ea5" stroke-width="2"/></g>`).join('')}
+    ${outs.map((i, k) => `<circle cx="${X(i)}" cy="${B - 3}" r="3.2" fill="#b3261e" style="animation:fade .3s ${0.8 + k * 0.01}s both"/>`).join('')}`;
+  // tradeoff curve
+  const pts = []; for (let v = 0.8; v <= 0.9991; v += 0.0025) { const q = I.policy({ muDaily: p.muDaily, sdP: p.sdP, review: it.review, lead: it.lead, target: { type: it.target.type, value: v }, mode: it.mode, orderCost: it.orderCost, holdCost: it.holdPct, unitCost: it.cost, moq: it.moq }); pts.push([v, q.ss * it.cost]); }
+  const mx = Math.max(...pts.map((q) => q[1]), 1), XX = (v) => 50 + (v - 0.8) / 0.2 * 750, YY = (c) => 190 - c / mx * 170;
+  let g2 = ''; for (let v = 0.8; v <= 1.0001; v += 0.05) g2 += `<text x="${XX(v)}" y="210" text-anchor="middle" font-size="10" fill="#8b8a83">${Math.round(v * 100)}%</text>`;
+  for (let k = 0; k <= 2; k++) g2 += `<text x="44" y="${YY(mx * k / 2) + 4}" text-anchor="end" font-size="10" fill="#8b8a83">${inrS(mx * k / 2)}</text><line x1="50" x2="800" y1="${YY(mx * k / 2)}" y2="${YY(mx * k / 2)}" stroke="#ecebe6"/>`;
+  const cur = [it.target.value, p.ss * it.cost];
+  $('#tradeoff').innerHTML = g2 + `<path pathLength="1" class="ln draw" d="${pts.map((q, i) => `${i ? 'L' : 'M'}${XX(q[0]).toFixed(1)} ${YY(q[1]).toFixed(1)}`).join('')}" stroke="#24508a" stroke-width="2" fill="none"/><circle cx="${XX(cur[0])}" cy="${YY(cur[1])}" r="7" fill="#24508a" stroke="#ffffff" stroke-width="3" style="transition:all .4s"/><text x="${XX(cur[0]) - 10}" y="${YY(cur[1]) - 12}" text-anchor="end" font-size="11" fill="#1a1a18">${(cur[0] * 100).toFixed(1)}% → ${inrS(cur[1])} safety stock</text>`;
+}
+
+// ---------- purchase orders ----------
+function poRows() { return S.items.map((it) => [it, plan(it)]).filter(([, p]) => p && p.need && p.qty > 0); }
+function renderOrders() {
+  const rows = poRows(), by = {};
+  rows.forEach(([it, p]) => (by[it.supplier] = by[it.supplier] || []).push([it, p]));
+  const tot = rows.reduce((s, [it, p]) => s + p.qty * it.cost, 0);
+  $('#oLede').textContent = rows.length ? `${rows.length} items have fallen to their reorder point. ${Object.keys(by).length} suppliers, ${inrS(tot)} at cost.` : 'Nothing needs ordering today.';
+  $('#oList').innerHTML = Object.entries(by).map(([sup, list], j) => `<div class="panel supplier" style="animation:rise .5s var(--ease) ${j * 0.06}s both"><h4>${esc(sup)} <span class="chip dim">${list.length} items · ${inrS(list.reduce((s, [it, p]) => s + p.qty * it.cost, 0))}</span></h4><div class="scroll"><table><thead><tr><th>Item</th><th class="n">On hand</th><th class="n">On the way</th><th class="n">Reorder at</th><th class="n">Order</th><th class="n">Value</th><th>Arrives</th><th></th></tr></thead><tbody>${list.map(([it, p]) => `<tr><td class="sku"><b>${esc(it.name)}</b><small>${it.sku}</small></td><td class="n">${n0(it.onHand)}</td><td class="n">${n0(p.pipeline)}</td><td class="n">${n0(p.s)}</td><td class="n"><b>${n0(p.qty)}</b></td><td class="n">${inr(p.qty * it.cost)}</td><td>${nice(today() + it.lead * dayMs)}</td><td><span class="chip ${p.status === 'risk' ? 'bad' : 'warn'}">${p.status === 'risk' ? 'urgent' : 'due'}</span></td></tr>`).join('')}</tbody></table></div></div>`).join('') +
+    ((S.placed || []).length ? `<div class="panel"><h3>Already ordered</h3><p class="hint">Counted as stock on the way until they arrive.</p><table><thead><tr><th>Item</th><th class="n">Qty</th><th>Ordered</th><th>Due</th><th></th></tr></thead><tbody>${S.placed.slice().reverse().map((p, i) => `<tr><td>${esc((S.items.find((x) => x.sku === p.sku) || {}).name || p.sku)}</td><td class="n">${n0(p.qty)}</td><td>${nice(p.at)}</td><td>${nice(p.due)}</td><td><button class="btn ghost sm" data-un="${S.placed.length - 1 - i}">Undo</button></td></tr>`).join('')}</tbody></table></div>` : '');
+  $$('[data-un]').forEach((b) => (b.onclick = () => { S.placed.splice(+b.dataset.un, 1); save(); renderOrders(); }));
+}
+$('#oPlace').onclick = () => { const rows = poRows(); if (!rows.length) return toast('Nothing to order'); S.placed = S.placed || []; rows.forEach(([it, p]) => S.placed.push({ sku: it.sku, qty: p.qty, at: iso(today()), due: iso(today() + it.lead * dayMs) })); save(); renderOrders(); toast(`${rows.length} orders recorded`); };
+$('#oCsv').onclick = () => { const rows = poRows(); download('purchase-orders.csv', [['supplier', 'sku', 'item', 'qty', 'unit_cost', 'value', 'arrives']].concat(rows.map(([it, p]) => [it.supplier, it.sku, it.name, p.qty, it.cost, p.qty * it.cost, iso(today() + it.lead * dayMs)]))); };
+function download(name, rows) { const csv = rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = name; a.click(); }
+
+// ---------- data ----------
+function renderData() {
+  $('#itemEdit').innerHTML = `<thead><tr><th>Item</th><th class="n">On hand</th><th class="n">Cost ₹</th><th>Supplier</th></tr></thead><tbody>${S.items.map((it, i) => `<tr><td class="sku"><b>${esc(it.name)}</b><small>${it.sku}</small></td><td><input class="ed" data-i="${i}" data-k="onHand" value="${it.onHand}" style="width:80px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px;font:500 13px var(--mono);text-align:right"></td><td><input class="ed" data-i="${i}" data-k="cost" value="${it.cost}" style="width:70px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px;font:500 13px var(--mono);text-align:right"></td><td><input class="ed" data-i="${i}" data-k="supplier" value="${esc(it.supplier)}" style="width:100%;min-width:130px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px"></td></tr>`).join('')}</tbody>`;
+  $$('.ed').forEach((el) => (el.onchange = () => { const it = S.items[+el.dataset.i]; it[el.dataset.k] = el.dataset.k === 'supplier' ? el.value : parseFloat(el.value) || 0; save(); toast('Saved'); }));
+}
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add('on'); }));
+['dragleave', 'drop'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove('on'); }));
+drop.addEventListener('drop', (ev) => { const f = ev.dataTransfer.files[0]; if (f) readCsv(f); });
+$('#file').onchange = (e) => e.target.files[0] && readCsv(e.target.files[0]);
+function readCsv(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const lines = rd.result.split(/\r?\n/).filter((l) => l.trim()); const head = lines[0].toLowerCase().split(',').map((x) => x.trim().replace(/"/g, ''));
+    const di = head.indexOf('date'), si = head.indexOf('sku'), qi = head.indexOf('qty');
+    if (di < 0 || si < 0 || qi < 0) return toast('Need columns date, sku, qty');
+    const rows = lines.slice(1).map((l) => l.split(',').map((x) => x.trim().replace(/"/g, ''))).filter((r) => r[di] && r[si]);
+    const times = rows.map((r) => Date.parse(r[di])).filter(isFinite); if (!times.length) return toast('No valid dates');
+    const t0 = Math.min(...times), t1 = Math.max(...times), n = Math.round((t1 - t0) / dayMs) + 1;
+    if (n < 60) return toast('Need at least 60 days of sales');
+    const sales = {};
+    for (const r of rows) { const t = Date.parse(r[di]); if (!isFinite(t)) continue; (sales[r[si]] = sales[r[si]] || new Array(n).fill(0))[Math.round((t - t0) / dayMs)] += parseFloat(r[qi]) || 0; }
+    const old = Object.fromEntries(S.items.map((i) => [i.sku, i]));
+    S.items = Object.keys(sales).map((sku) => old[sku] || { sku, name: sku, cat: '', supplier: 'Supplier', cost: 100, price: 200, moq: 1, lead: 7, review: 7, onHand: Math.round(I.mean(sales[sku].slice(-28)) * 20), target: { type: 'fill', value: 0.97 }, orderCost: 1000, holdPct: 0.24, mode: 'RS', method: 'auto' });
+    S.sales = sales; S.start = iso(t0); S.biz = file.name.replace(/\.csv$/i, ''); S.placed = []; S.sel = S.items[0].sku;
+    for (const k in A) delete A[k];
+    save(); $('#kpis').innerHTML = ''; toast(`${S.items.length} items, ${n} days loaded`); analyse(); renderData();
+  };
+  rd.readAsText(file);
+}
+$('#sample').onclick = () => { const rows = [['date', 'sku', 'qty']]; const t0 = new Date(S.start).getTime(); S.items.slice(0, 3).forEach((it) => S.sales[it.sku].forEach((q, t) => rows.push([iso(t0 + t * dayMs), it.sku, q]))); download('sales-sample.csv', rows); };
+$('#reset').onclick = () => { const v = S.view; S = demo(); S.view = v; S.sel = S.items[0].sku; for (const k in A) delete A[k]; save(); $('#kpis').innerHTML = ''; analyse(); renderData(); toast('Demo shop reloaded'); };
+
+// ---------- benchmark ----------
+function renderBench() {
+  const b = BENCH; if (!b) { $('#bTable').innerHTML = '<tr><td>Run the benchmarks and rebuild.</td></tr>'; return; }
+  const pairs = [['Seasonal naive', 'snaive', 'SeasonalNaive'], ['Naive', 'naive', 'Naive'], ['SES', 'ses', 'SESOpt'], ['Holt', 'holt', 'Holt'], ['Auto ETS', 'ets', 'AutoETS'], ['Theta', 'theta', 'Theta'], ['Damped trend', 'damped', null], ['Comb (S-H-D)', 'comb', null], ['Holt-Winters', 'hw', null], ['AutoTheta', null, 'AutoTheta']];
+  const O = b.ours.methods, R = b.sf.methods;
+  const best = Math.min(...Object.values(O).map((m) => m.smape));
+  $('#bKpis').innerHTML = `<div class="kpi">${bc()}<span>M4 series</span><b>${n0(b.ours.series)}</b><small>Monthly, 18 months ahead</small></div><div class="kpi" style="--c:var(--sky)">${bc()}<span>Theta, sMAPE</span><b>${O.theta.smape.toFixed(2)}</b><small>statsforecast ${R.Theta.smape.toFixed(2)}</small></div><div class="kpi" style="--c:var(--violet)">${bc()}<span>Croston family</span><b>${b.croston ? b.croston.series : '–'}</b><small>series, worst gap ${b.croston ? b.croston.worst.toExponential(0) : '–'}</small></div><div class="kpi" style="--c:var(--amber)">${bc()}<span>Service targets met</span><b>${b.policy.filter((p) => p.ok).length}/${b.policy.length}</b><small>within 0.3pp fill, 1pp cycle</small></div>`;
+  $('#bTable').innerHTML = `<thead><tr><th>Method</th><th class="n">sMAPE<br>ours</th><th class="n">sMAPE<br>statsfc</th><th class="n">MASE<br>ours</th><th class="n">MASE<br>statsfc</th></tr></thead><tbody>${pairs.map(([l, o, r], i) => `<tr style="animation-delay:${i * 0.03}s" class="${o && O[o].smape === best ? 'best' : ''}"><td>${l}</td><td class="n">${o ? O[o].smape.toFixed(3) : '–'}</td><td class="n">${r ? R[r].smape.toFixed(3) : '–'}</td><td class="n">${o ? O[o].mase.toFixed(3) : '–'}</td><td class="n">${r ? R[r].mase.toFixed(3) : '–'}</td></tr>`).join('')}</tbody>`;
+  const list = pairs.filter(([, o, r]) => o || r), mx = Math.max(...list.flatMap(([, o, r]) => [o ? O[o].smape : 0, r ? R[r].smape : 0])) * 1.05;
+  $('#bChart').innerHTML = list.map(([l, o, r], i) => { const y = 10 + i * 28; const w1 = o ? O[o].smape / mx * 330 : 0, w2 = r ? R[r].smape / mx * 330 : 0;
+    return `<text x="120" y="${y + 13}" text-anchor="end" font-size="10.5" fill="#8b8a83">${l}</text><rect x="128" y="${y}" width="${w1}" height="10" rx="2" fill="#24508a" style="transform-origin:128px 0;animation:gx .8s var(--ease) ${i * 0.05}s both"/><rect x="128" y="${y + 12}" width="${w2}" height="10" rx="2" fill="#7b8ea5" style="transform-origin:128px 0;animation:gx .8s var(--ease) ${i * 0.05 + 0.1}s both"/>${o ? `<text x="${132 + w1}" y="${y + 9}" font-size="9.5" fill="#1a1a18">${O[o].smape.toFixed(2)}</text>` : ''}${r ? `<text x="${132 + w2}" y="${y + 21}" font-size="9.5" fill="#7b8ea5">${R[r].smape.toFixed(2)}</text>` : ''}`; }).join('') + '<style>@keyframes gx{from{transform:scaleX(0)}to{transform:scaleX(1)}}</style>';
+  $('#pTable').innerHTML = `<thead><tr><th>Case</th><th class="n">Promised</th><th class="n">Delivered</th></tr></thead><tbody>${b.policy.map((p) => `<tr><td style="font-size:12.5px">${esc(p.case.split(',')[0])} · <span style="color:var(--tx2)">${esc(p.label)}</span></td><td class="n">${(p.want * 100).toFixed(1)}%</td><td class="n" style="color:${p.ok ? 'var(--lime)' : 'var(--red)'}">${(p.got * 100).toFixed(2)}%</td></tr>`).join('')}</tbody>`;
+}
+
+function render() {
+  if (S.view === 'items') renderItems();
+  if (S.view === 'forecast') renderForecast();
+  if (S.view === 'policy') renderPolicy();
+  if (S.view === 'orders') renderOrders();
+  if (S.view === 'data') renderData();
+  if (S.view === 'bench') renderBench();
+}
+go(S.view);
+analyse();
+})();
+</script>
+</body>
+</html>

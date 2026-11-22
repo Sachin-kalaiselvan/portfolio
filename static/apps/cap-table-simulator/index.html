@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cap Table Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f3ecdf;--paper2:#ebe2d1;--card:#fbf7ef;--ink:#1d1a16;--ink2:#4a443b;--mute:#8a8174;--rule:#d8ccb6;
+  --ox:#8c2f39;--ox2:#b04a52;--forest:#2f5d50;--brass:#b8893b;--slate:#3d5a80;--plum:#6b4e71;--terra:#c46a3c;--sea:#4f8a86;--olive:#7a7f3a;
+  --serif:'Fraunces',Georgia,serif;--sans:'Instrument Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+body{min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+/* rail */
+.rail{position:sticky;top:0;height:100vh;padding:22px 16px;border-right:1px solid var(--rule);background:linear-gradient(180deg,#efe6d4,#e9dfcb);display:flex;flex-direction:column;gap:18px;overflow:hidden}
+.brand{display:flex;gap:10px;align-items:center}
+.seal{width:44px;height:44px;flex:none}
+.seal .spin{transform-origin:50% 50%;animation:spin 40s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brand b{font:800 17px/1.05 var(--serif);letter-spacing:-.01em}
+.brand small{display:block;font:500 12px var(--sans);color:var(--mute);margin-top:3px}
+.nav{display:flex;flex-direction:column;gap:3px;position:relative}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;font-weight:600;color:var(--ink2);position:relative;z-index:1;transition:color .25s}
+.nav button svg{width:18px;height:18px;flex:none}
+.nav button.on{color:var(--paper)}
+.nav .pill{position:absolute;left:0;right:0;height:38px;border-radius:10px;background:var(--ink);transition:transform .45s var(--ease);z-index:0;box-shadow:0 6px 18px rgba(29,26,22,.25)}
+.rail .foot{margin-top:auto;font:12px/1.45 var(--sans);color:var(--mute)}
+.rail .foot select{width:100%;margin-top:6px;padding:7px 8px;border-radius:8px;border:1px solid var(--rule);background:var(--card)}
+/* main */
+main{padding:26px clamp(16px,3vw,40px) 80px;min-width:0}
+.top{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.top .co{flex:1;min-width:240px}
+.co input{all:unset;font:800 clamp(26px,3.4vw,40px)/1 var(--serif);letter-spacing:-.02em;width:100%;border-bottom:2px dashed transparent;transition:border-color .2s}
+.co input:hover,.co input:focus{border-bottom-color:var(--rule)}
+.co .sub{font:400 13px var(--sans);color:var(--mute);margin-top:8px}
+.seg{display:inline-flex;background:var(--paper2);border:1px solid var(--rule);border-radius:999px;padding:3px;position:relative}
+.seg button{all:unset;cursor:pointer;padding:6px 13px;border-radius:999px;font:600 13px var(--sans);position:relative;z-index:1;transition:color .2s}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:10px;font-weight:600;font-size:13.5px;background:var(--ink);color:var(--paper);transition:transform .15s,box-shadow .2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(29,26,22,.2)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+.btn.ox{background:var(--ox)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.view{display:none}
+.view.on{display:block;animation:enter .55s var(--ease)}
+@keyframes enter{from{opacity:0;transform:translateY(14px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:18px 20px;position:relative}
+.card h3{margin:0 0 4px;font:700 19px/1.15 var(--serif);letter-spacing:-.01em}
+.card .hint{color:var(--mute);font-size:13px;margin:0 0 14px}
+.kicker{font:600 12px var(--sans);color:var(--ox)}
+.stagger>*{animation:rise .6s var(--ease) both}
+.stagger>*:nth-child(2){animation-delay:.05s}.stagger>*:nth-child(3){animation-delay:.1s}.stagger>*:nth-child(4){animation-delay:.15s}.stagger>*:nth-child(5){animation-delay:.2s}.stagger>*:nth-child(6){animation-delay:.25s}.stagger>*:nth-child(n+7){animation-delay:.3s}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-bottom:18px;background:var(--card);border:1px solid var(--rule);border-radius:10px}
+.kpi{padding:14px 18px;border-left:1px solid var(--rule);color:var(--ink)}
+.kpi:first-child{border-left:0}
+.kpi span{font:500 11.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--mute)}
+.kpi b{display:block;font:700 26px/1.15 var(--serif);margin-top:4px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.kpi small{color:var(--ink2);font-size:12px}
+.kpi.ox b{color:var(--ox)}.kpi.fo b{color:var(--forest)}.kpi.br b{color:#7d5c22}
+/* events */
+.events{display:flex;flex-direction:column;gap:0;position:relative}
+.ev{position:relative;padding-left:34px;padding-bottom:14px}
+.ev:before{content:'';position:absolute;left:11px;top:22px;bottom:-4px;width:2px;background:repeating-linear-gradient(180deg,var(--rule) 0 6px,transparent 6px 10px)}
+.ev:last-child:before{display:none}
+.ev .dot{position:absolute;left:2px;top:12px;width:20px;height:20px;border-radius:50%;border:2px solid var(--card);box-shadow:0 0 0 1px var(--rule);display:grid;place-items:center;color:#fff;font:700 10px var(--mono)}
+.ev .box{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:12px 14px;transition:border-color .2s,box-shadow .25s,transform .25s}
+.ev.sel .box{border-color:var(--ink);box-shadow:0 10px 26px -14px rgba(29,26,22,.45)}
+.ev.err .box{border-color:var(--ox);background:#fbefee}
+.ev .head{display:flex;align-items:center;gap:8px;cursor:pointer}
+.ev .head b{font:700 15px var(--serif)}
+.ev .head .tag{font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.ev .head .sp{flex:1}
+.ev .head .x{all:unset;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--mute)}
+.ev .head .x:hover{background:var(--paper2);color:var(--ink)}
+.ev .sum{font-size:13px;color:var(--ink2);margin-top:2px}
+.ev .errmsg{color:var(--ox);font-size:12.5px;margin-top:6px;font-weight:600}
+.ev .form{display:none;margin-top:12px;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.ev.open .form{display:grid;animation:rise .35s var(--ease)}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font:500 12px var(--sans);color:var(--ink2)}
+.f input,.f select{padding:7px 9px;border:1px solid var(--rule);border-radius:8px;background:#fff;font:500 14px var(--mono);width:100%;min-width:0}
+.f input:focus,.f select:focus{outline:2px solid rgba(140,47,57,.3);border-color:var(--ox)}
+.rows{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
+.rows .r{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
+.rows .r input{padding:6px 8px;border:1px solid var(--rule);border-radius:8px;background:#fff;font:500 13.5px var(--mono);min-width:0}
+.rows .r button{all:unset;cursor:pointer;padding:0 8px;color:var(--mute)}
+.adders{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0 34px}
+.adders button{all:unset;cursor:pointer;padding:6px 11px;border-radius:999px;border:1px dashed var(--ink2);font:600 12.5px var(--sans);color:var(--ink2);transition:background .2s,color .2s}
+.adders button:hover{background:var(--ink);color:var(--paper);border-style:solid}
+/* stacked bars */
+.stack{display:flex;flex-direction:column;gap:9px}
+.srow{display:grid;grid-template-columns:120px 1fr 64px;gap:10px;align-items:center;cursor:pointer;padding:3px 4px;border-radius:8px;transition:background .2s}
+.srow:hover{background:var(--paper2)}
+.srow.sel{background:#e7dcc6}
+.srow .lab{font:600 12.5px var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .bar{height:20px;border-radius:5px;overflow:hidden;display:flex;background:var(--paper2)}
+.srow .bar i{display:block;height:100%;transition:width .7s var(--ease);border-right:1px solid rgba(251,247,239,.7)}
+.srow .n{font:500 11.5px var(--mono);color:var(--mute);text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2)}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font:500 12px var(--sans);color:var(--mute);text-align:left;padding:8px 8px;border-bottom:1px solid var(--rule)}
+td{padding:9px 8px;border-bottom:1px solid #eadfcb}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr{animation:rise .5s var(--ease) both}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:1px}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font:600 11px var(--mono);letter-spacing:.04em}
+.chip.cap{background:#f1dcdc;color:var(--ox)}.chip.discount{background:#dfe9e2;color:var(--forest)}.chip.round{background:#efe4cd;color:#7d5c22}
+.chip.yes{background:#dfe9e2;color:var(--forest)}.chip.no{background:#f1dcdc;color:var(--ox)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.steps button{all:unset;cursor:pointer;padding:6px 11px;border-radius:8px;border:1px solid var(--rule);font:600 12.5px var(--sans);background:var(--card);transition:all .2s}
+.steps button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+/* sliders */
+.sl{margin-bottom:16px}
+.sl .t{display:flex;justify-content:space-between;align-items:baseline}
+.sl .t label{font:600 12px var(--sans);color:var(--ink2)}
+.sl .t b{font:700 16px var(--serif)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:2px 0 0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--ox) var(--p,50%),var(--rule) var(--p,50%))}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--ox) var(--p,50%),var(--rule) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--card);border:3px solid var(--ox);margin-top:-8px;box-shadow:0 3px 8px rgba(0,0,0,.2);transition:transform .15s}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--card);border:3px solid var(--ox)}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15)}
+svg text{font-family:var(--mono)}
+.donutwrap{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:center}
+.donut circle.seg{transition:stroke-dasharray .9s var(--ease),stroke-dashoffset .9s var(--ease)}
+.payrow{display:grid;grid-template-columns:150px 1fr 120px;gap:10px;align-items:center;margin-bottom:9px}
+.payrow .lab{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.payrow .bar{height:22px;background:var(--paper2);border-radius:6px;overflow:hidden;position:relative}
+.payrow .bar i{position:absolute;left:0;top:0;bottom:0;transition:width .6s var(--ease)}
+.payrow .bar em{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.35) 0 4px,transparent 4px 8px);transition:width .6s var(--ease)}
+.payrow .v{font:600 13px var(--mono);text-align:right}
+.payrow .v small{display:block;color:var(--mute);font-weight:500;font-size:11px}
+.curve path.line{fill:none;stroke-width:2.2;stroke-linejoin:round;animation:draw 1.1s var(--ease) both}
+@keyframes draw{from{stroke-dasharray:2000;stroke-dashoffset:2000}to{stroke-dasharray:2000;stroke-dashoffset:0}}
+.pass{color:var(--forest);font-weight:700}.fail{color:var(--ox);font-weight:700}
+.exhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin:16px 0 6px}
+.exhead b{font:700 15px var(--serif)}
+.prose{max-width:760px}
+.prose h3{font:700 22px var(--serif);margin:22px 0 6px}
+.prose p,.prose li{color:var(--ink2)}
+.prose code{font:500 13px var(--mono);background:var(--paper2);padding:1px 5px;border-radius:4px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,30px);opacity:0;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:600;transition:all .35s var(--ease);z-index:50;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.empty{padding:28px;text-align:center;color:var(--mute)}
+.terms td input{width:80px;padding:5px 6px;border:1px solid var(--rule);border-radius:6px;font:500 13px var(--mono);background:#fff}
+.terms td select{padding:5px 6px;border:1px solid var(--rule);border-radius:6px;background:#fff}
+@media (max-width:1100px){.g2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi:nth-child(3){border-left:0}.kpi:nth-child(n+3){border-top:1px solid var(--rule)}.g3{grid-template-columns:1fr}}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;inset:auto 0 0 0;height:auto;flex-direction:row;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:40;border-right:0;border-top:1px solid var(--rule)}
+  .rail .brand,.rail .foot{display:none}
+  .nav{flex-direction:row;width:100%;justify-content:space-between}
+  .nav button{flex-direction:column;gap:2px;padding:6px 4px;font-size:10.5px;flex:1;justify-content:center;text-align:center}
+  .nav .pill{display:none}
+  .nav button.on{color:var(--ox)}
+  main{padding:18px 14px 100px}
+  .donutwrap{grid-template-columns:1fr}
+  .payrow{grid-template-columns:96px 1fr 92px}
+  .srow{grid-template-columns:80px 1fr 50px}
+  .mobile-only{display:block!important}
+  .table-scroll{overflow-x:auto}
+}
+.mobile-only{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <svg class="seal" viewBox="0 0 44 44"><g class="spin"><circle cx="22" cy="22" r="20" fill="none" stroke="#8c2f39" stroke-width="1.2" stroke-dasharray="2 2.2"/>
+        <g fill="none" stroke="#b8893b" stroke-width=".7">
+        <ellipse cx="22" cy="22" rx="16" ry="7"/><ellipse cx="22" cy="22" rx="16" ry="7" transform="rotate(60 22 22)"/><ellipse cx="22" cy="22" rx="16" ry="7" transform="rotate(120 22 22)"/></g></g>
+        <circle cx="22" cy="22" r="7.5" fill="#1d1a16"/><path d="M18.5 22.5l2.4 2.3 4.6-5" stroke="#f3ecdf" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+      <div><b>Cap Table<br>Simulator</b><small>Safes, rounds and exits</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="pill" id="pill"></div>
+      <button data-v="rounds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="6" cy="19" r="2"/><path d="M11 5h9M11 12h9M11 19h6"/></svg>Rounds</button>
+      <button data-v="table"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18v14H3zM3 10h18M9 10v9"/></svg>Cap table</button>
+      <button data-v="model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Next round</button>
+      <button data-v="exit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Exit</button>
+      <button data-v="checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l5 5L20 6"/></svg>Checks</button>
+      <button data-v="how"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>How it works</button>
+    </nav>
+    <div class="foot">Start from
+      <select id="preset"><option value="">Load an example…</option><option value="india">Bengaluru startup, seed to Series A (₹)</option><option value="yc1">YC guide, Example 1 ($)</option><option value="yc2">YC guide, Example 2 ($)</option><option value="blank">Blank company</option></select>
+      <div style="margin-top:10px">Saved in this browser.</div>
+    </div>
+  </aside>
+  <main>
+    <div class="top">
+      <div class="co"><input id="company" spellcheck="false" aria-label="Company name"><div class="sub" id="subline"></div></div>
+      <div class="seg" id="cur"><button data-c="INR">₹ INR</button><button data-c="USD">$ USD</button></div>
+      <button class="btn ghost sm" id="exportBtn">Export CSV</button>
+    </div>
+
+    <section class="view" id="v-rounds">
+      <div class="kpis stagger" id="kpis"></div>
+      <div class="grid g2">
+        <div>
+          <div class="kicker" style="margin:0 0 10px 34px">Company history · click a step to edit</div>
+          <div class="events" id="events"></div>
+          <div class="adders" id="adders">
+            <button data-add="founders">+ Founders</button><button data-add="pool">+ Option pool</button><button data-add="grant">+ Grant</button>
+            <button data-add="safe">+ SAFE</button><button data-add="note">+ Note</button><button data-add="priced">+ Priced round</button><button data-add="secondary">+ Secondary</button>
+          </div>
+        </div>
+        <div class="card" style="align-self:start;position:sticky;top:20px">
+          <h3>Who owns what after each step</h3>
+          <p class="hint">Fully diluted. Safes + notes only show up once a priced round converts them.</p>
+          <div class="stack" id="stack"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-table">
+      <div class="steps" id="steps"></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3 id="tTitle">Cap table</h3><p class="hint" id="tHint"></p>
+          <div class="table-scroll"><table id="capTable"></table></div>
+        </div>
+        <div class="grid" style="align-content:start">
+          <div class="card"><h3>Ownership</h3><p class="hint">By holder, fully diluted.</p><div class="donutwrap"><svg class="donut" id="donut" viewBox="0 0 220 220"></svg><div class="legend" id="dLegend" style="flex-direction:column"></div></div></div>
+          <div class="card"><h3>Not yet converted</h3><p class="hint">Safes + notes still waiting on a priced round.</p><div id="pending"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-model">
+      <div id="modelBody"></div>
+    </section>
+
+    <section class="view" id="v-exit">
+      <div class="grid g2">
+        <div class="card">
+          <h3>Sell the company</h3><p class="hint">Prefs get paid first by seniority, then each preferred class flips to common if that pays it more.</p>
+          <div class="sl"><div class="t"><label>Exit value</label><b id="exitLab"></b></div><input type="range" id="exitV" min="0" max="1000" step="1"></div>
+          <div id="payRows"></div>
+        </div>
+        <div class="grid" style="align-content:start">
+          <div class="card"><h3>Payout as the exit value grows</h3><p class="hint">The kinks = a pref getting fully covered or a class converting.</p><svg class="curve" id="curve" viewBox="0 0 560 300" style="width:100%"></svg><div class="legend" id="cLegend"></div></div>
+          <div class="card"><h3>Preferred terms</h3><p class="hint">Edit and the waterfall updates.</p><div class="table-scroll"><table class="terms" id="terms"></table></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-checks">
+      <div class="kpis stagger" id="chkKpis"></div>
+      <div class="grid g2">
+        <div class="card"><h3>YC's own worked examples</h3><p class="hint">Inputs straight from appendix II of yc's post-money safe guide, run through the engine in your browser right now.</p><div id="ycList"></div></div>
+        <div class="card" style="align-self:start"><h3>Against an independent solver</h3><p class="hint" id="refHint"></p><table id="refTable"></table>
+          <p class="hint" style="margin-top:14px">The reference (<code style="font-family:var(--mono)">bench/ref.py</code>) is written separately in Python. For rounds it bisects on the price and enumerates which safes take their cap. For exits it pays out every combination of conversion choices and checks that no class could do better by switching.</p></div>
+      </div>
+    </section>
+
+    <section class="view" id="v-how">
+      <div class="card prose">
+        <div class="kicker">How it works</div>
+        <h3>Your history is the input</h3>
+        <p>List what happened, in order. Founders, pool, grants, safes, notes, priced rounds. Every screen is computed off that list, so tweak an early safe and every later round + every exit moves with it.</p>
+        <h3>Post-money safes</h3>
+        <p>A post-money safe converting at its cap owns <code>amount ÷ cap</code> of the <b>company capitalization</b>: every share, option and the existing pool, plus all converting safes and notes, but <i>not</i> the pool increase or the new money. Since the safes are inside that number it's solved together: capitalization = other shares ÷ (1 − Σ amount/cap). A safe with a discount takes whichever price is lower, cap or discounted round price. Each safe's pick changes the others, so it loops until nothing moves.</p>
+        <h3>Pre-money safes + notes</h3>
+        <p>Priced off the capitalization before any safe converts, pool increase included. Notes convert principal + simple interest.</p>
+        <h3>The option pool shuffle</h3>
+        <p>When the VC asks for "10% pool post-round", that increase is counted before their money comes in. So it dilutes you, not them. Round price = <code>pre-money ÷ (company capitalization + pool increase)</code>, rounded to 4 decimals, share counts rounded down. Same as yc does it.</p>
+        <h3>Exits</h3>
+        <p>Prefs get paid by seniority, pro rata inside a rank. Whatever's left goes to common, exercised options, participating preferred (up to any cap) and any class that converted. Options only exercise if common is above the strike. Each class converts if that pays more, and the engine settles everyone's choice together. Unconverted safes take the better of their money back or converting at the cap.</p>
+        <h3>What it skips</h3>
+        <p>No anti-dilution, no cumulative dividends, no MFN side letters, no tax. Use it to get your head around a round before you sign, then get a lawyer to read the actual docs.</p>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>// Cap Table Simulator core: founders, option pools, SAFEs, convertible notes, priced rounds
+// and the exit waterfall. Follows the conversion rules of YC's post-money and pre-money safes
+// and the usual NVCA-style liquidation preferences. Plain JS, browser and Node.
+(function (root) {
+  'use strict';
+
+  const floor = Math.floor;
+  const roundTo = (x, d) => { const k = Math.pow(10, d); return Math.round(x * k) / k; };
+
+  // ---------- the cap table ----------
+  // holders: [{name, cls, shares, strike?}] where cls is 'Common', 'Options', 'Pool' or a preferred class name.
+  // classes: {name: {kind:'common'|'preferred', price, multiple, participating, capMultiple, rank}}
+  // outstanding: unconverted safes and notes.
+  function emptyTable() {
+    return {
+      holders: [],
+      classes: { Common: { kind: 'common' }, Options: { kind: 'options' }, Pool: { kind: 'pool' } },
+      outstanding: [],
+      log: [],
+    };
+  }
+  const clone = (t) => JSON.parse(JSON.stringify(t));
+  function add(t, name, cls, shares, extra) {
+    if (shares <= 0) return;
+    const h = t.holders.find((x) => x.name === name && x.cls === cls && (x.strike || 0) === ((extra && extra.strike) || 0));
+    if (h) h.shares += shares; else t.holders.push(Object.assign({ name, cls, shares }, extra || {}));
+  }
+  const total = (t, pred) => t.holders.filter(pred || (() => true)).reduce((s, h) => s + h.shares, 0);
+  const poolShares = (t) => total(t, (h) => h.cls === 'Pool');
+
+  // ---------- events ----------
+  function applyEvent(t0, ev) {
+    const t = clone(t0);
+    switch (ev.type) {
+      case 'founders':
+        for (const f of ev.holders) add(t, f.name, 'Common', f.shares);
+        t.log.push({ ev: ev.label || 'Founders', note: `${ev.holders.length} founders` });
+        break;
+      case 'pool':
+        add(t, 'Option pool (unissued)', 'Pool', ev.shares);
+        t.log.push({ ev: ev.label || 'Option pool', note: `${ev.shares.toLocaleString()} shares reserved` });
+        break;
+      case 'grant': {
+        const avail = poolShares(t);
+        if (ev.shares > avail + 1e-9) throw new Error(`Grant of ${ev.shares} is larger than the unissued pool (${avail})`);
+        t.holders.find((h) => h.cls === 'Pool').shares -= ev.shares;
+        add(t, ev.holder, 'Options', ev.shares, { strike: ev.strike || 0 });
+        t.log.push({ ev: ev.label || 'Option grant', note: `${ev.shares.toLocaleString()} to ${ev.holder}` });
+        break;
+      }
+      case 'safe':
+        t.outstanding.push({ type: 'safe', name: ev.name, amount: ev.amount, cap: ev.cap || null, discount: ev.discount || 0, kind: ev.kind || 'post' });
+        t.log.push({ ev: ev.label || 'SAFE', note: `${ev.name}: ${ev.amount.toLocaleString()}` + (ev.cap ? ` at ${ev.kind === 'pre' ? 'pre' : 'post'}-money cap ${ev.cap.toLocaleString()}` : '') + (ev.discount ? `, ${Math.round(ev.discount * 100)}% discount` : '') });
+        break;
+      case 'note':
+        t.outstanding.push({ type: 'note', name: ev.name, amount: ev.principal * (1 + (ev.rate || 0) * (ev.months || 0) / 12), principal: ev.principal, cap: ev.cap || null, discount: ev.discount || 0, kind: 'pre' });
+        t.log.push({ ev: ev.label || 'Convertible note', note: `${ev.name}: ${ev.principal.toLocaleString()} at ${((ev.rate || 0) * 100).toFixed(1)}% for ${ev.months || 0} months` });
+        break;
+      case 'priced':
+        return pricedRound(t, ev);
+      case 'secondary': {
+        const from = t.holders.find((h) => h.name === ev.from && h.cls === (ev.cls || 'Common'));
+        if (!from || from.shares < ev.shares) throw new Error('Not enough shares to sell');
+        from.shares -= ev.shares; add(t, ev.to, from.cls, ev.shares);
+        t.log.push({ ev: 'Secondary sale', note: `${ev.shares.toLocaleString()} from ${ev.from} to ${ev.to}` });
+        break;
+      }
+      default: throw new Error('Unknown event ' + ev.type);
+    }
+    return t;
+  }
+
+  // ---------- priced round ----------
+  // Conventions (YC Post-Money Safe User Guide, Appendix II):
+  //  * "Company Capitalization" for post-money safes = every share, option and the existing pool,
+  //    plus every converting security, but not the pool increase or new money.
+  //  * Pre-money safes and notes use capitalization before converting securities, including the pool increase.
+  //  * Round price = pre-money valuation / (Company Capitalization + pool increase), rounded to 4 decimals.
+  //  * Share counts are rounded down.
+  function pricedRound(t, ev) {
+    const dp = ev.priceDecimals == null ? 4 : ev.priceDecimals;
+    // exact: no share flooring or price rounding (used to check the algebra against bench/ref.py)
+    const floor = ev.exact ? (x) => x : Math.floor;
+    const roundTo = ev.exact ? (x) => x : (x, d) => api.roundTo(x, d);
+    const ceil = ev.exact ? (x) => x : Math.ceil;
+    const series = ev.name || 'Series A';
+    const E = total(t); // fully diluted before the round, incl. options and unissued pool
+    const conv = t.outstanding.map((o) => Object.assign({}, o));
+    const raise = (ev.investors || []).reduce((s, i) => s + i.amount, 0);
+    let X = ev.pool && ev.pool.mode === 'shares' ? ev.pool.value : 0;
+    let p = ev.preMoney / (E + X);
+    let capPost = E;
+    const roundPx = (o) => (o.discount ? roundTo(p * (1 - o.discount), dp) : p);
+    for (const o of conv) if (o.kind !== 'pre') o.method = o.cap ? 'cap' : o.discount ? 'discount' : 'round';
+    for (let iter = 0; iter < 2000; iter++) {
+      let changed = false;
+      // 1. pre-money safes and notes: priced off the capitalization before converting securities,
+      //    including the pool increase
+      for (const o of conv) {
+        if (o.kind !== 'pre') continue;
+        const capPrice = o.cap ? roundTo(o.cap / (E + X), dp) : Infinity;
+        const discPrice = o.discount ? roundTo(p * (1 - o.discount), dp) : Infinity;
+        o.price = Math.min(capPrice, discPrice);
+        if (!isFinite(o.price)) o.price = p;
+        o.method = o.price === capPrice ? 'cap' : o.price === discPrice ? 'discount' : 'round';
+        o.shares = floor(o.amount / o.price + (ev.exact ? 0 : 1e-9));
+      }
+      // 2. post-money safes: those converting at the cap own amount/cap of Company Capitalization
+      let fixedShares = E, capFrac = 0;
+      for (const o of conv) {
+        if (o.kind === 'pre' || o.method !== 'cap') { if (o.kind !== 'pre') { o.price = roundPx(o); o.shares = floor(o.amount / o.price + (ev.exact ? 0 : 1e-9)); } fixedShares += o.shares; }
+        else capFrac += o.amount / o.cap;
+      }
+      capPost = floor(fixedShares / (1 - capFrac) + (ev.exact ? 0 : 1e-9));
+      for (const o of conv) {
+        if (o.kind === 'pre' || !o.cap) continue;
+        if (o.method === 'cap') { o.price = o.cap / capPost; o.shares = floor(o.amount * capPost / o.cap + (ev.exact ? 0 : 1e-9)); }
+        const want = roundPx(o) < o.cap / capPost ? (o.discount ? 'discount' : 'round') : 'cap';
+        if (want !== o.method) { o.method = want; changed = true; }
+      }
+      // 3. pool increase sized so the unissued pool is a target share of the post-round count
+      if (ev.pool && ev.pool.mode === 'target') {
+        // postFD = (capPost + X) * (pre + raise) / pre
+        const k = (ev.preMoney + raise) / ev.preMoney;
+        const nx = Math.max(0, ceil((ev.pool.value * k * capPost - poolShares(t)) / (1 - ev.pool.value * k)));
+        if (Math.abs(nx - X) > 0.5) changed = true;
+        X = nx;
+      }
+      const np = roundTo(ev.preMoney / (capPost + X), dp);
+      if (Math.abs(np - p) > (ev.exact ? 1e-15 * p : 0)) changed = true;
+      p = np;
+      if (!changed) break;
+    }
+    // new money
+    const newTotal = ev.exact ? raise / p : Math.round(raise / p); // YC rounds the round total to the nearest share
+    const out = clone(t);
+    out.outstanding = [];
+    const terms = { kind: 'preferred', multiple: ev.multiple == null ? 1 : ev.multiple, participating: !!ev.participating, capMultiple: ev.capMultiple || null, rank: ev.rank == null ? countRounds(t) + 1 : ev.rank };
+    out.classes[series] = Object.assign({ price: p }, terms);
+    let given = 0;
+    (ev.investors || []).forEach((inv, i) => {
+      const last = i === ev.investors.length - 1;
+      const sh = last ? newTotal - given : floor(inv.amount / p + (ev.exact ? 0 : 1e-9));
+      given += sh; add(out, inv.name, series, sh);
+    });
+    // converted securities become shadow series with their own price, 1x non-participating
+    conv.forEach((o, i) => {
+      const cls = `${series}-${i + 1}`;
+      out.classes[cls] = Object.assign({}, terms, { price: o.amount / o.shares, participating: false, capMultiple: null, shadow: true });
+      add(out, o.name, cls, o.shares);
+    });
+    if (X > 0) add(out, 'Option pool (unissued)', 'Pool', X);
+    out.log.push({ ev: series, note: `${raise.toLocaleString()} at ${ev.preMoney.toLocaleString()} pre-money · price ${p} · pool +${X.toLocaleString()}` });
+    out.last = { price: p, capPost, poolIncrease: X, newShares: newTotal, conversions: conv.map((o) => ({ name: o.name, shares: o.shares, price: o.price, method: o.method })), postFD: total(out) };
+    return out;
+  }
+  const ceil = Math.ceil;
+  function countRounds(t) { return Object.values(t.classes).filter((c) => c.kind === 'preferred' && !c.shadow).length; }
+
+  function run(events) {
+    const tables = [];
+    let t = emptyTable();
+    for (const ev of events) { t = applyEvent(t, ev); tables.push(t); }
+    return tables;
+  }
+
+  // ---------- summaries ----------
+  function ownership(t) {
+    const fd = total(t);
+    const by = new Map();
+    for (const h of t.holders) by.set(h.name, (by.get(h.name) || 0) + h.shares);
+    return [...by].map(([name, shares]) => ({ name, shares, pct: shares / fd })).sort((a, b) => b.shares - a.shares);
+  }
+
+  // ---------- exit waterfall ----------
+  // Pays an exit of value V. Preferred classes take their preference (by rank, pari passu within a rank)
+  // unless converting to common pays them more; participating classes also share the remainder (up to
+  // their cap). Options are exercised when the common price beats the strike. Unconverted safes are
+  // treated as 1x non-participating preferred converting at the cap. Conversion choices are found by
+  // repeated best response; bench/waterfall_ref.py checks them against brute force.
+  function exitPositions(t) {
+    const pos = [];
+    for (const h of t.holders) {
+      if (h.cls === 'Pool') continue;
+      const c = t.classes[h.cls] || { kind: 'common' };
+      pos.push({ holder: h.name, cls: h.cls, shares: h.shares, strike: h.strike || 0, kind: c.kind, price: c.price || 0, multiple: c.multiple || 0, participating: !!c.participating, capMultiple: c.capMultiple || null, rank: c.rank || 0 });
+    }
+    // unconverted safes/notes: convert at cap over the outstanding capitalization
+    const base = pos.reduce((s, p) => s + p.shares, 0);
+    const caps = t.outstanding.filter((o) => o.cap);
+    const frac = caps.reduce((s, o) => s + (o.kind === 'pre' ? 0 : o.amount / o.cap), 0);
+    const preSh = t.outstanding.filter((o) => o.cap && o.kind === 'pre').reduce((s, o) => s + o.amount / (o.cap / base), 0);
+    const liqCap = (base + preSh) / Math.max(1e-9, 1 - frac);
+    for (const o of t.outstanding) {
+      const sh = o.cap ? (o.kind === 'pre' ? o.amount / (o.cap / base) : o.amount / (o.cap / liqCap)) : 0;
+      pos.push({ holder: o.name, cls: o.type === 'note' ? 'Note' : 'SAFE', shares: sh, strike: 0, kind: 'preferred', price: o.amount / Math.max(1e-9, sh || 1), prefAmount: o.amount, multiple: 1, participating: false, capMultiple: null, rank: 1e6 /* senior to equity */ });
+    }
+    return pos;
+  }
+  // classes that make a choice: each preferred class (by cls) decides together; option tranches by strike
+  function groupsOf(pos) {
+    const g = new Map();
+    pos.forEach((p, i) => {
+      if (p.kind !== 'preferred') return;
+      const key = p.cls + '|' + (p.cls === 'SAFE' || p.cls === 'Note' ? p.holder : '');
+      if (!g.has(key)) g.set(key, []);
+      g.get(key).push(i);
+    });
+    return [...g.values()];
+  }
+  function payoutGiven(pos, V, convert) {
+    // convert: Set of position indices converting to common
+    const pay = new Float64Array(pos.length);
+    let left = V;
+    // options: exercised if in the money; their strike cash joins the proceeds. Decided by fixed point.
+    let exercised = pos.map((p) => p.kind === 'options' && p.strike === 0);
+    for (let round = 0; round < 30; round++) {
+      pay.fill(0); left = V;
+      // 1. preferences by rank (high first)
+      const prefs = pos.map((p, i) => ({ i, p })).filter(({ p, i }) => p.kind === 'preferred' && !convert.has(i));
+      const ranks = [...new Set(prefs.map((x) => x.p.rank))].sort((a, b) => b - a);
+      for (const r of ranks) {
+        const tier = prefs.filter((x) => x.p.rank === r);
+        const want = tier.map(({ p }) => (p.prefAmount != null ? p.prefAmount : p.multiple * p.price * p.shares));
+        const need = want.reduce((s, w) => s + w, 0);
+        const k = need > 0 ? Math.min(1, left / need) : 0;
+        tier.forEach((x, j) => { pay[x.i] += want[j] * k; });
+        left -= need * k;
+        if (left <= 1e-9) { left = 0; break; }
+      }
+      // 2. the rest shared as common: common, converted preferred, exercised options, participating preferred
+      const strikeCash = pos.reduce((s, p, i) => s + (exercised[i] ? p.strike * p.shares : 0), 0);
+      let pot = left + strikeCash;
+      const sharers = pos.map((p, i) => i).filter((i) => {
+        const p = pos[i];
+        if (p.kind === 'common') return true;
+        if (p.kind === 'options') return exercised[i];
+        if (p.kind === 'preferred') return convert.has(i) || p.participating;
+        return false;
+      });
+      // water-filling for participation caps
+      let active = sharers.slice();
+      const capLeft = new Map();
+      for (const i of active) { const p = pos[i]; if (p.kind === 'preferred' && p.participating && !convert.has(i) && p.capMultiple) capLeft.set(i, Math.max(0, p.capMultiple * p.price * p.shares - pay[i])); }
+      for (let guard = 0; guard < 50 && pot > 1e-9 && active.length; guard++) {
+        const sh = active.reduce((s, i) => s + pos[i].shares, 0);
+        if (sh <= 0) break;
+        let per = pot / sh, hit = [];
+        for (const i of active) if (capLeft.has(i) && per * pos[i].shares > capLeft.get(i) + 1e-9) hit.push(i);
+        if (!hit.length) { for (const i of active) pay[i] += per * pos[i].shares; pot = 0; break; }
+        // the tightest cap binds first
+        per = Math.min(...hit.map((i) => capLeft.get(i) / pos[i].shares));
+        for (const i of active) { const g = per * pos[i].shares; pay[i] += g; pot -= g; if (capLeft.has(i)) capLeft.set(i, capLeft.get(i) - g); }
+        active = active.filter((i) => !(capLeft.has(i) && capLeft.get(i) <= 1e-9));
+      }
+      for (let i = 0; i < pos.length; i++) if (exercised[i]) pay[i] -= pos[i].strike * pos[i].shares; // net of exercise price
+      // re-decide option exercise
+      const commonPrice = (() => { const c = pos.findIndex((p) => p.kind === 'common'); return c >= 0 ? pay[c] / pos[c].shares : 0; })();
+      const next = pos.map((p) => p.kind === 'options' && commonPrice + 1e-12 > p.strike);
+      if (next.every((v, i) => v === exercised[i])) break;
+      exercised = next;
+    }
+    return pay;
+  }
+  function waterfall(t, V) {
+    const pos = exitPositions(t);
+    const groups = groupsOf(pos);
+    const choice = groups.map(() => false);
+    const setOf = (ch) => { const s = new Set(); groups.forEach((g, k) => { if (ch[k]) g.forEach((i) => s.add(i)); }); return s; };
+    const gpay = (pay, k) => groups[k].reduce((s, i) => s + pay[i], 0);
+    let pay = payoutGiven(pos, V, setOf(choice));
+    for (let it = 0; it < 4 * groups.length + 10; it++) {
+      // the group with most to gain switches first
+      let best = -1, gain = 1e-7;
+      for (let k = 0; k < groups.length; k++) {
+        const alt = choice.slice(); alt[k] = !alt[k];
+        const p2 = payoutGiven(pos, V, setOf(alt));
+        const g = gpay(p2, k) - gpay(pay, k);
+        if (g > gain) { gain = g; best = k; }
+      }
+      if (best < 0) break;
+      choice[best] = !choice[best];
+      pay = payoutGiven(pos, V, setOf(choice));
+    }
+    const rows = pos.map((p, i) => ({ holder: p.holder, cls: p.cls, shares: p.shares, payout: pay[i], converted: p.kind === 'preferred' ? choice[groups.findIndex((g) => g.includes(i))] : null }));
+    return { rows, choice, groups: groups.map((g) => pos[g[0]].cls + (pos[g[0]].cls === 'SAFE' || pos[g[0]].cls === 'Note' ? ' ' + pos[g[0]].holder : '')) };
+  }
+  function payoutsByHolder(t, V) {
+    const w = waterfall(t, V), by = new Map();
+    for (const r of w.rows) by.set(r.holder, (by.get(r.holder) || 0) + r.payout);
+    return by;
+  }
+
+  const api = { emptyTable, applyEvent, run, ownership, total, waterfall, payoutsByHolder, exitPositions, payoutGiven, groupsOf, roundTo };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.CapTable = api;
+})(typeof self !== 'undefined' ? self : this);
+</script>
+<script>// Worked examples from YC's Post-Money Safe User Guide, Appendix II (inputs and printed answers).
+(function (root) {
+  const base = (safes) => [
+    { type: 'founders', holders: [{ name: 'Founders', shares: 9250000 }] },
+    { type: 'pool', shares: 750000, label: 'Option pool (300k granted, 350k promised, 100k free)' },
+    { type: 'grant', holder: 'Employees', shares: 300000 },
+    ...safes,
+  ];
+  const postA = { type: 'safe', name: 'Investor A', amount: 200000, cap: 4000000, kind: 'post' };
+  const preA = { type: 'safe', name: 'Investor A', amount: 200000, cap: 3800000, kind: 'pre' };
+  const postB = { type: 'safe', name: 'Investor B', amount: 800000, cap: 8000000, kind: 'post' };
+  const seriesA = (pool, bpro) => ({ type: 'priced', name: 'Series A', preMoney: 15000000, pool: { mode: 'shares', value: pool },
+    investors: [{ name: 'Investor C', amount: 4000000 }, { name: 'Investor B', amount: bpro }, { name: 'Other new investors', amount: 1000000 - bpro }] });
+  const seed = (pool, bpro) => ({ type: 'priced', name: 'Series Seed', preMoney: 8800000, pool: { mode: 'shares', value: pool },
+    investors: [{ name: 'Investor C', amount: 1650000 }, { name: 'Investor B', amount: bpro }, { name: 'Other new investors', amount: 550000 - bpro }] });
+  const rounds = [
+    { title: 'Example 1 Q2 · two post-money safes, $15M pre-money Series A', events: base([postA, postB]).concat([seriesA(1695000, 499998.97)]),
+      want: { capPost: 11764705, A: 588235, B: 1176470, price: 1.1144, newShares: 4486719, C: 3589375, Bpro: 448671, fd: 17946424, Cpct: 20.0 } },
+    { title: 'Example 1 Q5 · same safes, $8.8M pre-money Series Seed (Investor B converts at the round price)', events: base([postA, postB]).concat([seed(1573000, 226599.36)]),
+      want: { capPost: 11806694, A: 590334, B: 1216360, price: 0.6577, newShares: 3344990, C: 2508742, Bpro: 344533, fd: 16724684, Cpct: 15.0 } },
+    { title: 'Example 2 Q2 · a pre-money and a post-money safe, $15M pre-money Series A', events: base([preA, postB]).concat([seriesA(1700000, 499999.39)]),
+      want: { capPost: 11795292, A: 615763, B: 1179529, price: 1.1115, newShares: 4498426, C: 3598740, Bpro: 449842, fd: 17993718, Cpct: 20.0 } },
+    { title: 'Example 2 Q5 · a pre-money and a post-money safe, $8.8M pre-money Series Seed', events: base([preA, postB]).concat([seed(1575000, 226599.89)]),
+      want: { capPost: 11827595, A: 609198, B: 1218397, price: 0.6566, newShares: 3350594, C: 2512945, Bpro: 345111, fd: 16753189, Cpct: 15.0 } },
+  ];
+  const exits = [
+    { title: 'Example 1 Q3 · acquisition at $10M, both safes convert', events: base([postA, postB]), V: 10e6, want: { A: 500026, B: 1000053, convA: 561764, convB: 1123529, px: 0.8901 } },
+    { title: 'Example 1 Q4 · acquisition at $3M, both safes take their money back', events: base([postA, postB]), V: 3e6, want: { A: 200000, B: 800000 } },
+    { title: 'Example 2 Q3 · acquisition at $10M, both safes convert', events: base([preA, postB]), V: 10e6, want: { A: 450006, B: 1000013, convA: 502631, convB: 1116959, px: 0.8953 } },
+    { title: 'Example 2 Q4 · acquisition at $3M, both safes take their money back', events: base([preA, postB]), V: 3e6, want: { A: 200000, B: 800000 } },
+  ];
+  // Runs every example and returns [{title, checks:[{label, got, want, ok}]}]
+  function check(C) {
+    const out = [];
+    const sharesOf = (t, n, cls) => t.holders.filter((h) => h.name === n && (!cls || h.cls === cls)).reduce((s, h) => s + h.shares, 0);
+    for (const ex of rounds) {
+      const t = C.run(ex.events).pop(), L = t.last, w = ex.want, r = ex.events[ex.events.length - 1].name, cs = [];
+      const add = (label, got, want, tol = 0) => cs.push({ label, got, want, ok: Math.abs(got - want) <= tol });
+      add('Company Capitalization', L.capPost, w.capPost);
+      add('Investor A shares', L.conversions[0].shares, w.A);
+      add('Investor B shares', L.conversions[1].shares, w.B);
+      add('Price per share', L.price, w.price);
+      add('New money shares', L.newShares, w.newShares);
+      add('Investor C shares', sharesOf(t, 'Investor C'), w.C);
+      add('Investor B pro rata shares', sharesOf(t, 'Investor B', r), w.Bpro);
+      add('Fully diluted after', L.postFD, w.fd);
+      add('Founders shares', sharesOf(t, 'Founders'), 9250000);
+      add('Investor C ownership %', +(sharesOf(t, 'Investor C') / L.postFD * 100).toFixed(2), w.Cpct, 0.005);
+      out.push({ title: ex.title, checks: cs });
+    }
+    for (const ex of exits) {
+      const t = C.run(ex.events).pop(), w = ex.want, cs = [];
+      const add = (label, got, want, tol = 0) => cs.push({ label, got, want, ok: Math.abs(got - want) <= tol });
+      const wf = C.waterfall(t, ex.V), by = C.payoutsByHolder(t, ex.V);
+      const row = (n) => wf.rows.find((x) => x.holder === n);
+      if (w.convA) {
+        add('Investor A conversion shares', Math.floor(row('Investor A').shares), w.convA);
+        add('Investor B conversion shares', Math.floor(row('Investor B').shares), w.convB);
+        add('Cash per share', C.roundTo(ex.V / wf.rows.reduce((s, x) => s + x.shares, 0), 4), w.px);
+      }
+      // YC multiplies whole shares by a 4-decimal price; the engine pays exact cash, so cents may differ by up to 0.01%
+      add('Investor A cash', +by.get('Investor A').toFixed(2), w.A, w.A * 1e-4);
+      add('Investor B cash', +by.get('Investor B').toFixed(2), w.B, w.B * 1e-4);
+      add('Whole exit paid out', +[...by.values()].reduce((s, x) => s + x, 0).toFixed(2), ex.V, 0.01);
+      out.push({ title: ex.title, checks: cs });
+    }
+    return out;
+  }
+  const api = { rounds, exits, check };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.YCCases = api;
+})(typeof self !== 'undefined' ? self : this);
+</script>
+<script>const BENCH = {"rounds": 2000, "worst_price_rel_err": 5.3043869031778764e-15, "worst_capitalization_rel_err": 5.432934077912083e-15, "exits": 2000, "engine_not_equilibrium": 0, "cases_with_several_equilibria": 74, "worst_payout_diff_dollars": 1.4901161193847656e-08};</script>
+<script>
+(() => {
+'use strict';
+const C = window.CapTable, $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const PAL = ['#8c2f39', '#2f5d50', '#b8893b', '#3d5a80', '#6b4e71', '#c46a3c', '#4f8a86', '#7a7f3a', '#a35d6a', '#1d1a16', '#5e7d4f', '#8a6d9e'];
+const KEY = 'cts:v1';
+
+// ---------- presets ----------
+const L = 1e5, CR = 1e7;
+const PRESETS = {
+  india: () => ({ company: 'Kirana Cloud Pvt Ltd', currency: 'INR', events: [
+    { type: 'founders', holders: [{ name: 'Asha (CEO)', shares: 5500000 }, { name: 'Ravi (CTO)', shares: 4500000 }] },
+    { type: 'pool', shares: 1000000, label: 'ESOP pool' },
+    { type: 'grant', holder: 'First engineers', shares: 350000, strike: 1 },
+    { type: 'safe', name: 'Angel syndicate', amount: 50 * L, cap: 8 * CR, discount: 0, kind: 'post' },
+    { type: 'note', name: 'Accelerator', principal: 30 * L, rate: 0.08, months: 14, cap: 10 * CR, discount: 0.2 },
+    { type: 'priced', name: 'Seed', preMoney: 16 * CR, pool: { mode: 'target', value: 0.12 }, multiple: 1, participating: false, investors: [{ name: 'Seed fund', amount: 3.5 * CR }, { name: 'Angel syndicate', amount: 50 * L }] },
+    { type: 'grant', holder: 'Leadership hires', shares: 600000, strike: 12 },
+    { type: 'priced', name: 'Series A', preMoney: 110 * CR, pool: { mode: 'target', value: 0.1 }, multiple: 1, participating: false, investors: [{ name: 'Series A lead', amount: 25 * CR }, { name: 'Seed fund', amount: 5 * CR }] },
+  ], exitV: 400 * CR }),
+  yc1: () => ({ company: 'YC guide · Example 1', currency: 'USD', events: JSON.parse(JSON.stringify(YCCases.rounds[0].events)), exitV: 60e6 }),
+  yc2: () => ({ company: 'YC guide · Example 2', currency: 'USD', events: JSON.parse(JSON.stringify(YCCases.rounds[2].events)), exitV: 60e6 }),
+  blank: () => ({ company: 'New company', currency: 'INR', events: [{ type: 'founders', holders: [{ name: 'Founder', shares: 10000000 }] }], exitV: 50 * CR }),
+};
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || !Array.isArray(S.events)) S = Object.assign(PRESETS.india(), { view: 'rounds', open: -1, step: -1 });
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+// ---------- formatting ----------
+const loc = () => (S.currency === 'INR' ? 'en-IN' : 'en-US');
+const sym = () => (S.currency === 'INR' ? '₹' : '$');
+const num = (x) => Math.round(x).toLocaleString(loc());
+function money(x, short = true) {
+  if (x == null || !isFinite(x)) return '–';
+  const s = sym(), a = Math.abs(x), neg = x < 0 ? '−' : '';
+  if (!short) return neg + s + Math.round(a).toLocaleString(loc());
+  if (S.currency === 'INR') {
+    if (a >= CR) return neg + s + (a / CR).toFixed(a >= 100 * CR ? 0 : a >= 10 * CR ? 1 : 2).replace(/\.0+$/, '') + ' Cr';
+    if (a >= L) return neg + s + (a / L).toFixed(a >= 10 * L ? 1 : 2).replace(/\.0+$/, '') + ' L';
+    return neg + s + Math.round(a).toLocaleString('en-IN');
+  }
+  if (a >= 1e9) return neg + s + (a / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'B';
+  if (a >= 1e6) return neg + s + (a / 1e6).toFixed(a >= 1e8 ? 0 : 2).replace(/\.?0+$/, '') + 'M';
+  if (a >= 1e3) return neg + s + (a / 1e3).toFixed(0) + 'k';
+  return neg + s + a.toFixed(2);
+}
+const pct = (x, d = 2) => (x * 100).toFixed(d) + '%';
+const price = (p) => sym() + (p >= 10 ? p.toFixed(2) : p.toFixed(4));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- compute ----------
+let R; // {tables, error}
+function compute() {
+  const tables = []; let t = C.emptyTable(), error = null;
+  S.events.forEach((ev, i) => {
+    if (error) return;
+    try { t = C.applyEvent(t, ev); tables.push(t); } catch (e) { error = { index: i, msg: e.message }; }
+  });
+  R = { tables, error };
+}
+const finalTable = () => R.tables[R.tables.length - 1] || C.emptyTable();
+const colors = new Map();
+function colorOf(name) { if (!colors.has(name)) colors.set(name, PAL[colors.size % PAL.length]); return colors.get(name); }
+function resetColors() { colors.clear(); for (const t of R.tables) for (const o of C.ownership(t)) colorOf(o.name); }
+function lastPrice(t) { let p = 0; for (const c of Object.values(t.classes)) if (c.kind === 'preferred' && !c.shadow && c.price) p = c.price; return p; }
+function lastPriceUpTo(i) { const t = R.tables[i]; if (!t) return 0; let best = 0, rank = -1; for (const c of Object.values(t.classes)) if (c.kind === 'preferred' && !c.shadow && c.rank > rank) { rank = c.rank; best = c.price; } return best; }
+
+// ---------- tween numbers ----------
+function tween(el, to, fmt) {
+  const from = +el.dataset.v || 0; el.dataset.v = to;
+  const t0 = performance.now(), d = 650;
+  const step = (now) => { const k = Math.min(1, (now - t0) / d), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1800); }
+
+// ---------- navigation ----------
+function go(v) {
+  S.view = v; save();
+  $$('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v));
+  $$('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  const b = $(`#nav button[data-v="${v}"]`); if (b) $('#pill').style.transform = `translateY(${b.offsetTop}px)`;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$$('#nav button').forEach((b) => (b.onclick = () => go(b.dataset.v)));
+
+// ---------- top bar ----------
+$('#company').oninput = (e) => { S.company = e.target.value; save(); };
+$$('#cur button').forEach((b) => (b.onclick = () => { S.currency = b.dataset.c; save(); render(); }));
+$('#preset').onchange = (e) => { const k = e.target.value; if (!k) return; const keep = S.view; S = Object.assign(PRESETS[k](), { view: keep, open: -1, step: -1 }); save(); e.target.value = ''; full(); toast('Loaded'); };
+$('#exportBtn').onclick = () => {
+  const t = finalTable(), fd = C.total(t);
+  const rows = [['Holder', 'Class', 'Shares', 'Fully diluted %']].concat(t.holders.map((h) => [h.name, h.cls, h.shares, (h.shares / fd * 100).toFixed(4)]));
+  const csv = rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = (S.company || 'cap-table').replace(/\W+/g, '-') + '.csv'; a.click();
+};
+
+// ---------- event editing ----------
+const TYPE = { founders: ['Founders', '#1d1a16'], pool: ['Option pool', '#b8893b'], grant: ['Option grant', '#4f8a86'], safe: ['SAFE', '#8c2f39'], note: ['Convertible note', '#6b4e71'], priced: ['Priced round', '#2f5d50'], secondary: ['Secondary', '#3d5a80'] };
+function blank(type) {
+  const T = finalTable(), fd = C.total(T) || 1e7, px = lastPrice(T) || 1;
+  const big = S.currency === 'INR' ? CR : 1e6;
+  switch (type) {
+    case 'founders': return { type, holders: [{ name: 'New founder', shares: 1000000 }] };
+    case 'pool': return { type, shares: Math.round(fd * 0.1) };
+    case 'grant': return { type, holder: 'New hire', shares: Math.round(fd * 0.005), strike: +(px * 0.3).toFixed(2) };
+    case 'safe': return { type, name: 'New investor', amount: 0.5 * big, cap: 8 * big, discount: 0, kind: 'post' };
+    case 'note': return { type, name: 'Note holder', principal: 0.3 * big, rate: 0.08, months: 12, cap: 8 * big, discount: 0.2 };
+    case 'priced': return { type, name: nextRoundName(), preMoney: Math.max(10 * big, Math.round(fd * px * 1.8 / big) * big), pool: { mode: 'target', value: 0.1 }, multiple: 1, participating: false, investors: [{ name: 'Lead investor', amount: 3 * big }] };
+    case 'secondary': return { type, from: (T.holders.find((h) => h.cls === 'Common') || {}).name || '', to: 'Buyer', shares: Math.round(fd * 0.01), cls: 'Common' };
+  }
+}
+function nextRoundName() { const used = S.events.filter((e) => e.type === 'priced').map((e) => e.name); for (const n of ['Seed', 'Series A', 'Series B', 'Series C', 'Series D', 'Series E']) if (!used.includes(n)) return n; return 'Round ' + (used.length + 1); }
+$$('#adders button').forEach((b) => (b.onclick = () => { S.events.push(blank(b.dataset.add)); S.open = S.events.length - 1; save(); full(); setTimeout(() => { const el = $$('.ev')[S.open]; el && el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60); }));
+
+function summary(ev) {
+  switch (ev.type) {
+    case 'founders': return ev.holders.map((h) => `${h.name} ${num(h.shares)}`).join(' · ');
+    case 'pool': return `${num(ev.shares)} shares reserved`;
+    case 'grant': return `${num(ev.shares)} options to ${ev.holder}` + (ev.strike ? ` at ${sym()}${ev.strike}` : '');
+    case 'safe': return `${ev.name} · ${money(ev.amount)}` + (ev.cap ? ` · ${ev.kind === 'pre' ? 'pre' : 'post'}-money cap ${money(ev.cap)}` : '') + (ev.discount ? ` · ${Math.round(ev.discount * 100)}% off` : '') + (!ev.cap && !ev.discount ? ' · converts at round price' : '');
+    case 'note': return `${ev.name} · ${money(ev.principal)} at ${(ev.rate * 100).toFixed(1)}% for ${ev.months} mo` + (ev.cap ? ` · cap ${money(ev.cap)}` : '') + (ev.discount ? ` · ${Math.round(ev.discount * 100)}% off` : '');
+    case 'priced': { const raise = ev.investors.reduce((s, i) => s + (+i.amount || 0), 0); return `${money(raise)} at ${money(ev.preMoney)} pre-money · pool ${ev.pool.mode === 'target' ? pct(ev.pool.value, 0) + ' after' : '+' + num(ev.pool.value)} · ${ev.multiple || 1}x ${ev.participating ? 'participating' : 'non-participating'}`; }
+    case 'secondary': return `${num(ev.shares)} from ${ev.from} to ${ev.to}`;
+  }
+}
+const F = (label, key, val, kind = 'num', opts) => {
+  if (kind === 'sel') return `<div class="f"><label>${label}</label><select data-k="${key}">${opts.map(([v, t]) => `<option value="${v}" ${String(val) === String(v) ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
+  return `<div class="f"><label>${label}</label><input data-k="${key}" ${kind === 'num' ? 'inputmode="decimal"' : ''} value="${esc(val == null ? '' : val)}"></div>`;
+};
+function formFor(ev) {
+  const cur = sym();
+  switch (ev.type) {
+    case 'founders': return rows('holders', ev.holders, ['name', 'shares'], 'founder');
+    case 'pool': return F('Shares', 'shares', ev.shares);
+    case 'grant': return F('Holder', 'holder', ev.holder, 'text') + F('Options', 'shares', ev.shares) + F(`Strike (${cur})`, 'strike', ev.strike || 0);
+    case 'safe': return F('Investor', 'name', ev.name, 'text') + F(`Amount (${cur})`, 'amount', ev.amount) + F(`Valuation cap (${cur}, blank = none)`, 'cap', ev.cap || '') + F('Discount %', 'discountPct', Math.round((ev.discount || 0) * 100)) + F('Type', 'kind', ev.kind, 'sel', [['post', 'Post-money safe'], ['pre', 'Pre-money safe']]);
+    case 'note': return F('Holder', 'name', ev.name, 'text') + F(`Principal (${cur})`, 'principal', ev.principal) + F('Interest % a year', 'ratePct', +(ev.rate * 100).toFixed(2)) + F('Months until it converts', 'months', ev.months) + F(`Cap (${cur}, blank = none)`, 'cap', ev.cap || '') + F('Discount %', 'discountPct', Math.round((ev.discount || 0) * 100));
+    case 'priced': return F('Round name', 'name', ev.name, 'text') + F(`Pre-money (${cur})`, 'preMoney', ev.preMoney) + F('Pool', 'poolMode', ev.pool.mode, 'sel', [['target', '% after the round'], ['shares', 'Add a fixed number']]) + F(ev.pool.mode === 'target' ? 'Pool % after' : 'Shares added', 'poolValue', ev.pool.mode === 'target' ? +(ev.pool.value * 100).toFixed(2) : ev.pool.value) + F('Preference multiple', 'multiple', ev.multiple == null ? 1 : ev.multiple) + F('Participating', 'participating', ev.participating ? '1' : '0', 'sel', [['0', 'No'], ['1', 'Yes']]) + rows('investors', ev.investors, ['name', 'amount'], 'investor');
+    case 'secondary': return F('Seller', 'from', ev.from, 'text') + F('Buyer', 'to', ev.to, 'text') + F('Shares', 'shares', ev.shares);
+  }
+}
+function rows(key, list, cols, what) {
+  return `<div class="rows" data-list="${key}">${list.map((r, i) => `<div class="r">${cols.map((c) => `<input data-row="${i}" data-c="${c}" value="${esc(r[c])}" ${c !== 'name' ? 'inputmode="decimal"' : ''} placeholder="${c}">`).join('')}<button data-del="${i}" title="Remove">✕</button></div>`).join('')}<button class="btn ghost sm" data-addrow style="justify-self:start;margin-top:2px">+ Add ${what}</button></div>`;
+}
+const toNum = (v) => { const n = parseFloat(String(v).replace(/[, _]/g, '')); return isFinite(n) ? n : 0; };
+function setField(ev, k, v) {
+  switch (k) {
+    case 'name': case 'holder': case 'from': case 'to': ev[k] = v; break;
+    case 'kind': ev.kind = v; break;
+    case 'cap': ev.cap = String(v).trim() === '' ? null : toNum(v); break;
+    case 'discountPct': ev.discount = Math.min(95, Math.max(0, toNum(v))) / 100; break;
+    case 'ratePct': ev.rate = toNum(v) / 100; break;
+    case 'poolMode': ev.pool = { mode: v, value: v === 'target' ? 0.1 : 0 }; break;
+    case 'poolValue': ev.pool.value = ev.pool.mode === 'target' ? Math.min(60, toNum(v)) / 100 : Math.round(toNum(v)); break;
+    case 'participating': ev.participating = v === '1'; break;
+    default: ev[k] = toNum(v);
+  }
+}
+let debounce;
+function renderEvents() {
+  const box = $('#events');
+  box.innerHTML = S.events.map((ev, i) => {
+    const [label, col] = TYPE[ev.type];
+    const err = R.error && R.error.index === i;
+    const dead = R.error && i > R.error.index;
+    return `<div class="ev ${S.open === i ? 'open sel' : ''} ${err ? 'err' : ''}" data-i="${i}" style="${dead ? 'opacity:.45' : ''};animation:rise .5s var(--ease) ${Math.min(i, 8) * 0.04}s both">
+      <span class="dot" style="background:${col}">${i + 1}</span>
+      <div class="box"><div class="head"><b>${esc(ev.type === 'priced' ? ev.name : ev.label || label)}</b><span class="tag">${label}</span><span class="sp"></span>
+        <button class="x" data-up="${i}" title="Move up">↑</button><button class="x" data-dn="${i}" title="Move down">↓</button><button class="x" data-rm="${i}" title="Delete">✕</button></div>
+        <div class="sum">${esc(summary(ev))}</div>${err ? `<div class="errmsg">${esc(R.error.msg)}</div>` : ''}
+        <div class="form">${formFor(ev)}</div></div></div>`;
+  }).join('');
+  $$('.ev', box).forEach((el) => {
+    const i = +el.dataset.i, ev = S.events[i];
+    $('.head', el).onclick = (e) => { if (e.target.closest('.x')) return; S.open = S.open === i ? -1 : i; S.step = i; save(); renderEvents(); renderStack(); };
+    $$('[data-k]', el).forEach((inp) => {
+      const on = () => { setField(ev, inp.dataset.k, inp.value); save(); clearTimeout(debounce); debounce = setTimeout(() => { compute(); resetColors(); renderKpis(); renderStack(); $('.sum', el).textContent = summary(ev); refreshErrors(); }, 120); };
+      inp.oninput = on; if (inp.tagName === 'SELECT') inp.onchange = () => { on(); setTimeout(() => { renderEvents(); }, 130); };
+    });
+    $$('[data-list]', el).forEach((lst) => {
+      const key = lst.dataset.list;
+      $$('input', lst).forEach((inp) => (inp.oninput = () => { const r = ev[key][+inp.dataset.row]; r[inp.dataset.c] = inp.dataset.c === 'name' ? inp.value : toNum(inp.value); save(); clearTimeout(debounce); debounce = setTimeout(() => { compute(); resetColors(); renderKpis(); renderStack(); $('.sum', el).textContent = summary(ev); refreshErrors(); }, 120); }));
+      $$('[data-del]', lst).forEach((b) => (b.onclick = () => { if (ev[key].length > 1) { ev[key].splice(+b.dataset.del, 1); save(); full(); } }));
+      $('[data-addrow]', lst).onclick = () => { ev[key].push(key === 'holders' ? { name: 'Founder ' + (ev[key].length + 1), shares: 1000000 } : { name: 'Investor ' + (ev[key].length + 1), amount: S.currency === 'INR' ? CR : 1e6 }); save(); full(); };
+    });
+  });
+  $$('[data-rm]', box).forEach((b) => (b.onclick = () => { const i = +b.dataset.rm; const el = b.closest('.ev'); el.style.transition = 'all .3s'; el.style.opacity = 0; el.style.transform = 'translateX(-20px)'; setTimeout(() => { S.events.splice(i, 1); S.open = -1; save(); full(); }, 260); }));
+  $$('[data-up]', box).forEach((b) => (b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [S.events[i - 1], S.events[i]] = [S.events[i], S.events[i - 1]]; S.open = i - 1; save(); full(); } }));
+  $$('[data-dn]', box).forEach((b) => (b.onclick = () => { const i = +b.dataset.dn; if (i < S.events.length - 1) { [S.events[i + 1], S.events[i]] = [S.events[i], S.events[i + 1]]; S.open = i + 1; save(); full(); } }));
+}
+function refreshErrors() {
+  $$('.ev').forEach((el) => {
+    const i = +el.dataset.i, err = R.error && R.error.index === i;
+    el.classList.toggle('err', !!err); el.style.opacity = R.error && i > R.error.index ? .45 : '';
+    let m = $('.errmsg', el); if (err) { if (!m) { m = document.createElement('div'); m.className = 'errmsg'; $('.sum', el).after(m); } m.textContent = R.error.msg; } else if (m) m.remove();
+  });
+}
+
+// ---------- rounds view ----------
+function renderKpis() {
+  const t = finalTable(), fd = C.total(t), own = C.ownership(t);
+  const founders = (S.events.find((e) => e.type === 'founders') || { holders: [] }).holders.map((h) => h.name);
+  const fpct = own.filter((o) => founders.includes(o.name)).reduce((s, o) => s + o.pct, 0);
+  const px = lastPrice(t), raised = S.events.reduce((s, e) => s + (e.type === 'priced' ? e.investors.reduce((a, i) => a + (+i.amount || 0), 0) : e.type === 'safe' ? e.amount : e.type === 'note' ? e.principal : 0), 0);
+  const k = $('#kpis');
+  if (!k.children.length) k.innerHTML = `<div class="kpi"><span>Fully diluted</span><b data-k="fd">0</b><small>shares</small></div><div class="kpi ox"><span>Founders own</span><b data-k="fp">0</b><small>after the last step</small></div><div class="kpi fo"><span>Post-money</span><b data-k="pm">0</b><small data-k="px"></small></div><div class="kpi br"><span>Raised so far</span><b data-k="rs">0</b><small>safes, notes and rounds</small></div>`;
+  tween($('[data-k=fd]', k), fd, num);
+  tween($('[data-k=fp]', k), fpct * 100, (x) => x.toFixed(1) + '%');
+  tween($('[data-k=pm]', k), px * fd, (x) => (px ? money(x) : '–'));
+  $('[data-k=px]', k).textContent = px ? `${price(px)} a share, last round` : 'no priced round yet';
+  tween($('[data-k=rs]', k), raised, (x) => money(x));
+  $('#subline').textContent = `${S.events.length} steps · ${num(fd)} shares fully diluted` + (R.error ? ' · step ' + (R.error.index + 1) + ' has a problem' : '');
+}
+function renderStack() {
+  const box = $('#stack');
+  const names = [...colors.keys()];
+  const rowsHtml = R.tables.map((t, i) => {
+    const fd = C.total(t), own = new Map(C.ownership(t).map((o) => [o.name, o.pct]));
+    const ev = S.events[i];
+    return `<div class="srow ${S.step === i ? 'sel' : ''}" data-i="${i}"><div class="lab">${i + 1}. ${esc(ev.type === 'priced' ? ev.name : ev.type === 'safe' || ev.type === 'note' ? ev.name : ev.label || TYPE[ev.type][0])}</div><div class="bar">${names.map((n) => `<i data-n="${esc(n)}" style="width:0;background:${colorOf(n)}" data-w="${((own.get(n) || 0) * 100).toFixed(3)}" title="${esc(n)} ${pct(own.get(n) || 0)}"></i>`).join('')}</div><div class="n">${fd >= 1e6 ? (fd / 1e6).toFixed(2) + 'M' : num(fd)}</div></div>`;
+  }).join('');
+  // keep existing bars to animate from their old widths
+  const old = new Map($$('.srow', box).map((r) => [r.dataset.i, new Map($$('i', r).map((x) => [x.dataset.n, x.style.width]))]));
+  box.innerHTML = rowsHtml || '<div class="empty">Add the founders to start.</div>';
+  $$('.srow', box).forEach((r) => {
+    const o = old.get(r.dataset.i);
+    $$('i', r).forEach((x) => { if (o && o.get(x.dataset.n)) x.style.width = o.get(x.dataset.n); });
+    r.onclick = () => { S.step = +r.dataset.i; save(); go('table'); };
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => $$('.srow i', box).forEach((x) => (x.style.width = x.dataset.w + '%'))));
+  $('#legend').innerHTML = names.map((n) => `<span><i style="background:${colorOf(n)}"></i>${esc(n)}</span>`).join('');
+}
+
+// ---------- cap table view ----------
+function renderTable() {
+  const n = R.tables.length;
+  if (!n) { $('#capTable').innerHTML = '<tr><td class="empty">Nothing yet.</td></tr>'; return; }
+  let step = S.step < 0 || S.step >= n ? n - 1 : S.step;
+  $('#steps').innerHTML = R.tables.map((_, i) => { const ev = S.events[i]; return `<button class="${i === step ? 'on' : ''}" data-s="${i}">${i + 1}. ${esc(ev.type === 'priced' ? ev.name : ev.name || ev.label || TYPE[ev.type][0])}</button>`; }).join('');
+  $$('#steps button').forEach((b) => (b.onclick = () => { S.step = +b.dataset.s; save(); renderTable(); }));
+  const t = R.tables[step], fd = C.total(t), px = lastPriceUpTo(step);
+  $('#tTitle').textContent = `After step ${step + 1}: ${S.events[step].type === 'priced' ? S.events[step].name : TYPE[S.events[step].type][0]}`;
+  $('#tHint').textContent = `${num(fd)} shares fully diluted` + (px ? ` · last round ${price(px)} a share · post-money ${money(px * fd)}` : '');
+  const rowsH = t.holders.filter((h) => h.shares > 0).slice().sort((a, b) => b.shares - a.shares);
+  $('#capTable').innerHTML = `<thead><tr><th>Holder</th><th>Class</th><th class="num">Shares</th><th class="num">Fully diluted</th>${px ? '<th class="num">Value</th>' : ''}</tr></thead><tbody>` +
+    rowsH.map((h, i) => `<tr style="animation-delay:${i * 0.025}s"><td><span class="sw" style="background:${colorOf(h.name)}"></span>${esc(h.name)}</td><td>${esc(h.cls)}${h.strike ? ` <small style="color:var(--mute)">@ ${sym()}${h.strike}</small>` : ''}</td><td class="num">${num(h.shares)}</td><td class="num">${pct(h.shares / fd)}</td>${px ? `<td class="num">${money(h.shares * px)}</td>` : ''}</tr>`).join('') +
+    `<tr><td><b>Total</b></td><td></td><td class="num"><b>${num(fd)}</b></td><td class="num"><b>100.00%</b></td>${px ? `<td class="num"><b>${money(fd * px)}</b></td>` : ''}</tr></tbody>`;
+  // donut
+  const own = C.ownership(t), r = 80, Cc = 2 * Math.PI * r;
+  const svg = $('#donut');
+  if (!svg.querySelector('circle.bg')) svg.innerHTML = `<circle class="bg" cx="110" cy="110" r="${r}" fill="none" stroke="#ebe2d1" stroke-width="30"/><g id="dsegs" transform="rotate(-90 110 110)"></g><text x="110" y="104" text-anchor="middle" font-size="11" fill="#8a8174">STEP</text><text id="dstep" x="110" y="126" text-anchor="middle" font-size="22" font-weight="600" fill="#1d1a16"></text>`;
+  const g = $('#dsegs', svg); const segs = new Map($$('circle', g).map((c) => [c.dataset.n, c]));
+  let acc = 0; const seen = new Set();
+  for (const o of own) {
+    let c = segs.get(o.name);
+    if (!c) { c = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); c.setAttribute('class', 'seg'); c.dataset.n = o.name; c.setAttribute('cx', 110); c.setAttribute('cy', 110); c.setAttribute('r', r); c.setAttribute('fill', 'none'); c.setAttribute('stroke-width', 30); c.setAttribute('stroke', colorOf(o.name)); c.style.strokeDasharray = `0 ${Cc}`; c.style.strokeDashoffset = -acc * Cc; g.appendChild(c); c.getBoundingClientRect(); }
+    c.style.strokeDasharray = `${Math.max(0, o.pct * Cc - 1.5)} ${Cc}`; c.style.strokeDashoffset = -acc * Cc; acc += o.pct; seen.add(o.name);
+  }
+  for (const [n2, c] of segs) if (!seen.has(n2)) { c.style.strokeDasharray = `0 ${Cc}`; }
+  $('#dstep', svg).textContent = step + 1;
+  $('#dLegend').innerHTML = own.map((o) => `<span><i style="background:${colorOf(o.name)}"></i>${esc(o.name)} <b style="margin-left:auto;font-family:var(--mono);font-size:12px">${pct(o.pct, 1)}</b></span>`).join('');
+  $('#pending').innerHTML = t.outstanding.length ? `<table><thead><tr><th>Holder</th><th>Type</th><th class="num">Converts</th><th class="num">Cap</th><th class="num">Discount</th></tr></thead><tbody>${t.outstanding.map((o) => `<tr><td>${esc(o.name)}</td><td>${o.type === 'note' ? 'Note' : (o.kind === 'pre' ? 'Pre' : 'Post') + '-money safe'}</td><td class="num">${money(o.amount)}</td><td class="num">${o.cap ? money(o.cap) : '–'}</td><td class="num">${o.discount ? Math.round(o.discount * 100) + '%' : '–'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">None outstanding at this step.</div>';
+}
+
+// ---------- next round modeler ----------
+function renderModel() {
+  const body = $('#modelBody');
+  const idx = S.events.map((e, i) => (e.type === 'priced' ? i : -1)).filter((i) => i >= 0);
+  if (!idx.length) { body.innerHTML = `<div class="card empty"><h3>No priced round yet</h3><p>Add one to see how your safes and notes convert.</p><button class="btn ox" id="addR">Add a priced round</button></div>`; $('#addR').onclick = () => { S.events.push(blank('priced')); save(); full(); }; return; }
+  if (S.mi == null || !idx.includes(S.mi)) S.mi = idx[0]; // the first round is where safes and notes convert
+  const ev = S.events[S.mi];
+  const big = S.currency === 'INR' ? CR : 1e6;
+  const raise = ev.investors.reduce((s, i) => s + (+i.amount || 0), 0);
+  if (!body.querySelector('#mSel') || body.dataset.mi != S.mi) {
+    body.dataset.mi = S.mi;
+    body.innerHTML = `<div class="steps" id="mSel">${idx.map((i) => `<button class="${i === S.mi ? 'on' : ''}" data-m="${i}">${esc(S.events[i].name)}</button>`).join('')}</div>
+    <div class="kpis stagger" id="mK"></div>
+    <div class="grid g2">
+      <div class="card"><h3>Shape the ${esc(ev.name)}</h3><p class="hint">Drag stuff, everything on the right moves. This edits step ${S.mi + 1}.</p>
+        <div class="sl"><div class="t"><label>Pre-money valuation</label><b id="lPre"></b></div><input type="range" id="sPre" min="0" max="1000"></div>
+        <div class="sl"><div class="t"><label>New money from ${esc(ev.investors[0].name)}</label><b id="lRaise"></b></div><input type="range" id="sRaise" min="0" max="1000"></div>
+        <div class="sl"><div class="t"><label>Unissued pool after the round</label><b id="lPool"></b></div><input type="range" id="sPool" min="0" max="30" step="0.5"></div>
+        <div class="sl"><div class="t"><label>Liquidation preference</label><b id="lMult"></b></div><input type="range" id="sMult" min="1" max="3" step="0.5"></div>
+        <h3 style="margin-top:8px;font-size:16px">How each safe and note converts</h3>
+        <div class="table-scroll"><table id="convT"></table></div>
+      </div>
+      <div class="card"><h3>Before and after</h3><p class="hint">Fully diluted, right before the round vs right after.</p><svg id="slope" viewBox="0 0 520 380" style="width:100%"></svg></div>
+    </div>`;
+    $$('#mSel button').forEach((b) => (b.onclick = () => { S.mi = +b.dataset.m; save(); renderModel(); }));
+    const logMap = (lo, hi) => ({ to: (v) => Math.round(Math.log(v / lo) / Math.log(hi / lo) * 1000), from: (s) => lo * Math.pow(hi / lo, s / 1000) });
+    const mPre = logMap(big * 1, big * 2000), mRaise = logMap(big * 0.05, big * 500);
+    const nice = (v) => { const e = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v / e) * e; };
+    const sPre = $('#sPre'), sRaise = $('#sRaise'), sPool = $('#sPool'), sMult = $('#sMult');
+    sPre.value = mPre.to(ev.preMoney); sRaise.value = mRaise.to(ev.investors[0].amount); sPool.value = ev.pool.mode === 'target' ? ev.pool.value * 100 : 0; sMult.value = ev.multiple || 1;
+    const upd = () => { ev.preMoney = nice(mPre.from(+sPre.value)); ev.investors[0].amount = nice(mRaise.from(+sRaise.value)); ev.pool = { mode: 'target', value: +sPool.value / 100 }; ev.multiple = +sMult.value; save(); compute(); resetColors(); renderModel(); };
+    [sPre, sRaise, sPool, sMult].forEach((s) => (s.oninput = upd));
+  }
+  const fill = (s) => s.style.setProperty('--p', ((s.value - s.min) / (s.max - s.min) * 100) + '%');
+  $$('#modelBody input[type=range]').forEach(fill);
+  $('#lPre').textContent = money(ev.preMoney); $('#lRaise').textContent = money(ev.investors[0].amount) + (ev.investors.length > 1 ? ` (+${money(raise - ev.investors[0].amount)} others)` : '');
+  $('#lPool').textContent = ev.pool.mode === 'target' ? pct(ev.pool.value, 1) : '+' + num(ev.pool.value) + ' shares'; $('#lMult').textContent = (ev.multiple || 1) + 'x';
+  const after = R.tables[S.mi], before = R.tables[S.mi - 1] || C.emptyTable();
+  if (!after) { $('#mK').innerHTML = `<div class="kpi ox" style="grid-column:1/-1"><span>Problem</span><b style="font-size:17px">${esc(R.error ? R.error.msg : 'This round cannot be computed')}</b></div>`; return; }
+  const L2 = after.last;
+  const k = $('#mK');
+  if (!k.children.length) k.innerHTML = `<div class="kpi"><span>Price a share</span><b data-k="p"></b><small>pre-money ÷ capitalization incl. pool</small></div><div class="kpi fo"><span>Post-money</span><b data-k="pm"></b><small data-k="nm"></small></div><div class="kpi ox"><span>Pool increase</span><b data-k="pi"></b><small>shares, paid for by existing holders</small></div><div class="kpi br"><span>Safes &amp; notes became</span><b data-k="cv"></b><small data-k="cvs"></small></div>`;
+  tween($('[data-k=p]', k), L2.price, (x) => price(x));
+  tween($('[data-k=pm]', k), ev.preMoney + raise, (x) => money(x));
+  $('[data-k=nm]', k).textContent = `${pct(L2.newShares / L2.postFD, 1)} goes to new money`;
+  tween($('[data-k=pi]', k), L2.poolIncrease, num);
+  const convSh = L2.conversions.reduce((s, c) => s + c.shares, 0);
+  tween($('[data-k=cv]', k), convSh / L2.postFD * 100, (x) => x.toFixed(1) + '%');
+  $('[data-k=cvs]', k).textContent = `${num(convSh)} shares, ${L2.conversions.length} holders`;
+  $('#convT').innerHTML = L2.conversions.length ? `<thead><tr><th>Holder</th><th>Took</th><th class="num">Price</th><th class="num">Shares</th><th class="num">Owns after</th></tr></thead><tbody>${L2.conversions.map((c) => `<tr><td><span class="sw" style="background:${colorOf(c.name)}"></span>${esc(c.name)}</td><td><span class="chip ${c.method}">${c.method === 'cap' ? 'cap price' : c.method === 'discount' ? 'discount' : 'round price'}</span></td><td class="num">${price(c.price)}</td><td class="num">${num(c.shares)}</td><td class="num">${pct(c.shares / L2.postFD)}</td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">No safes or notes outstanding before this round.</td></tr></tbody>';
+  // slope chart
+  const b = new Map(C.ownership(before).map((o) => [o.name, o.pct])), a = new Map(C.ownership(after).map((o) => [o.name, o.pct]));
+  const names = [...new Set([...b.keys(), ...a.keys()])].sort((x, y) => (a.get(y) || 0) - (a.get(x) || 0));
+  const max = Math.max(0.05, ...names.map((n2) => Math.max(b.get(n2) || 0, a.get(n2) || 0)));
+  const Y = (v) => 350 - v / max * 310, svg = $('#slope');
+  // spread labels so they don't collide
+  const place = (vals) => { const arr = vals.map((v, i) => ({ i, y: Y(v) })).sort((p, q) => p.y - q.y); for (let j = 1; j < arr.length; j++) if (arr[j].y - arr[j - 1].y < 15) arr[j].y = arr[j - 1].y + 15; const out = []; arr.forEach((p) => (out[p.i] = p.y)); return out; };
+  const ly1 = place(names.map((n2) => b.get(n2) || 0)), ly2 = place(names.map((n2) => a.get(n2) || 0));
+  svg.innerHTML = `<line x1="150" y1="30" x2="150" y2="352" stroke="#d8ccb6"/><line x1="370" y1="30" x2="370" y2="352" stroke="#d8ccb6"/>
+    <text x="150" y="18" text-anchor="middle" font-size="11" fill="#8a8174">BEFORE</text><text x="370" y="18" text-anchor="middle" font-size="11" fill="#8a8174">AFTER ${esc(ev.name.toUpperCase())}</text>` +
+    names.map((n2, i) => { const v1 = b.get(n2) || 0, v2 = a.get(n2) || 0, col = colorOf(n2);
+      return `<g style="animation:rise .6s var(--ease) ${i * 0.04}s both"><line x1="150" y1="${Y(v1)}" x2="370" y2="${Y(v2)}" stroke="${col}" stroke-width="${v1 ? 2.4 : 1.6}" ${v1 ? '' : 'stroke-dasharray="4 4"'} style="transition:all .5s"/>
+      <circle cx="150" cy="${Y(v1)}" r="${v1 ? 4.5 : 0}" fill="${col}"/><circle cx="370" cy="${Y(v2)}" r="4.5" fill="${col}"/>
+      ${v1 ? `<text x="140" y="${ly1[i] + 4}" text-anchor="end" font-size="11" fill="#4a443b">${esc(n2.length > 14 ? n2.slice(0, 13) + '…' : n2)} ${(v1 * 100).toFixed(1)}%</text>` : ''}
+      <text x="380" y="${ly2[i] + 4}" font-size="11" fill="#1d1a16">${(v2 * 100).toFixed(1)}% ${esc(n2.length > 13 ? n2.slice(0, 12) + '…' : n2)}</text></g>`; }).join('');
+}
+
+// ---------- exit ----------
+let curveCache = null;
+function exitRange() {
+  const t = finalTable(), pos = C.exitPositions(t);
+  const pref = pos.filter((p) => p.kind === 'preferred').reduce((s, p) => s + (p.prefAmount != null ? p.prefAmount : p.multiple * p.price * p.shares), 0);
+  const px = lastPrice(t), post = px * C.total(t);
+  const hi = Math.max(post * 8, pref * 20, S.currency === 'INR' ? 100 * CR : 1e8), lo = Math.max(hi / 2000, 1000);
+  return { lo, hi, pref, post };
+}
+function renderExit() {
+  const t = finalTable(), rg = exitRange();
+  const sl = $('#exitV');
+  const toS = (v) => Math.round(Math.log(v / rg.lo) / Math.log(rg.hi / rg.lo) * 1000), fromS = (s) => rg.lo * Math.pow(rg.hi / rg.lo, s / 1000);
+  if (!S.exitV || S.exitV < rg.lo || S.exitV > rg.hi) S.exitV = rg.post ? rg.post * 2 : rg.hi / 10;
+  sl.value = toS(S.exitV); sl.style.setProperty('--p', (sl.value / 10) + '%');
+  sl.oninput = () => { S.exitV = fromS(+sl.value); save(); sl.style.setProperty('--p', (sl.value / 10) + '%'); drawPay(); drawMarker(); };
+  drawPay(); drawCurve(); drawTerms();
+}
+function holderInvested() {
+  const m = new Map();
+  for (const e of S.events) {
+    if (e.type === 'safe') m.set(e.name, (m.get(e.name) || 0) + e.amount);
+    if (e.type === 'note') m.set(e.name, (m.get(e.name) || 0) + e.principal);
+    if (e.type === 'priced') for (const i of e.investors) m.set(i.name, (m.get(i.name) || 0) + (+i.amount || 0));
+  }
+  return m;
+}
+function drawPay() {
+  const t = finalTable(), V = S.exitV;
+  $('#exitLab').textContent = money(V);
+  const w = C.waterfall(t, V), by = new Map(), conv = new Map(), inv = holderInvested();
+  for (const r of w.rows) { by.set(r.holder, (by.get(r.holder) || 0) + r.payout); if (r.converted != null) conv.set(r.holder, (conv.get(r.holder) || []).concat(r.converted)); }
+  const list = [...by].sort((a, b) => b[1] - a[1]), top = Math.max(1e-9, ...list.map((x) => x[1]));
+  const box = $('#payRows');
+  const old = new Map($$('.payrow', box).map((r) => [r.dataset.n, $('i', r).style.width]));
+  box.innerHTML = list.map(([n, v]) => {
+    const c = conv.get(n), i = inv.get(n);
+    const note = c ? (c.every(Boolean) ? 'converts' : c.some(Boolean) ? 'part converts' : 'takes preference') : '';
+    return `<div class="payrow" data-n="${esc(n)}"><div class="lab" title="${esc(n)}"><span class="sw" style="background:${colorOf(n)}"></span>${esc(n)}</div><div class="bar"><i style="width:${old.get(n) || 0};background:${colorOf(n)}" data-w="${(v / top * 100).toFixed(3)}"></i></div><div class="v">${money(v)}<small>${pct(v / V, 1)}${i ? ` · ${(v / i).toFixed(1)}x` : ''}${note ? ' · ' + note : ''}</small></div></div>`;
+  }).join('');
+  requestAnimationFrame(() => $$('.payrow i', box).forEach((x) => (x.style.width = x.dataset.w + '%')));
+}
+function drawCurve() {
+  const t = finalTable(), rg = exitRange(), svg = $('#curve');
+  const N = 70, xs = [...Array(N)].map((_, i) => rg.lo * Math.pow(rg.hi / rg.lo, i / (N - 1)));
+  const series = new Map();
+  xs.forEach((V, k) => { const by = C.payoutsByHolder(t, V); for (const [n, v] of by) { if (!series.has(n)) series.set(n, new Array(N).fill(0)); series.get(n)[k] = v / V; } });
+  const X = (i) => 46 + i / (N - 1) * 494, Y = (f) => 262 - f * 240;
+  let grid = '';
+  for (let f = 0; f <= 1.0001; f += 0.25) grid += `<line x1="46" x2="540" y1="${Y(f)}" y2="${Y(f)}" stroke="#eadfcb"/><text x="40" y="${Y(f) + 4}" text-anchor="end" font-size="10" fill="#8a8174">${Math.round(f * 100)}%</text>`;
+  for (let j = 0; j <= 4; j++) { const i = Math.round(j / 4 * (N - 1)); grid += `<text x="${X(i)}" y="284" text-anchor="middle" font-size="10" fill="#8a8174">${money(xs[i])}</text>`; }
+  const lines = [...series].filter(([, v]) => Math.max(...v) > 0.005).map(([n, v], i) => `<path class="line" d="${v.map((f, k) => (k ? 'L' : 'M') + X(k).toFixed(1) + ' ' + Y(f).toFixed(1)).join('')}" stroke="${colorOf(n)}" style="animation-delay:${i * 0.05}s"/>`).join('');
+  svg.innerHTML = grid + `<text x="46" y="14" font-size="10" fill="#8a8174">SHARE OF THE EXIT</text>` + lines + `<g id="mark"><line y1="20" y2="262" stroke="#1d1a16" stroke-dasharray="3 3"/><circle r="5" fill="#8c2f39" cy="20"/></g>`;
+  curveCache = { rg };
+  $('#cLegend').innerHTML = [...series.keys()].map((n) => `<span><i style="background:${colorOf(n)}"></i>${esc(n)}</span>`).join('');
+  drawMarker();
+}
+function drawMarker() {
+  if (!curveCache) return; const { rg } = curveCache, m = $('#mark'); if (!m) return;
+  const x = 46 + Math.log(S.exitV / rg.lo) / Math.log(rg.hi / rg.lo) * 494;
+  m.setAttribute('transform', `translate(${x},0)`); m.style.transition = 'transform .2s';
+}
+function drawTerms() {
+  const rounds = S.events.map((e, i) => [e, i]).filter(([e]) => e.type === 'priced');
+  $('#terms').innerHTML = rounds.length ? `<thead><tr><th>Round</th><th>Multiple</th><th>Participating</th><th>Cap (x)</th><th>Seniority</th></tr></thead><tbody>${rounds.map(([e, i]) => `<tr data-i="${i}"><td><b>${esc(e.name)}</b></td><td><input data-t="multiple" value="${e.multiple == null ? 1 : e.multiple}" inputmode="decimal"></td><td><select data-t="participating"><option value="0" ${e.participating ? '' : 'selected'}>No</option><option value="1" ${e.participating ? 'selected' : ''}>Yes</option></select></td><td><input data-t="capMultiple" value="${e.capMultiple || ''}" placeholder="none" inputmode="decimal"></td><td><select data-t="rank">${rounds.map((_, k) => `<option value="${k + 1}" ${(e.rank == null ? rounds.findIndex((r) => r[1] === i) + 1 : e.rank) === k + 1 ? 'selected' : ''}>${k + 1}${k === rounds.length - 1 ? ' (most senior)' : ''}</option>`).join('')}</select></td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">No priced rounds. Unconverted safes take their money back or convert at the cap.</td></tr></tbody>';
+  $$('#terms [data-t]').forEach((el) => (el.onchange = el.oninput = () => {
+    const e = S.events[+el.closest('tr').dataset.i], k = el.dataset.t;
+    if (k === 'participating') e.participating = el.value === '1'; else if (k === 'capMultiple') e.capMultiple = el.value.trim() ? toNum(el.value) : null; else if (k === 'rank') e.rank = +el.value; else e.multiple = toNum(el.value) || 1;
+    save(); compute(); clearTimeout(debounce); debounce = setTimeout(() => { drawPay(); drawCurve(); }, 150);
+  }));
+}
+
+// ---------- checks ----------
+function renderChecks() {
+  const res = YCCases.check(C);
+  const all = res.flatMap((r) => r.checks), pass = all.filter((c) => c.ok).length;
+  $('#ycList').innerHTML = res.map((ex, j) => `<div class="exhead"><b>${esc(ex.title)}</b><span class="${ex.checks.every((c) => c.ok) ? 'pass' : 'fail'}">${ex.checks.filter((c) => c.ok).length}/${ex.checks.length}</span></div>
+    <table><thead><tr><th>Figure</th><th class="num">YC's guide</th><th class="num">This engine</th><th></th></tr></thead><tbody>${ex.checks.map((c, i) => `<tr style="animation-delay:${(j * 4 + i) * 0.015}s"><td>${esc(c.label)}</td><td class="num">${fmtC(c.label, c.want)}</td><td class="num">${fmtC(c.label, c.got)}</td><td class="${c.ok ? 'pass' : 'fail'}">${c.ok ? '✓' : '✕'}</td></tr>`).join('')}</tbody></table>`).join('');
+  const b = BENCH || {};
+  $('#chkKpis').innerHTML = `<div class="kpi fo"><span>YC figures matched</span><b>${pass} / ${all.length}</b><small>8 worked examples</small></div>
+    <div class="kpi"><span>Random rounds</span><b>${b.rounds ? num(b.rounds) : '–'}</b><small>worst price error ${b.worst_price_rel_err != null ? b.worst_price_rel_err.toExponential(1) : '–'}</small></div>
+    <div class="kpi ox"><span>Random exits</span><b>${b.exits ? num(b.exits) : '–'}</b><small>${b.exits ? (b.engine_not_equilibrium === 0 ? 'every answer is stable' : b.engine_not_equilibrium + ' unstable') : ''}</small></div>
+    <div class="kpi br"><span>Worst payout gap</span><b>${b.worst_payout_diff_dollars != null ? '<0.01' : '–'}</b><small>currency units, any holder</small></div>`;
+  $('#refHint').textContent = 'Random cap tables generated by bench/cases.js, solved here and by the reference, compared to the last digit.';
+  $('#refTable').innerHTML = b.rounds ? `<tbody>
+    <tr><td>Priced rounds with 1–4 safes (pre/post-money, caps, discounts)</td><td class="num">${num(b.rounds)}</td></tr>
+    <tr><td>Worst relative error, round price</td><td class="num">${b.worst_price_rel_err.toExponential(1)}</td></tr>
+    <tr><td>Worst relative error, Company Capitalization</td><td class="num">${b.worst_capitalization_rel_err.toExponential(1)}</td></tr>
+    <tr><td>Exit waterfalls (1–4 preferred classes, participation, caps, seniority, options with strikes)</td><td class="num">${num(b.exits)}</td></tr>
+    <tr><td>Answers where some class could gain by switching</td><td class="num">${b.engine_not_equilibrium}</td></tr>
+    <tr><td>Cases with more than one stable answer</td><td class="num">${b.cases_with_several_equilibria}</td></tr>
+    <tr><td>Largest payout difference</td><td class="num">${b.worst_payout_diff_dollars.toExponential(1)}</td></tr></tbody>` : '<tbody><tr><td class="empty">Run bench/ref.py and rebuild.</td></tr></tbody>';
+}
+function fmtC(label, v) { if (/price|per share/i.test(label)) return '$' + v.toFixed(4); if (/%/.test(label)) return v.toFixed(2) + '%'; if (/cash|paid/i.test(label)) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 }); return Math.round(v).toLocaleString('en-US'); }
+
+// ---------- render ----------
+function render() {
+  $('#company').value = S.company || '';
+  $$('#cur button').forEach((b) => b.classList.toggle('on', b.dataset.c === S.currency));
+  renderKpis();
+  if (S.view === 'rounds') { renderEvents(); renderStack(); }
+  if (S.view === 'table') renderTable();
+  if (S.view === 'model') { $('#modelBody').innerHTML = ''; renderModel(); }
+  if (S.view === 'exit') renderExit();
+  if (S.view === 'checks') renderChecks();
+}
+function full() { compute(); resetColors(); $('#kpis').innerHTML = ''; render(); }
+window.addEventListener('resize', () => { const b = $(`#nav button[data-v="${S.view}"]`); if (b) $('#pill').style.transform = `translateY(${b.offsetTop}px)`; });
+compute(); resetColors();
+go(S.view || 'rounds');
+})();
+</script>
+</body>
+</html>

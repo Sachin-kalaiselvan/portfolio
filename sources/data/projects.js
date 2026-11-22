@@ -3,7 +3,7 @@ export default [
     {
         title: 'Rocket Landing Simulator',
         titleSmall: [ 'Rocket', 'landing' ],
-        url: '',
+        url: '/apps/rocket-landing-simulator/',
         attributes:
         {
             role: [ 'Guidance, solver', 'simulation' ],
@@ -15,7 +15,7 @@ export default [
     {
         title: 'Language-Controlled Robot Arm',
         titleSmall: [ 'Robot', 'arm' ],
-        url: '',
+        url: '/apps/language-controlled-robot-arm/',
         attributes:
         {
             role: [ 'Planning, IK', 'perception, ROS 2' ],
@@ -27,7 +27,7 @@ export default [
     {
         title: 'Satellite Collision Watch',
         titleSmall: [ 'Satellite', 'watch' ],
-        url: '',
+        url: '/apps/satellite-collision-watch/',
         attributes:
         {
             role: [ 'Screening', 'orbit maths' ],
@@ -39,7 +39,7 @@ export default [
     {
         title: 'Drone Swarm Mapper',
         titleSmall: [ 'Drone', 'swarm' ],
-        url: '',
+        url: '/apps/drone-swarm-mapper/',
         attributes:
         {
             role: [ 'Exploration', 'flight sim' ],
@@ -62,7 +62,7 @@ export default [
     {
         title: 'Delivery Route Planner',
         titleSmall: [ 'Route', 'planner' ],
-        url: '',
+        url: '/apps/delivery-route-planner/',
         attributes:
         {
             role: [ 'Routing solver', 'fleet planning' ],
@@ -74,7 +74,7 @@ export default [
     {
         title: 'Inventory Planner',
         titleSmall: [ 'Inventory', 'planner' ],
-        url: '',
+        url: '/apps/inventory-planner/',
         attributes:
         {
             role: [ 'Forecasting', 'reorder policy' ],
@@ -86,7 +86,7 @@ export default [
     {
         title: 'Marketing Budget Planner',
         titleSmall: [ 'Budget', 'planner' ],
-        url: '',
+        url: '/apps/marketing-budget-planner/',
         attributes:
         {
             role: [ 'Media mix model', 'budget optimiser' ],
@@ -98,7 +98,7 @@ export default [
     {
         title: 'Cap Table Simulator',
         titleSmall: [ 'Cap', 'table' ],
-        url: '',
+        url: '/apps/cap-table-simulator/',
         attributes:
         {
             role: [ 'SAFEs, rounds', 'exit waterfall' ],

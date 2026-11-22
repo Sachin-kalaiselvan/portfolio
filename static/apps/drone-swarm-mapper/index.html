@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drone Swarm Mapper</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a building survey drawn as it happens: architectural, exact, a little cartographic.
+   IDEA: the surveyor's plan sheet, where unknown space is hatched and each drone inks in the walls it finds.
+   PICTURE: the live floor plan filling in under the swarm, lidar fans sweeping, assignment lines to frontiers.
+   COLOUR and TYPE: white sheet, cobalt ink for walls, warm grey hatching for the unknown; each drone keeps its own colour. Archivo headings, Public Sans text, DM Mono figures.
+   LAYOUT: plan sheet left, fleet rail right; other views are sheets with the finished map, charts and the fleet-size experiment. */
+:root{color-scheme:light dark;
+--bg:light-dark(#f6f6f3,#121315);--sheet:light-dark(#ffffff,#1a1b1e);--ink:light-dark(#18202e,#e6e8ee);--mute:light-dark(#646b78,#9aa0ad);--line:light-dark(#dfe0dc,#2c2e33);
+--cobalt:light-dark(#2147c9,#7d9bff);--wall:light-dark(#1e2a52,#c9d3f5);--hatch:light-dark(#c9c4b8,#3a3b40);--free:light-dark(#ffffff,#202227);--warn:light-dark(#c0392b,#ff8577)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Public Sans",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.brand,nav a,button{font-family:Archivo,"Public Sans",sans-serif}
+.mono{font-family:"DM Mono",monospace}
+header{position:sticky;top:0;z-index:20;background:var(--sheet);border-bottom:2px solid var(--ink);display:flex;align-items:center;gap:16px;padding:0 max(2vw,14px);min-height:58px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:19px;display:flex;align-items:center;gap:10px}
+nav{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+nav a{color:var(--mute);text-decoration:none;font-weight:600;font-size:15px;padding:8px 12px;min-height:40px;display:flex;align-items:center;border-bottom:3px solid transparent;transition:color .2s,border-color .25s}
+nav a:hover{color:var(--ink)}nav a.on{color:var(--ink);border-bottom-color:var(--cobalt)}
+.view{display:none}.view.on{display:block;animation:vin .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes vin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+#mission.on{display:grid}
+#mission{grid-template-columns:minmax(0,1fr) 360px;height:calc(100vh - 58px);min-height:600px}
+.plan{position:relative;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0}
+.titleblock{display:flex;gap:18px;align-items:end;flex-wrap:wrap;padding:14px 18px 6px}
+.cov{font:800 54px/1 Archivo;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.cov small{font-size:20px;font-weight:600;color:var(--mute);letter-spacing:0;margin-left:6px}
+.tb{display:flex;gap:18px;flex-wrap:wrap;padding-bottom:6px}
+.tb div{font-size:13px;color:var(--mute)}.tb b{display:block;font:500 19px "DM Mono";color:var(--ink);white-space:nowrap}
+.canvasWrap{position:relative;margin:0 14px;border:2px solid var(--ink);background:var(--sheet);overflow:hidden}
+.canvasWrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.legend{position:absolute;left:10px;bottom:10px;background:color-mix(in srgb,var(--sheet) 88%,transparent);border:1px solid var(--line);padding:6px 10px;font-size:12px;color:var(--mute);display:flex;gap:12px;flex-wrap:wrap;pointer-events:none}
+.legend i{display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 14px 14px}
+.b{font-weight:700;font-size:15px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);padding:8px 14px;min-height:44px;cursor:pointer;transition:transform .15s,background .2s,color .2s}
+.b:hover{transform:translateY(-1px)}.b:active{transform:translateY(1px)}
+.b.go{background:var(--cobalt);border-color:var(--cobalt);color:#fff}
+.b.warn{color:var(--warn);border-color:var(--warn)}
+.b:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.seg{display:flex;border:2px solid var(--ink)}.seg button{border:0;background:var(--sheet);color:var(--mute);font-weight:600;font-size:14px;padding:6px 10px;min-height:40px;cursor:pointer}.seg button.on{background:var(--ink);color:var(--sheet)}
+.tog{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--mute);min-height:44px;cursor:pointer}.tog input{width:18px;height:18px;accent-color:#2147c9}
+:focus-visible{outline:3px solid #7d9bff;outline-offset:2px}
+.rail{background:var(--sheet);border-left:2px solid var(--ink);overflow-y:auto;padding:16px;display:grid;gap:14px;align-content:start}
+.rail h3{margin:0;font-size:15px;font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row label{font-size:14px;color:var(--mute)}
+input[type=range]{width:100%;accent-color:#2147c9;min-height:30px}
+.fleet{display:grid;gap:8px}
+.dr{display:grid;grid-template-columns:30px minmax(0,1fr) 60px;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);animation:vin .35s ease both}
+.dr svg{display:block}
+.dr .nm{font-weight:600;font-size:14px}.dr .st{font-size:13px;color:var(--mute)}
+.dr .bat{height:8px;border:1px solid var(--line);position:relative}.dr .bat i{position:absolute;left:0;top:0;bottom:0;transition:width .3s}
+.dr .n{font:500 13px "DM Mono";text-align:right;white-space:nowrap}
+.dr.lost{opacity:.5}.dr.lost .st{color:var(--warn)}
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px}
+.feed li{display:grid;grid-template-columns:48px 1fr;gap:8px;animation:vin .35s ease}
+.feed time{font:500 13px "DM Mono";color:var(--cobalt)}
+.feed li.bad{color:var(--warn)}
+.sheetv{max-width:1240px;margin:0 auto;padding:clamp(22px,4vw,48px) max(4vw,16px) 64px}
+.sheetv h1{font-size:clamp(30px,4.4vw,48px);line-height:1.06;margin:0 0 8px;text-wrap:balance;font-weight:800}
+.lede{color:var(--mute);max-width:68ch;margin:0 0 22px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.card{background:var(--sheet);border:2px solid var(--ink);padding:16px 18px}
+.card h2{font-size:20px;margin:0 0 2px}.card .sub{color:var(--mute);font-size:14px;margin:0 0 10px}
+.fig{position:relative;min-height:260px}.fig>svg,.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
+.fig text{font:13px "Public Sans";fill:var(--mute)}
+.bigmap{position:relative;aspect-ratio:200/140;border:2px solid var(--ink);background:var(--sheet)}.bigmap canvas{position:absolute;inset:0;width:100%;height:100%}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;color:var(--mute);font-weight:500;padding:8px;border-bottom:2px solid var(--ink)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.r,th.r{text-align:right}
+.pill{display:inline-block;padding:1px 9px;font-size:13px;font-weight:600;border:1px solid currentColor}
+.ok{color:var(--cobalt)}.no{color:var(--warn)}
+.prose{max-width:74ch}.prose h2{font-size:24px;margin:28px 0 6px}.prose p{margin:0 0 12px}
+.scroll{overflow-x:auto}
+.empty{color:var(--mute);padding:16px 0}
+.form4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.form4 input{font:16px 'Public Sans';color:var(--ink);background:var(--bg);border:2px solid var(--ink);padding:9px 10px;min-height:44px;width:100%}
+#planWidth{font:16px 'Public Sans';color:var(--ink);background:var(--bg);border:2px solid var(--ink);padding:9px 10px;min-height:44px;width:100%}
+.rec{border:2px solid var(--cobalt);padding:12px 14px;display:flex;gap:18px;flex-wrap:wrap;align-items:baseline}.rec b{font:800 30px Archivo}.rec span{color:var(--mute);font-size:14px;display:block}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:90px minmax(0,1fr) 70px;gap:10px;align-items:center;font-size:14px}
+.bar .t{height:16px;background:var(--bg);border:1px solid var(--line);position:relative}.bar .t i{position:absolute;left:0;top:0;bottom:0;animation:growx .8s ease both;transform-origin:left}
+@keyframes growx{from{transform:scaleX(0)}}
+.bar b{font:500 14px "DM Mono";text-align:right}
+@media(max-width:980px){#mission{grid-template-columns:1fr;height:auto}.plan{grid-template-rows:auto auto auto}.canvasWrap{aspect-ratio:200/140;min-height:0}.rail{border-left:0;border-top:2px solid var(--ink)}.g2{grid-template-columns:1fr}}
+@media(max-width:600px){.form4{grid-template-columns:1fr 1fr}.legend{display:none}nav{margin-left:0}nav a{padding:6px 8px;font-size:14px}.cov{font-size:40px}.tb b{font-size:16px}
+table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mute)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header>
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><g stroke="#2147c9" stroke-width="2.2" fill="none"><circle cx="6" cy="6" r="4"/><circle cx="20" cy="6" r="4"/><circle cx="6" cy="20" r="4"/><circle cx="20" cy="20" r="4"/><path d="M8.5 8.5l9 9M17.5 8.5l-9 9"/></g></svg>Drone Swarm Mapper</div>
+  <nav id="nav"><a href="#mission">Mission</a><a href="#building">Your building</a><a href="#map">Map</a><a href="#experiment">Fleet size test</a><a href="#runs">Runs</a><a href="#method">How it works</a></nav>
+</header>
+<main>
+<section class="view" id="mission">
+  <div class="plan">
+    <div class="titleblock">
+      <div><div style="font-size:13px;color:var(--mute)" id="covLbl">Building mapped</div><div class="cov" id="cov">0%<small id="covTime">ready</small></div></div>
+      <div class="tb"><div>Mission time<b id="kT">0:00</b></div><div>Floor seen<b id="kA">0 m²</b></div><div>Flown<b id="kD">0 m</b></div><div>Frontiers open<b id="kF">–</b></div></div>
+    </div>
+    <div class="canvasWrap" id="wrap"><canvas id="cv" aria-label="Live floor plan being mapped by the drones"></canvas>
+      <div class="legend"><span><i style="background:repeating-linear-gradient(45deg,var(--hatch) 0 2px,transparent 2px 5px)"></i>Not seen yet</span><span><i style="background:var(--free)"></i>Seen, open</span><span><i style="background:var(--wall)"></i>Wall found</span><span><i style="background:#f2b705;border-radius:50%"></i>Frontier</span></div>
+    </div>
+    <div class="ctl">
+      <button class="b go" id="start">Launch swarm</button>
+      <button class="b" id="pause" disabled>Pause</button>
+      <button class="b warn" id="kill" disabled title="Simulate a drone failing in flight">Take a drone down</button>
+      <button class="b" id="newb">New building</button>
+      <div class="seg" id="speed" role="group" aria-label="Speed"><button data-v="1">1×</button><button data-v="2" class="on">2×</button><button data-v="4">4×</button></div>
+      <label class="tog"><input type="checkbox" id="showTruth">Show hidden floor plan</label>
+      <label class="tog"><input type="checkbox" id="byDrone" checked>Colour by drone</label>
+    </div>
+  </div>
+  <aside class="rail">
+    <div>
+      <h3>Fleet size</h3>
+      <div class="row"><input type="range" id="nDr" min="1" max="8" value="4" aria-label="Number of drones"><b class="mono" id="nDrV" style="min-width:2ch">4</b></div>
+    </div>
+    <div><h3>Battery</h3><div class="seg" id="drain" role="group" aria-label="Battery size"><button data-v="1" class="on">Full packs</button><button data-v="3">Small packs</button></div></div>
+    <div class="fleet" id="fleet"></div>
+    <h3>Mission log</h3>
+    <ul class="feed" id="feed"></ul>
+  </aside>
+</section>
+
+<section class="view" id="building"><div class="sheetv">
+  <h1>Fly your own building</h1>
+  <p class="lede">Upload a floor plan image (a screenshot, a scan, an export from your CAD tool). Dark lines become walls. Clean it up with the brush, put the base where the drones take off, then fly it.</p>
+  <div class="g2">
+    <div class="card">
+      <h2>1. The plan</h2><p class="sub">PNG or JPG, dark walls on a light background</p>
+      <div class="row" style="gap:8px;margin-bottom:12px"><label class="b" style="display:inline-flex;align-items:center;cursor:pointer">Upload a plan<input type="file" id="planFile" accept="image/*" style="display:none"></label><button class="b" id="planSample" type="button">Try a sample plan</button></div>
+      <label>Building width in metres<input type="number" id="planWidth" min="8" max="80" step="1" value="30"></label>
+      <label style="margin-top:10px">Wall darkness threshold <span class="mono" id="thrV">50%</span><input type="range" id="planThr" min="10" max="90" value="50"></label>
+      <label class="tog" style="margin-top:4px"><input type="checkbox" id="planThick">Thicken broken lines</label>
+      <label class="tog"><input type="checkbox" id="planClean" checked>Ignore text and small marks</label>
+      <p class="sub" style="margin-top:10px" id="planInfo">No plan loaded yet.</p>
+    </div>
+    <div class="card">
+      <h2>2. Clean up and fly</h2><p class="sub">Paint to fix walls. Door swings drawn as arcs block the drones, so erase them.</p>
+      <div class="row" style="gap:8px;margin-bottom:10px"><div class="seg" id="brush" role="group" aria-label="Brush"><button data-v="wall" class="on">Wall</button><button data-v="erase">Erase</button><button data-v="base">Base</button></div><div class="seg" id="brushSize" role="group" aria-label="Brush size"><button data-v="1">S</button><button data-v="3" class="on">M</button><button data-v="6">L</button></div></div>
+      <div class="bigmap" id="planBox" style="aspect-ratio:auto;height:320px;cursor:crosshair"><canvas id="planCv" style="touch-action:none"></canvas></div>
+      <div class="row" style="gap:8px;margin-top:12px"><button class="b go" id="planFly" disabled>Fly this building</button><span class="mono" id="planReach" style="color:var(--mute);font-size:14px"></span></div>
+    </div>
+  </div>
+</div></section>
+
+<section class="view" id="map"><div class="sheetv">
+  <h1 id="mapTitle">The map the swarm built</h1>
+  <p class="lede">Every wall here was found by lidar. Nothing about the building was known before launch.</p>
+  <div class="row" style="margin-bottom:14px"><button class="b dl" id="mapPdf" hidden>Download the survey report (PDF)</button></div>
+  <div class="bigmap"><canvas id="mapCv"></canvas></div>
+  <div class="g2" style="margin-top:16px">
+    <div class="card"><h2>Coverage over time</h2><p class="sub">Share of the reachable floor seen by at least one drone</p><div class="fig"><svg id="chCov"></svg></div></div>
+    <div class="card"><h2>Who mapped what</h2><p class="sub">Cells each drone was first to see</p><div class="bars" id="contrib"></div></div>
+  </div>
+</div></section>
+
+<section class="view" id="experiment"><div class="sheetv">
+  <h1 id="expTitle">Do more drones always map faster?</h1>
+  <p class="lede">This runs the same building with 1 to 8 drones, flat out in a background thread, and times each run. Coordination costs and shared corridors mean the gains flatten.</p>
+  <div class="row" style="margin-bottom:16px"><button class="b go" id="runExp">Run the test on this building</button><span class="mono" id="expStatus" style="color:var(--mute)"></span></div>
+  <div class="g2">
+    <div class="card"><h2>Time to map 95%</h2><p class="sub">Seconds of flight, by fleet size</p><div class="fig"><svg id="chExp"></svg></div></div>
+    <div class="card"><h2>Results</h2><p class="sub">Each row is one complete mission</p><div class="scroll"><table class="stack" id="expTable"></table></div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>How many should you buy?</h2><p class="sub">Uses the results above. Set your deadline and costs; the cheapest fleet that maps 95% in time is picked.</p>
+    <div class="form4">
+      <label>Deadline per building (minutes)<input type="number" id="sDead" min="0.5" step="0.5" value="1.5"></label>
+      <label>Cost per drone (₹)<input type="number" id="sUnit" min="0" step="1000" value="85000"></label>
+      <label>Crew cost per hour (₹)<input type="number" id="sCrew" min="0" step="100" value="1500"></label>
+      <label>Buildings per month<input type="number" id="sMonth" min="1" step="1" value="40"></label>
+    </div>
+    <div id="sOut" style="margin-top:14px"></div>
+  </div>
+</div></section>
+
+<section class="view" id="runs"><div class="sheetv">
+  <h1 id="runsTitle">Missions flown</h1>
+  <p class="lede">Every mission you finish is kept in this browser.</p>
+  <div class="card"><div class="scroll"><table class="stack" id="runsTable"></table></div><div style="margin-top:12px"><button class="b" id="clearRuns">Clear runs</button></div></div>
+</div></section>
+
+<section class="view" id="method"><div class="sheetv prose">
+  <h1>Exploring a building nobody has mapped</h1>
+  <p class="lede">The swarm starts at the door with an empty map. Each drone senses, a central planner decides who goes where, and each drone flies its own path. That cycle repeats every second until there is nothing left to see.</p>
+  <h2>Sensing: a shared occupancy grid</h2>
+  <p>The building is a 200 × 140 grid of 20 cm cells. Each drone sweeps 180 lidar rays out to 8 m, ten times a second. Each ray walks the grid cell by cell (a DDA ray cast): cells it passes through become more likely free, and the cell it hits becomes more likely wall. Evidence is stored as log-odds, so repeated sightings add up and noise washes out. All drones write into the same map.</p>
+  <h2>Deciding where to look next: frontiers</h2>
+  <p>A frontier is open space that touches the unknown. The planner groups frontier cells into clusters and scores each cluster for each drone: the shortest flight distance to reach it, minus a bonus for how much unknown it borders. Those scores form a cost matrix, and the Hungarian algorithm finds the assignment of drones to frontiers with the lowest total cost, so two drones don't chase the same gap. A drone keeps its target unless another is clearly better.</p>
+  <h2>Getting there: paths through what is known</h2>
+  <p>Walls are inflated by the drone's safety margin. Flight distances come from Dijkstra over the grid, with unseen cells allowed at 2.5 times the cost, so drones prefer known space but can plan into the unknown. Paths are shortened by line-of-sight checks. Drones push each other apart when they get within a metre.</p>
+  <h2>Coming home</h2>
+  <p>Each drone checks whether it has the battery to get back. If not, it returns, recharges and rejoins. Take a drone down mid-flight and the planner reassigns its frontier at the next cycle. When no frontiers remain, or none can be reached, the swarm lands at base.</p>
+  <h2>What is simplified</h2>
+  <p>Drones know their own position (as if from ultra-wideband beacons), the map is shared instantly, and the building is flat.</p>
+</div></section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="text/plain" id="core-src">// Drone swarm exploration core: building generator, lidar mapping, frontiers, task allocation, A*, flight.
+const CELL = 0.2; // metres
+const UNKNOWN = 0, FREE = 1, OCC = 2;
+function rng(seed) { let s = (seed >>> 0) || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+
+// ---------- building ----------
+function makeBuilding(seed, W = 200, H = 140) {
+  const R = rng(seed);
+  const g = new Uint8Array(W * H); // 1 = wall
+  const set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y * W + x] = v; };
+  for (let x = 0; x < W; x++) { set(x, 0, 1); set(x, H - 1, 1); }
+  for (let y = 0; y < H; y++) { set(0, y, 1); set(W - 1, y, 1); }
+  const rooms = [], doors = [];
+  const DOOR = 6, MIN = 26;
+  const divide = (x0, y0, x1, y1, depth) => { // interior bounds inclusive
+    const w = x1 - x0, h = y1 - y0;
+    const canV = w > MIN * 2, canH = h > MIN * 2;
+    if ((!canV && !canH) || (depth > 2 && R() < 0.18)) { rooms.push([x0, y0, x1, y1]); return; }
+    const vert = canV && (!canH || w > h ? R() < 0.8 : R() < 0.25);
+    if (vert) {
+      const x = x0 + MIN + Math.floor(R() * (w - 2 * MIN));
+      for (let y = y0; y <= y1; y++) set(x, y, 1);
+      const nd = h > 70 ? 2 : 1;
+      for (let d = 0; d < nd; d++) { const dy = y0 + 2 + Math.floor(R() * (h - DOOR - 4)); doors.push([x, dy, 1]); }
+      divide(x0, y0, x - 1, y1, depth + 1); divide(x + 1, y0, x1, y1, depth + 1);
+    } else {
+      const y = y0 + MIN + Math.floor(R() * (h - 2 * MIN));
+      for (let x = x0; x <= x1; x++) set(x, y, 1);
+      const nd = w > 70 ? 2 : 1;
+      for (let d = 0; d < nd; d++) { const dx = x0 + 2 + Math.floor(R() * (w - DOOR - 4)); doors.push([dx, y, 0]); }
+      divide(x0, y0, x1, y - 1, depth + 1); divide(x0, y + 1, x1, y1, depth + 1);
+    }
+  };
+  divide(1, 1, W - 2, H - 2, 0);
+  // carve doorways last, with a short clear approach on both sides, so later walls can never seal them
+  for (const [dx, dy, vert] of doors) for (let k = 0; k < DOOR; k++) for (let t = -4; t <= 4; t++) {
+    const x = vert ? dx + t : dx + k, y = vert ? dy + k : dy + t;
+    if (x > 0 && y > 0 && x < W - 1 && y < H - 1) set(x, y, 0);
+  }
+  // base: room containing the bottom-left corner
+  const base = [8, H - 9];
+  // furniture: keep clear of walls (so doors stay open) and of the base
+  for (const [x0, y0, x1, y1] of rooms) {
+    const n = Math.floor(R() * 3) + ((x1 - x0) * (y1 - y0) > 1400 ? 2 : 0);
+    for (let i = 0; i < n; i++) {
+      const fw = 4 + Math.floor(R() * 10), fh = 4 + Math.floor(R() * 7);
+      if (x1 - x0 - fw < 22 || y1 - y0 - fh < 22) continue;
+      const fx = x0 + 11 + Math.floor(R() * (x1 - x0 - fw - 21)), fy = y0 + 11 + Math.floor(R() * (y1 - y0 - fh - 21));
+      if (Math.hypot(fx - base[0], fy - base[1]) < 18) continue;
+      for (let y = fy; y < fy + fh; y++) for (let x = fx; x < fx + fw; x++) set(x, y, 1);
+    }
+  }
+  return finalizeBuilding(g, W, H, rooms, base);
+}
+function finalizeBuilding(g, W, H, rooms, base) {
+  // reachable free space for coverage accounting (with the drone's clearance)
+  const infl = inflate(g, W, H, 2, v => v === 1);
+  const reach = new Uint8Array(W * H); const q = [base[1] * W + base[0]]; reach[q[0]] = 1;
+  while (q.length) { const c = q.pop(), x = c % W, y = (c / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, n = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || reach[n] || infl[n]) continue; reach[n] = 1; q.push(n); } }
+  // cells that count: open floor connected to the base (no clearance needed) and within a few cells of where a drone can fly
+  const open = new Uint8Array(W * H), q2 = [base[1] * W + base[0]]; open[q2[0]] = 1;
+  while (q2.length) { const c = q2.pop(), x = c % W, y = (c / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, n = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || open[n] || g[n]) continue; open[n] = 1; q2.push(n); } }
+  const counted = new Uint8Array(W * H); let reachable = 0; for (let i = 0; i < W * H; i++) if (open[i] && (reach[i] || nearReach(i))) { counted[i] = 1; reachable++; }
+  function nearReach(i) { const x = i % W, y = (i / W) | 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H && reach[ny * W + nx]) return true; } return false; }
+  return { W, H, g, rooms, base, reach, reachable, counted };
+}
+function inflate(src, W, H, r, isOcc) {
+  const out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!isOcc(src[y * W + x])) continue;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (dx * dx + dy * dy > r * r + 1) continue; const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H) out[ny * W + nx] = 1; }
+  }
+  return out;
+}
+
+// ---------- shared occupancy map (log-odds) ----------
+function makeMap(W, H) { return { W, H, lo: new Float32Array(W * H), seenBy: new Int8Array(W * H).fill(-1), known: 0 }; }
+const L_FREE = -0.7, L_OCC = 1.6, L_MIN = -4, L_MAX = 4;
+function cellState(map, i) { const v = map.lo[i]; return v > 0.8 ? OCC : v < -0.5 ? FREE : UNKNOWN; }
+// lidar: DDA ray cast in the true building, update the shared map
+function scan(bld, map, drone, rays, range, noise, R) {
+  const { W, H, g } = bld; let newly = 0; const hits = [];
+  for (let k = 0; k < rays; k++) {
+    const a = drone.heading + k / rays * Math.PI * 2;
+    const dx = Math.cos(a), dy = Math.sin(a);
+    let x = drone.x / CELL, y = drone.y / CELL; let cx = Math.floor(x), cy = Math.floor(y);
+    const stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1;
+    let tMaxX = dx !== 0 ? ((dx > 0 ? cx + 1 - x : x - cx) / Math.abs(dx)) : Infinity, tMaxY = dy !== 0 ? ((dy > 0 ? cy + 1 - y : y - cy) / Math.abs(dy)) : Infinity;
+    const tdx = dx !== 0 ? 1 / Math.abs(dx) : Infinity, tdy = dy !== 0 ? 1 / Math.abs(dy) : Infinity;
+    const maxT = (range + (R() - 0.5) * noise) / CELL; let t = 0, hit = false;
+    while (t < maxT) {
+      if (cx < 0 || cy < 0 || cx >= W || cy >= H) break;
+      const i = cy * W + cx;
+      const before = cellState(map, i);
+      if (g[i]) { map.lo[i] = Math.min(L_MAX, map.lo[i] + L_OCC); hit = true; if (before === UNKNOWN && cellState(map, i) !== UNKNOWN) { newly++; map.seenBy[i] = drone.id; } break; }
+      map.lo[i] = Math.max(L_MIN, map.lo[i] + L_FREE);
+      if (before === UNKNOWN && cellState(map, i) !== UNKNOWN) { newly++; map.seenBy[i] = drone.id; }
+      if (tMaxX < tMaxY) { t = tMaxX; tMaxX += tdx; cx += stepX; } else { t = tMaxY; tMaxY += tdy; cy += stepY; }
+    }
+    hits.push([drone.x + dx * Math.min(t, maxT) * CELL, drone.y + dy * Math.min(t, maxT) * CELL, hit]);
+  }
+  map.known += newly;
+  return { newly, hits };
+}
+
+// ---------- planning helpers ----------
+// 1 = seen free, 2 = not seen yet (allowed, at a higher cost), 0 = wall or too close to one
+function traversable(map, infl) { const n = map.W * map.H, t = new Uint8Array(n); for (let i = 0; i < n; i++) { if (infl[i]) continue; const c = cellState(map, i); t[i] = c === FREE ? 1 : c === UNKNOWN ? 2 : 0; } return t; }
+function occInflation(map, r) { return inflate(map.lo, map.W, map.H, r, v => v > 0.8); }
+function frontiers(map, trav, minSize, black) {
+  const { W, H } = map, isF = new Uint8Array(W * H);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x; if (cellState(map, i) !== FREE || (black && black[i] >= 2)) continue;
+    if (cellState(map, i - 1) === UNKNOWN || cellState(map, i + 1) === UNKNOWN || cellState(map, i - W) === UNKNOWN || cellState(map, i + W) === UNKNOWN) isF[i] = 1;
+  }
+  const seen = new Uint8Array(W * H), clusters = [];
+  for (let i = 0; i < W * H; i++) {
+    if (!isF[i] || seen[i]) continue;
+    const cells = [], q = [i]; seen[i] = 1;
+    while (q.length) { const c = q.pop(); cells.push(c); const x = c % W, y = (c / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = (y + dy) * W + x + dx; if (isF[n] && !seen[n]) { seen[n] = 1; q.push(n); } } }
+    if (cells.length < minSize) continue;
+    let sx = 0, sy = 0; for (const c of cells) { sx += c % W; sy += (c / W) | 0; } sx /= cells.length; sy /= cells.length;
+    let best = cells[0], bd = Infinity; for (const c of cells) { const d = (c % W - sx) ** 2 + (((c / W) | 0) - sy) ** 2; if (d < bd) { bd = d; best = c; } }
+    // approach points: traversable cells within 4 cells of the frontier
+    const goals = new Set();
+    const retry = black && cells.some(c => black[c] === 1);
+    for (const want of retry ? [2, 1] : [1, 2]) { // first visit: seen cells near the frontier; second visit: fly into the unseen gap itself
+      for (const c of cells) { const x = c % W, y = (c / W) | 0; for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (trav[n] === want) goals.add(n); } if (goals.size > 600) break; }
+      if (goals.size) break; }
+    if (!goals.size) continue;
+    clusters.push({ cell: best, size: cells.length, x: (best % W + 0.5) * CELL, y: (((best / W) | 0) + 0.5) * CELL, cells, goals: [...goals] });
+  }
+  return clusters;
+}
+// BFS distance field (metres) over traversable cells, 8-connected with diagonal cost
+function distField(map, trav, start) {
+  const { W, H } = map, n = W * H, d = new Float64Array(n).fill(Infinity), done = new Uint8Array(n);
+  if (!trav[start]) {
+    let found = -1; for (let r = 1; r < 6 && found < 0; r++) for (let dy = -r; dy <= r && found < 0; dy++) for (let dx = -r; dx <= r; dx++) { const q = start + dy * W + dx; if (q >= 0 && q < n && trav[q]) { found = q; break; } }
+    if (found < 0) return d; start = found;
+  }
+  const nb = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4142], [1, -1, 1.4142], [-1, 1, 1.4142], [-1, -1, 1.4142]];
+  const heap = new MinHeap(); d[start] = 0; heap.push(0, start);
+  while (heap.size) {
+    const [dc, c] = heap.pop(); if (done[c]) continue; done[c] = 1;
+    const x = c % W, y = (c / W) | 0;
+    for (const [dx, dy, w] of nb) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const q = ny * W + nx; if (!trav[q] || done[q]) continue;
+      if (dx && dy && (!trav[y * W + nx] || !trav[ny * W + x])) continue;
+      const nd = dc + (trav[q] === 2 ? w * 2.5 : w);
+      if (nd < d[q]) { d[q] = nd; heap.push(nd, q); }
+    }
+  }
+  for (let i = 0; i < n; i++) d[i] *= CELL;
+  return d;
+}
+class MinHeap { constructor() { this.k = []; this.v = []; } get size() { return this.k.length; }
+  push(k, v) { const a = this.k, b = this.v; a.push(k); b.push(v); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (a[p] <= a[i]) break; [a[p], a[i]] = [a[i], a[p]]; [b[p], b[i]] = [b[i], b[p]]; i = p; } }
+  pop() { const a = this.k, b = this.v, top = [a[0], b[0]]; const lk = a.pop(), lv = b.pop(); if (a.length) { a[0] = lk; b[0] = lv; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l] < a[m]) m = l; if (r < a.length && a[r] < a[m]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; [b[m], b[i]] = [b[i], b[m]]; i = m; } } return top; } }
+// path from distance field: descend the gradient from the goal back to the start field origin
+function pathFromField(map, trav, field, goal) {
+  const { W } = map; if (!isFinite(field[goal])) return null;
+  const path = [goal]; let c = goal, guard = 0;
+  while (field[c] > 1e-6 && guard++ < 5000) {
+    const x = c % W, y = (c / W) | 0; let best = c, bv = field[c];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = (y + dy) * W + x + dx; if (field[n] < bv) { bv = field[n]; best = n; } }
+    if (best === c) break; c = best; path.push(c);
+  }
+  path.reverse();
+  return path;
+}
+// line-of-sight shortcutting over traversable cells
+function smooth(map, trav, path) {
+  if (!path || path.length < 3) return path;
+  const { W } = map, out = [path[0]]; let i = 0;
+  const los = (a, b) => { const ax = a % W, ay = (a / W) | 0, bx = b % W, by = (b / W) | 0; const n = Math.max(Math.abs(bx - ax), Math.abs(by - ay)) * 2; for (let k = 1; k < n; k++) { const x = Math.round(ax + (bx - ax) * k / n), y = Math.round(ay + (by - ay) * k / n); if (!trav[y * W + x]) return false; } return true; };
+  while (i < path.length - 1) { let j = path.length - 1; while (j > i + 1 && !los(path[i], path[j])) j--; out.push(path[j]); i = j; }
+  return out;
+}
+// Hungarian algorithm (minimisation), rectangular n x m with n <= m handled by padding
+function hungarian(cost) {
+  const n = cost.length, m = cost[0].length, N = Math.max(n, m), BIG = 1e9;
+  const a = Array.from({ length: N }, (_, i) => Array.from({ length: N }, (_, j) => (i < n && j < m ? cost[i][j] : 0)));
+  const u = new Float64Array(N + 1), v = new Float64Array(N + 1), p = new Int32Array(N + 1), way = new Int32Array(N + 1);
+  for (let i = 1; i <= N; i++) {
+    p[0] = i; let j0 = 0; const minv = new Float64Array(N + 1).fill(BIG), used = new Uint8Array(N + 1);
+    do { used[j0] = 1; const i0 = p[j0]; let delta = BIG, j1 = 0;
+      for (let j = 1; j <= N; j++) if (!used[j]) { const cur = a[i0 - 1][j - 1] - u[i0] - v[j]; if (cur < minv[j]) { minv[j] = cur; way[j] = j0; } if (minv[j] < delta) { delta = minv[j]; j1 = j; } }
+      for (let j = 0; j <= N; j++) if (used[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      j0 = j1; } while (p[j0] !== 0);
+    do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+  }
+  const res = new Array(n).fill(-1); for (let j = 1; j <= N; j++) if (p[j] && p[j] <= n && j <= m) res[p[j] - 1] = j - 1;
+  return res;
+}
+
+// ---------- mission ----------
+const DRONE_COLORS = ['#e4572e', '#2f6bd8', '#16a37f', '#c4499b', '#d99a00', '#6b4fd6', '#0f9fb5', '#7a8a1e'];
+function makeMission(opts) {
+  const bld = opts.custom ? finalizeBuilding(opts.custom.g, opts.custom.W, opts.custom.H, [], opts.custom.base) : makeBuilding(opts.seed);
+  const map = makeMap(bld.W, bld.H);
+  const R = rng(opts.seed * 7 + 3);
+  const drones = [];
+  for (let i = 0; i < opts.drones; i++) {
+    const a = i / opts.drones * Math.PI * 2;
+    // spawn on a ring around the base, pulled in towards the base until the spot is clear of walls
+    let rr = 0.6, sx, sy;
+    for (; rr >= 0; rr -= 0.1) { sx = (bld.base[0] + 0.5) * CELL + Math.cos(a) * rr; sy = (bld.base[1] + 0.5) * CELL + Math.sin(a) * rr; if (clearOf(bld, sx, sy, 0.45)) break; }
+    drones.push({ id: i, color: DRONE_COLORS[i % DRONE_COLORS.length], x: sx, y: sy, home: [sx, sy], vx: 0, vy: 0, heading: a, state: 'idle', target: null, path: null, wp: 0, battery: 100, dist: 0, found: 0, alive: true, hits: [] });
+  }
+  return { opts, bld, map, drones, R, black: new Uint8Array(bld.W * bld.H), t: 0, done: false, frontiers: [], infl: null, trav: null, lastAlloc: -9, lastFront: -9, events: [], coverage: [], allocs: 0, phase: 'ready' };
+}
+const SPEED = 1.6, BASE_R = 1.2;
+function clearOf(bld, x, y, r) { const c = Math.ceil(r / CELL), cx = Math.floor(x / CELL), cy = Math.floor(y / CELL); for (let dy = -c; dy <= c; dy++) for (let dx = -c; dx <= c; dx++) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= bld.W || ny >= bld.H || bld.g[ny * bld.W + nx]) return false; } return true; }
+function coverageOf(m) { return Math.min(1, m.map.known_free / m.bld.reachable); }
+function refreshPlanningMaps(m) { m.infl = occInflation(m.map, 2); m.trav = traversable(m.map, m.infl); }
+function allocate(m) {
+  const alive = m.drones.filter(d => d.alive && (d.state === 'exploring' || d.state === 'idle'));
+  m.frontiers = frontiers(m.map, m.trav, 4, m.black).sort((a, b) => b.size - a.size).slice(0, 40);
+  if (!alive.length) return;
+  if (!m.frontiers.length) {
+    for (const d of alive) { d.state = 'returning'; d.target = null; planTo(m, d, baseCell(m)); }
+    if (!m.drones.some(d => d.alive && d.state === 'exploring')) { if (!m.finishing) { m.finishing = true; m.events.push({ t: m.t, text: 'No frontiers left. Every drone is heading home.' }); } }
+    return;
+  }
+  const fields = alive.map(d => distField(m.map, m.trav, cellOf(m, d.x, d.y)));
+  const fr = m.frontiers;
+  // cost: travel distance minus a bonus for big frontiers; stick with the current target unless something is clearly better
+  // per drone and frontier: nearest reachable cell of that frontier
+  const best = alive.map((d, i) => fr.map(f => { let bc = -1, bd = Infinity; for (const c of f.goals) { const v = fields[i][c]; if (v < bd) { bd = v; bc = c; } } return [bd, bc]; }));
+  const cost = alive.map((d, i) => fr.map((f, j) => {
+    const dd = best[i][j][0]; if (!isFinite(dd)) return 1e6;
+    let c = dd - 1.2 * Math.sqrt(f.size);
+    if (d.target && Math.hypot(d.target.x - f.x, d.target.y - f.y) < 2) c -= 3;
+    return c;
+  }));
+  // strategy: 'coordinated' = optimal joint assignment (Hungarian); baselines for benchmarking:
+  // 'nearest' = every drone takes its own best frontier, ignoring the others (Yamauchi 1998);
+  // 'greedy' = drones pick one after another, each taking the best frontier still free (Burgard et al. 2005 style)
+  const strategy = m.opts.strategy || 'coordinated';
+  let asg;
+  if (strategy === 'nearest') asg = cost.map(row => row.indexOf(Math.min(...row)));
+  else if (strategy === 'greedy') { const taken = new Set(); asg = cost.map(row => { let bj = -1, bc = Infinity; row.forEach((c, j) => { if (!taken.has(j) && c < bc) { bc = c; bj = j; } }); if (bj >= 0) taken.add(bj); return bj; }); }
+  else asg = hungarian(cost);
+  // more drones than frontiers: extra drones double up on their cheapest frontier
+  alive.forEach((d, i) => { if (asg[i] < 0) { let bj = -1, bc = Infinity; fr.forEach((f, j) => { if (cost[i][j] < bc) { bc = cost[i][j]; bj = j; } }); asg[i] = bj; } });
+  let anyReach = false;
+  alive.forEach((d, i) => {
+    const j = asg[i]; if (j < 0 || cost[i][j] >= 1e5) { d.state = 'idle'; d.path = null; d.target = null; return; }
+    anyReach = true;
+    const f = fr[j], cell = best[i][j][1];
+    const same = d.target && Math.hypot(d.target.x - f.x, d.target.y - f.y) < 2;
+    d.target = { x: f.x, y: f.y, cell, size: f.size, gx: (cell % m.bld.W + 0.5) * CELL, gy: (((cell / m.bld.W) | 0) + 0.5) * CELL };
+    { const p = smooth(m.map, m.trav, pathFromField(m.map, m.trav, fields[i], cell)); if (p) { d.path = p.map(c => [(c % m.bld.W + 0.5) * CELL, (((c / m.bld.W) | 0) + 0.5) * CELL]); d.wp = Math.min(1, d.path.length - 1); } }
+    d.state = 'exploring';
+  });
+  // frontiers exist but none can be reached by anyone: treat as done
+  if (!anyReach) { m.stuckSince = m.stuckSince ?? m.t; if (m.t - m.stuckSince > 6) { m.frontiers = []; for (const d of alive) { d.state = 'returning'; planTo(m, d, baseCell(m)); } if (!m.finishing) { m.finishing = true; m.events.push({ t: m.t, text: 'The remaining gaps cannot be reached. Every drone is heading home.' }); } } }
+  else m.stuckSince = null;
+  m.allocs++;
+}
+function cellOf(m, x, y) { return Math.floor(y / CELL) * m.bld.W + Math.floor(x / CELL); }
+function baseCell(m) { return m.bld.base[1] * m.bld.W + m.bld.base[0]; }
+function planTo(m, d, cell) {
+  const f = distField(m.map, m.trav, cellOf(m, d.x, d.y));
+  const p = smooth(m.map, m.trav, pathFromField(m.map, m.trav, f, cell));
+  if (p) { d.path = p.map(c => [(c % m.bld.W + 0.5) * CELL, (((c / m.bld.W) | 0) + 0.5) * CELL]); d.wp = 1; } else d.path = null;
+  return f;
+}
+function stepMission(m, dt) {
+  if (m.phase !== 'flying') return;
+  m.t += dt;
+  const { bld, map } = m;
+  // sense
+  for (const d of m.drones) if (d.alive && d.state !== 'landed' && d.state !== 'charging') {
+    if (!d.scanT || m.t - d.scanT > 0.1) { d.scanT = m.t; const s = scan(bld, map, d, 180, 8, 0.3, m.R); d.found += s.newly; d.hits = s.hits; }
+  }
+  // known-free count for coverage
+  if (!m.lastCount || m.t - m.lastCount > 0.25) { m.lastCount = m.t; let kf = 0; for (let i = 0; i < bld.W * bld.H; i++) if (map.lo[i] < -0.5 && bld.counted[i]) kf++; map.known_free = kf; m.coverage.push([m.t, coverageOf(m)]); }
+  // plan
+  if (m.t - m.lastAlloc > 1.0 || (m.t - m.lastAlloc > 0.3 && m.drones.some(d => d.alive && (d.state === 'idle' || (d.state === 'exploring' && (!d.path || d.wp >= d.path.length)))))) { m.lastAlloc = m.t; refreshPlanningMaps(m); allocate(m); }
+  // act
+  for (const d of m.drones) {
+    if (!d.alive) continue;
+    if (d.state === 'charging') { d.battery = Math.min(100, d.battery + 5 * dt); if (d.battery >= 99) { d.state = m.finishing ? 'landed' : 'idle'; if (!m.finishing) m.events.push({ t: m.t, text: `Drone ${d.id + 1} charged and back in the air`, drone: d.id }); } continue; }
+    if (d.state === 'landed' || d.state === 'idle') { d.vx = d.vy = 0; continue; }
+    // battery check: enough to get home plus margin?
+    d.battery = Math.max(0, d.battery - (0.12 + 0.28 * Math.hypot(d.vx, d.vy) / SPEED) * dt * (m.opts.drain || 1));
+    if (d.state === 'exploring' && (!d.homeCheck || m.t - d.homeCheck > 1)) {
+      d.homeCheck = m.t; const home = Math.hypot(d.x - (bld.base[0] + 0.5) * CELL, d.y - (bld.base[1] + 0.5) * CELL) * 1.6;
+      const need = home / SPEED * 0.4 * (m.opts.drain || 1) + 10;
+      if (d.battery < need) { d.state = 'recharging'; d.target = null; planTo(m, d, baseCell(m)); m.events.push({ t: m.t, text: `Drone ${d.id + 1} low on battery (${d.battery.toFixed(0)}%), going home to charge`, drone: d.id }); }
+    }
+    // arrived at a frontier that is still there: mark it visited so nobody comes back for it
+    if (d.state === 'exploring' && d.target && (!d.path || d.wp >= d.path.length) && Math.hypot(d.target.gx - d.x, d.target.gy - d.y) < 0.6) {
+      const W = bld.W, cx = Math.floor(d.target.x / CELL), cy = Math.floor(d.target.y / CELL), gx = Math.floor(d.x / CELL), gy = Math.floor(d.y / CELL);
+      for (const [px, py] of [[cx, cy]]) for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const nx = px + dx, ny = py + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < bld.H && dx * dx + dy * dy <= 16) m.black[ny * W + nx] = Math.min(2, m.black[ny * W + nx] + 1); }
+      d.target = null; d.path = null; d.state = 'idle'; m.lastAlloc = -9;
+    }
+    // follow path
+    let ax = 0, ay = 0;
+    if (d.path && d.wp < d.path.length) {
+      const [tx, ty] = d.path[d.wp]; const dx = tx - d.x, dy = ty - d.y, dist = Math.hypot(dx, dy);
+      if (dist < 0.35) d.wp++;
+      const last = d.wp >= d.path.length - 1; const vmax = last ? Math.min(SPEED, dist * 1.5 + 0.3) : SPEED;
+      ax = dx / (dist || 1) * vmax; ay = dy / (dist || 1) * vmax;
+    } else if ((d.state === 'returning' || d.state === 'recharging') && Math.hypot(d.x - (bld.base[0] + 0.5) * CELL, d.y - (bld.base[1] + 0.5) * CELL) > 2.2) {
+      if (!d.rp || m.t - d.rp > 1) { d.rp = m.t; refreshPlanningMaps(m); planTo(m, d, baseCell(m)); }
+    } else if (d.state === 'returning' || d.state === 'recharging') {
+      const bx = d.home[0], by = d.home[1];
+      if (Math.hypot(bx - d.x, by - d.y) < 0.25) { if (d.state === 'returning') { d.state = 'landed'; m.events.push({ t: m.t, text: `Drone ${d.id + 1} landed`, drone: d.id }); } else d.state = 'charging'; d.vx = d.vy = 0; continue; }
+      ax = (bx - d.x) * 1.2; ay = (by - d.y) * 1.2;
+    } else { d.path = null; }
+    // separation from other drones (reciprocal, softens near walls)
+    for (const o of m.drones) { if (o === d || !o.alive || o.state === 'landed' || o.state === 'charging') continue; const dx = d.x - o.x, dy = d.y - o.y, r = Math.hypot(dx, dy); if (r < 1.1 && r > 1e-3) { const k = (1.1 - r) / 1.1 * 2.2; ax += dx / r * k; ay += dy / r * k; } }
+    const sp = Math.hypot(ax, ay); if (sp > SPEED) { ax *= SPEED / sp; ay *= SPEED / sp; }
+    // first-order velocity response
+    d.vx += (ax - d.vx) * Math.min(1, dt * 4); d.vy += (ay - d.vy) * Math.min(1, dt * 4);
+    const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
+    const blocked = (x, y) => { for (const [ox, oy] of [[0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25]]) { const cx = Math.floor((x + ox) / CELL), cy = Math.floor((y + oy) / CELL); if (bld.g[cy * bld.W + cx]) return true; } return false; };
+    if (!blocked(nx, ny) || blocked(d.x, d.y)) { d.dist += Math.hypot(nx - d.x, ny - d.y); d.x = nx; d.y = ny; }
+    else if (!blocked(nx, d.y)) { d.x = nx; d.vy = 0; } else if (!blocked(d.x, ny)) { d.y = ny; d.vx = 0; } else { d.vx = d.vy = 0; d.path = null; }
+    if (d.state === 'exploring') { if (!d.st || m.t - d.st.t > 2) { if (d.st && Math.hypot(d.x - d.st.x, d.y - d.st.y) < 0.1 && d.path) { d.path = null; m.lastAlloc = -9; } d.st = { t: m.t, x: d.x, y: d.y }; } }
+    if (Math.hypot(d.vx, d.vy) > 0.2) { const h = Math.atan2(d.vy, d.vx); let dh = h - d.heading; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; d.heading += dh * Math.min(1, dt * 5); }
+    if (d.battery <= 0 && d.state !== 'landed') { d.alive = false; d.state = 'lost'; m.events.push({ t: m.t, text: `Drone ${d.id + 1} ran out of battery and went down`, drone: d.id }); }
+  }
+  const flying = m.drones.filter(d => d.alive && !['landed'].includes(d.state));
+  if (m.finishing && !flying.length) { m.phase = 'done'; m.done = true; m.events.push({ t: m.t, text: `Mission complete: ${(coverageOf(m) * 100).toFixed(1)}% of the building mapped` }); }
+  if (!m.drones.some(d => d.alive)) { m.phase = 'done'; m.done = true; m.events.push({ t: m.t, text: 'Every drone is down. Mission failed.' }); }
+}
+if (typeof module !== 'undefined') module.exports = { CELL, makeBuilding, finalizeBuilding, makeMission, stepMission, coverageOf, hungarian, frontiers, DRONE_COLORS };
+</script>
+<script>
+// Drone swarm exploration core: building generator, lidar mapping, frontiers, task allocation, A*, flight.
+const CELL = 0.2; // metres
+const UNKNOWN = 0, FREE = 1, OCC = 2;
+function rng(seed) { let s = (seed >>> 0) || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+
+// ---------- building ----------
+function makeBuilding(seed, W = 200, H = 140) {
+  const R = rng(seed);
+  const g = new Uint8Array(W * H); // 1 = wall
+  const set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y * W + x] = v; };
+  for (let x = 0; x < W; x++) { set(x, 0, 1); set(x, H - 1, 1); }
+  for (let y = 0; y < H; y++) { set(0, y, 1); set(W - 1, y, 1); }
+  const rooms = [], doors = [];
+  const DOOR = 6, MIN = 26;
+  const divide = (x0, y0, x1, y1, depth) => { // interior bounds inclusive
+    const w = x1 - x0, h = y1 - y0;
+    const canV = w > MIN * 2, canH = h > MIN * 2;
+    if ((!canV && !canH) || (depth > 2 && R() < 0.18)) { rooms.push([x0, y0, x1, y1]); return; }
+    const vert = canV && (!canH || w > h ? R() < 0.8 : R() < 0.25);
+    if (vert) {
+      const x = x0 + MIN + Math.floor(R() * (w - 2 * MIN));
+      for (let y = y0; y <= y1; y++) set(x, y, 1);
+      const nd = h > 70 ? 2 : 1;
+      for (let d = 0; d < nd; d++) { const dy = y0 + 2 + Math.floor(R() * (h - DOOR - 4)); doors.push([x, dy, 1]); }
+      divide(x0, y0, x - 1, y1, depth + 1); divide(x + 1, y0, x1, y1, depth + 1);
+    } else {
+      const y = y0 + MIN + Math.floor(R() * (h - 2 * MIN));
+      for (let x = x0; x <= x1; x++) set(x, y, 1);
+      const nd = w > 70 ? 2 : 1;
+      for (let d = 0; d < nd; d++) { const dx = x0 + 2 + Math.floor(R() * (w - DOOR - 4)); doors.push([dx, y, 0]); }
+      divide(x0, y0, x1, y - 1, depth + 1); divide(x0, y + 1, x1, y1, depth + 1);
+    }
+  };
+  divide(1, 1, W - 2, H - 2, 0);
+  // carve doorways last, with a short clear approach on both sides, so later walls can never seal them
+  for (const [dx, dy, vert] of doors) for (let k = 0; k < DOOR; k++) for (let t = -4; t <= 4; t++) {
+    const x = vert ? dx + t : dx + k, y = vert ? dy + k : dy + t;
+    if (x > 0 && y > 0 && x < W - 1 && y < H - 1) set(x, y, 0);
+  }
+  // base: room containing the bottom-left corner
+  const base = [8, H - 9];
+  // furniture: keep clear of walls (so doors stay open) and of the base
+  for (const [x0, y0, x1, y1] of rooms) {
+    const n = Math.floor(R() * 3) + ((x1 - x0) * (y1 - y0) > 1400 ? 2 : 0);
+    for (let i = 0; i < n; i++) {
+      const fw = 4 + Math.floor(R() * 10), fh = 4 + Math.floor(R() * 7);
+      if (x1 - x0 - fw < 22 || y1 - y0 - fh < 22) continue;
+      const fx = x0 + 11 + Math.floor(R() * (x1 - x0 - fw - 21)), fy = y0 + 11 + Math.floor(R() * (y1 - y0 - fh - 21));
+      if (Math.hypot(fx - base[0], fy - base[1]) < 18) continue;
+      for (let y = fy; y < fy + fh; y++) for (let x = fx; x < fx + fw; x++) set(x, y, 1);
+    }
+  }
+  return finalizeBuilding(g, W, H, rooms, base);
+}
+function finalizeBuilding(g, W, H, rooms, base) {
+  // reachable free space for coverage accounting (with the drone's clearance)
+  const infl = inflate(g, W, H, 2, v => v === 1);
+  const reach = new Uint8Array(W * H); const q = [base[1] * W + base[0]]; reach[q[0]] = 1;
+  while (q.length) { const c = q.pop(), x = c % W, y = (c / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, n = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || reach[n] || infl[n]) continue; reach[n] = 1; q.push(n); } }
+  // cells that count: open floor connected to the base (no clearance needed) and within a few cells of where a drone can fly
+  const open = new Uint8Array(W * H), q2 = [base[1] * W + base[0]]; open[q2[0]] = 1;
+  while (q2.length) { const c = q2.pop(), x = c % W, y = (c / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, n = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || open[n] || g[n]) continue; open[n] = 1; q2.push(n); } }
+  const counted = new Uint8Array(W * H); let reachable = 0; for (let i = 0; i < W * H; i++) if (open[i] && (reach[i] || nearReach(i))) { counted[i] = 1; reachable++; }
+  function nearReach(i) { const x = i % W, y = (i / W) | 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H && reach[ny * W + nx]) return true; } return false; }
+  return { W, H, g, rooms, base, reach, reachable, counted };
+}
+function inflate(src, W, H, r, isOcc) {
+  const out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!isOcc(src[y * W + x])) continue;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (dx * dx + dy * dy > r * r + 1) continue; const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H) out[ny * W + nx] = 1; }
+  }
+  return out;
+}
+
+// ---------- shared occupancy map (log-odds) ----------
+function makeMap(W, H) { return { W, H, lo: new Float32Array(W * H), seenBy: new Int8Array(W * H).fill(-1), known: 0 }; }
+const L_FREE = -0.7, L_OCC = 1.6, L_MIN = -4, L_MAX = 4;
+function cellState(map, i) { const v = map.lo[i]; return v > 0.8 ? OCC : v < -0.5 ? FREE : UNKNOWN; }
+// lidar: DDA ray cast in the true building, update the shared map
+function scan(bld, map, drone, rays, range, noise, R) {
+  const { W, H, g } = bld; let newly = 0; const hits = [];
+  for (let k = 0; k < rays; k++) {
+    const a = drone.heading + k / rays * Math.PI * 2;
+    const dx = Math.cos(a), dy = Math.sin(a);
+    let x = drone.x / CELL, y = drone.y / CELL; let cx = Math.floor(x), cy = Math.floor(y);
+    const stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1;
+    let tMaxX = dx !== 0 ? ((dx > 0 ? cx + 1 - x : x - cx) / Math.abs(dx)) : Infinity, tMaxY = dy !== 0 ? ((dy > 0 ? cy + 1 - y : y - cy) / Math.abs(dy)) : Infinity;
+    const tdx = dx !== 0 ? 1 / Math.abs(dx) : Infinity, tdy = dy !== 0 ? 1 / Math.abs(dy) : Infinity;
+    const maxT = (range + (R() - 0.5) * noise) / CELL; let t = 0, hit = false;
+    while (t < maxT) {
+      if (cx < 0 || cy < 0 || cx >= W || cy >= H) break;
+      const i = cy * W + cx;
+      const before = cellState(map, i);
+      if (g[i]) { map.lo[i] = Math.min(L_MAX, map.lo[i] + L_OCC); hit = true; if (before === UNKNOWN && cellState(map, i) !== UNKNOWN) { newly++; map.seenBy[i] = drone.id; } break; }
+      map.lo[i] = Math.max(L_MIN, map.lo[i] + L_FREE);
+      if (before === UNKNOWN && cellState(map, i) !== UNKNOWN) { newly++; map.seenBy[i] = drone.id; }
+      if (tMaxX < tMaxY) { t = tMaxX; tMaxX += tdx; cx += stepX; } else { t = tMaxY; tMaxY += tdy; cy += stepY; }
+    }
+    hits.push([drone.x + dx * Math.min(t, maxT) * CELL, drone.y + dy * Math.min(t, maxT) * CELL, hit]);
+  }
+  map.known += newly;
+  return { newly, hits };
+}
+
+// ---------- planning helpers ----------
+// 1 = seen free, 2 = not seen yet (allowed, at a higher cost), 0 = wall or too close to one
+function traversable(map, infl) { const n = map.W * map.H, t = new Uint8Array(n); for (let i = 0; i < n; i++) { if (infl[i]) continue; const c = cellState(map, i); t[i] = c === FREE ? 1 : c === UNKNOWN ? 2 : 0; } return t; }
+function occInflation(map, r) { return inflate(map.lo, map.W, map.H, r, v => v > 0.8); }
+function frontiers(map, trav, minSize, black) {
+  const { W, H } = map, isF = new Uint8Array(W * H);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x; if (cellState(map, i) !== FREE || (black && black[i] >= 2)) continue;
+    if (cellState(map, i - 1) === UNKNOWN || cellState(map, i + 1) === UNKNOWN || cellState(map, i - W) === UNKNOWN || cellState(map, i + W) === UNKNOWN) isF[i] = 1;
+  }
+  const seen = new Uint8Array(W * H), clusters = [];
+  for (let i = 0; i < W * H; i++) {
+    if (!isF[i] || seen[i]) continue;
+    const cells = [], q = [i]; seen[i] = 1;
+    while (q.length) { const c = q.pop(); cells.push(c); const x = c % W, y = (c / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = (y + dy) * W + x + dx; if (isF[n] && !seen[n]) { seen[n] = 1; q.push(n); } } }
+    if (cells.length < minSize) continue;
+    let sx = 0, sy = 0; for (const c of cells) { sx += c % W; sy += (c / W) | 0; } sx /= cells.length; sy /= cells.length;
+    let best = cells[0], bd = Infinity; for (const c of cells) { const d = (c % W - sx) ** 2 + (((c / W) | 0) - sy) ** 2; if (d < bd) { bd = d; best = c; } }
+    // approach points: traversable cells within 4 cells of the frontier
+    const goals = new Set();
+    const retry = black && cells.some(c => black[c] === 1);
+    for (const want of retry ? [2, 1] : [1, 2]) { // first visit: seen cells near the frontier; second visit: fly into the unseen gap itself
+      for (const c of cells) { const x = c % W, y = (c / W) | 0; for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (trav[n] === want) goals.add(n); } if (goals.size > 600) break; }
+      if (goals.size) break; }
+    if (!goals.size) continue;
+    clusters.push({ cell: best, size: cells.length, x: (best % W + 0.5) * CELL, y: (((best / W) | 0) + 0.5) * CELL, cells, goals: [...goals] });
+  }
+  return clusters;
+}
+// BFS distance field (metres) over traversable cells, 8-connected with diagonal cost
+function distField(map, trav, start) {
+  const { W, H } = map, n = W * H, d = new Float64Array(n).fill(Infinity), done = new Uint8Array(n);
+  if (!trav[start]) {
+    let found = -1; for (let r = 1; r < 6 && found < 0; r++) for (let dy = -r; dy <= r && found < 0; dy++) for (let dx = -r; dx <= r; dx++) { const q = start + dy * W + dx; if (q >= 0 && q < n && trav[q]) { found = q; break; } }
+    if (found < 0) return d; start = found;
+  }
+  const nb = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4142], [1, -1, 1.4142], [-1, 1, 1.4142], [-1, -1, 1.4142]];
+  const heap = new MinHeap(); d[start] = 0; heap.push(0, start);
+  while (heap.size) {
+    const [dc, c] = heap.pop(); if (done[c]) continue; done[c] = 1;
+    const x = c % W, y = (c / W) | 0;
+    for (const [dx, dy, w] of nb) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const q = ny * W + nx; if (!trav[q] || done[q]) continue;
+      if (dx && dy && (!trav[y * W + nx] || !trav[ny * W + x])) continue;
+      const nd = dc + (trav[q] === 2 ? w * 2.5 : w);
+      if (nd < d[q]) { d[q] = nd; heap.push(nd, q); }
+    }
+  }
+  for (let i = 0; i < n; i++) d[i] *= CELL;
+  return d;
+}
+class MinHeap { constructor() { this.k = []; this.v = []; } get size() { return this.k.length; }
+  push(k, v) { const a = this.k, b = this.v; a.push(k); b.push(v); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (a[p] <= a[i]) break; [a[p], a[i]] = [a[i], a[p]]; [b[p], b[i]] = [b[i], b[p]]; i = p; } }
+  pop() { const a = this.k, b = this.v, top = [a[0], b[0]]; const lk = a.pop(), lv = b.pop(); if (a.length) { a[0] = lk; b[0] = lv; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l] < a[m]) m = l; if (r < a.length && a[r] < a[m]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; [b[m], b[i]] = [b[i], b[m]]; i = m; } } return top; } }
+// path from distance field: descend the gradient from the goal back to the start field origin
+function pathFromField(map, trav, field, goal) {
+  const { W } = map; if (!isFinite(field[goal])) return null;
+  const path = [goal]; let c = goal, guard = 0;
+  while (field[c] > 1e-6 && guard++ < 5000) {
+    const x = c % W, y = (c / W) | 0; let best = c, bv = field[c];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = (y + dy) * W + x + dx; if (field[n] < bv) { bv = field[n]; best = n; } }
+    if (best === c) break; c = best; path.push(c);
+  }
+  path.reverse();
+  return path;
+}
+// line-of-sight shortcutting over traversable cells
+function smooth(map, trav, path) {
+  if (!path || path.length < 3) return path;
+  const { W } = map, out = [path[0]]; let i = 0;
+  const los = (a, b) => { const ax = a % W, ay = (a / W) | 0, bx = b % W, by = (b / W) | 0; const n = Math.max(Math.abs(bx - ax), Math.abs(by - ay)) * 2; for (let k = 1; k < n; k++) { const x = Math.round(ax + (bx - ax) * k / n), y = Math.round(ay + (by - ay) * k / n); if (!trav[y * W + x]) return false; } return true; };
+  while (i < path.length - 1) { let j = path.length - 1; while (j > i + 1 && !los(path[i], path[j])) j--; out.push(path[j]); i = j; }
+  return out;
+}
+// Hungarian algorithm (minimisation), rectangular n x m with n <= m handled by padding
+function hungarian(cost) {
+  const n = cost.length, m = cost[0].length, N = Math.max(n, m), BIG = 1e9;
+  const a = Array.from({ length: N }, (_, i) => Array.from({ length: N }, (_, j) => (i < n && j < m ? cost[i][j] : 0)));
+  const u = new Float64Array(N + 1), v = new Float64Array(N + 1), p = new Int32Array(N + 1), way = new Int32Array(N + 1);
+  for (let i = 1; i <= N; i++) {
+    p[0] = i; let j0 = 0; const minv = new Float64Array(N + 1).fill(BIG), used = new Uint8Array(N + 1);
+    do { used[j0] = 1; const i0 = p[j0]; let delta = BIG, j1 = 0;
+      for (let j = 1; j <= N; j++) if (!used[j]) { const cur = a[i0 - 1][j - 1] - u[i0] - v[j]; if (cur < minv[j]) { minv[j] = cur; way[j] = j0; } if (minv[j] < delta) { delta = minv[j]; j1 = j; } }
+      for (let j = 0; j <= N; j++) if (used[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      j0 = j1; } while (p[j0] !== 0);
+    do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+  }
+  const res = new Array(n).fill(-1); for (let j = 1; j <= N; j++) if (p[j] && p[j] <= n && j <= m) res[p[j] - 1] = j - 1;
+  return res;
+}
+
+// ---------- mission ----------
+const DRONE_COLORS = ['#e4572e', '#2f6bd8', '#16a37f', '#c4499b', '#d99a00', '#6b4fd6', '#0f9fb5', '#7a8a1e'];
+function makeMission(opts) {
+  const bld = opts.custom ? finalizeBuilding(opts.custom.g, opts.custom.W, opts.custom.H, [], opts.custom.base) : makeBuilding(opts.seed);
+  const map = makeMap(bld.W, bld.H);
+  const R = rng(opts.seed * 7 + 3);
+  const drones = [];
+  for (let i = 0; i < opts.drones; i++) {
+    const a = i / opts.drones * Math.PI * 2;
+    // spawn on a ring around the base, pulled in towards the base until the spot is clear of walls
+    let rr = 0.6, sx, sy;
+    for (; rr >= 0; rr -= 0.1) { sx = (bld.base[0] + 0.5) * CELL + Math.cos(a) * rr; sy = (bld.base[1] + 0.5) * CELL + Math.sin(a) * rr; if (clearOf(bld, sx, sy, 0.45)) break; }
+    drones.push({ id: i, color: DRONE_COLORS[i % DRONE_COLORS.length], x: sx, y: sy, home: [sx, sy], vx: 0, vy: 0, heading: a, state: 'idle', target: null, path: null, wp: 0, battery: 100, dist: 0, found: 0, alive: true, hits: [] });
+  }
+  return { opts, bld, map, drones, R, black: new Uint8Array(bld.W * bld.H), t: 0, done: false, frontiers: [], infl: null, trav: null, lastAlloc: -9, lastFront: -9, events: [], coverage: [], allocs: 0, phase: 'ready' };
+}
+const SPEED = 1.6, BASE_R = 1.2;
+function clearOf(bld, x, y, r) { const c = Math.ceil(r / CELL), cx = Math.floor(x / CELL), cy = Math.floor(y / CELL); for (let dy = -c; dy <= c; dy++) for (let dx = -c; dx <= c; dx++) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= bld.W || ny >= bld.H || bld.g[ny * bld.W + nx]) return false; } return true; }
+function coverageOf(m) { return Math.min(1, m.map.known_free / m.bld.reachable); }
+function refreshPlanningMaps(m) { m.infl = occInflation(m.map, 2); m.trav = traversable(m.map, m.infl); }
+function allocate(m) {
+  const alive = m.drones.filter(d => d.alive && (d.state === 'exploring' || d.state === 'idle'));
+  m.frontiers = frontiers(m.map, m.trav, 4, m.black).sort((a, b) => b.size - a.size).slice(0, 40);
+  if (!alive.length) return;
+  if (!m.frontiers.length) {
+    for (const d of alive) { d.state = 'returning'; d.target = null; planTo(m, d, baseCell(m)); }
+    if (!m.drones.some(d => d.alive && d.state === 'exploring')) { if (!m.finishing) { m.finishing = true; m.events.push({ t: m.t, text: 'No frontiers left. Every drone is heading home.' }); } }
+    return;
+  }
+  const fields = alive.map(d => distField(m.map, m.trav, cellOf(m, d.x, d.y)));
+  const fr = m.frontiers;
+  // cost: travel distance minus a bonus for big frontiers; stick with the current target unless something is clearly better
+  // per drone and frontier: nearest reachable cell of that frontier
+  const best = alive.map((d, i) => fr.map(f => { let bc = -1, bd = Infinity; for (const c of f.goals) { const v = fields[i][c]; if (v < bd) { bd = v; bc = c; } } return [bd, bc]; }));
+  const cost = alive.map((d, i) => fr.map((f, j) => {
+    const dd = best[i][j][0]; if (!isFinite(dd)) return 1e6;
+    let c = dd - 1.2 * Math.sqrt(f.size);
+    if (d.target && Math.hypot(d.target.x - f.x, d.target.y - f.y) < 2) c -= 3;
+    return c;
+  }));
+  // strategy: 'coordinated' = optimal joint assignment (Hungarian); baselines for benchmarking:
+  // 'nearest' = every drone takes its own best frontier, ignoring the others (Yamauchi 1998);
+  // 'greedy' = drones pick one after another, each taking the best frontier still free (Burgard et al. 2005 style)
+  const strategy = m.opts.strategy || 'coordinated';
+  let asg;
+  if (strategy === 'nearest') asg = cost.map(row => row.indexOf(Math.min(...row)));
+  else if (strategy === 'greedy') { const taken = new Set(); asg = cost.map(row => { let bj = -1, bc = Infinity; row.forEach((c, j) => { if (!taken.has(j) && c < bc) { bc = c; bj = j; } }); if (bj >= 0) taken.add(bj); return bj; }); }
+  else asg = hungarian(cost);
+  // more drones than frontiers: extra drones double up on their cheapest frontier
+  alive.forEach((d, i) => { if (asg[i] < 0) { let bj = -1, bc = Infinity; fr.forEach((f, j) => { if (cost[i][j] < bc) { bc = cost[i][j]; bj = j; } }); asg[i] = bj; } });
+  let anyReach = false;
+  alive.forEach((d, i) => {
+    const j = asg[i]; if (j < 0 || cost[i][j] >= 1e5) { d.state = 'idle'; d.path = null; d.target = null; return; }
+    anyReach = true;
+    const f = fr[j], cell = best[i][j][1];
+    const same = d.target && Math.hypot(d.target.x - f.x, d.target.y - f.y) < 2;
+    d.target = { x: f.x, y: f.y, cell, size: f.size, gx: (cell % m.bld.W + 0.5) * CELL, gy: (((cell / m.bld.W) | 0) + 0.5) * CELL };
+    { const p = smooth(m.map, m.trav, pathFromField(m.map, m.trav, fields[i], cell)); if (p) { d.path = p.map(c => [(c % m.bld.W + 0.5) * CELL, (((c / m.bld.W) | 0) + 0.5) * CELL]); d.wp = Math.min(1, d.path.length - 1); } }
+    d.state = 'exploring';
+  });
+  // frontiers exist but none can be reached by anyone: treat as done
+  if (!anyReach) { m.stuckSince = m.stuckSince ?? m.t; if (m.t - m.stuckSince > 6) { m.frontiers = []; for (const d of alive) { d.state = 'returning'; planTo(m, d, baseCell(m)); } if (!m.finishing) { m.finishing = true; m.events.push({ t: m.t, text: 'The remaining gaps cannot be reached. Every drone is heading home.' }); } } }
+  else m.stuckSince = null;
+  m.allocs++;
+}
+function cellOf(m, x, y) { return Math.floor(y / CELL) * m.bld.W + Math.floor(x / CELL); }
+function baseCell(m) { return m.bld.base[1] * m.bld.W + m.bld.base[0]; }
+function planTo(m, d, cell) {
+  const f = distField(m.map, m.trav, cellOf(m, d.x, d.y));
+  const p = smooth(m.map, m.trav, pathFromField(m.map, m.trav, f, cell));
+  if (p) { d.path = p.map(c => [(c % m.bld.W + 0.5) * CELL, (((c / m.bld.W) | 0) + 0.5) * CELL]); d.wp = 1; } else d.path = null;
+  return f;
+}
+function stepMission(m, dt) {
+  if (m.phase !== 'flying') return;
+  m.t += dt;
+  const { bld, map } = m;
+  // sense
+  for (const d of m.drones) if (d.alive && d.state !== 'landed' && d.state !== 'charging') {
+    if (!d.scanT || m.t - d.scanT > 0.1) { d.scanT = m.t; const s = scan(bld, map, d, 180, 8, 0.3, m.R); d.found += s.newly; d.hits = s.hits; }
+  }
+  // known-free count for coverage
+  if (!m.lastCount || m.t - m.lastCount > 0.25) { m.lastCount = m.t; let kf = 0; for (let i = 0; i < bld.W * bld.H; i++) if (map.lo[i] < -0.5 && bld.counted[i]) kf++; map.known_free = kf; m.coverage.push([m.t, coverageOf(m)]); }
+  // plan
+  if (m.t - m.lastAlloc > 1.0 || (m.t - m.lastAlloc > 0.3 && m.drones.some(d => d.alive && (d.state === 'idle' || (d.state === 'exploring' && (!d.path || d.wp >= d.path.length)))))) { m.lastAlloc = m.t; refreshPlanningMaps(m); allocate(m); }
+  // act
+  for (const d of m.drones) {
+    if (!d.alive) continue;
+    if (d.state === 'charging') { d.battery = Math.min(100, d.battery + 5 * dt); if (d.battery >= 99) { d.state = m.finishing ? 'landed' : 'idle'; if (!m.finishing) m.events.push({ t: m.t, text: `Drone ${d.id + 1} charged and back in the air`, drone: d.id }); } continue; }
+    if (d.state === 'landed' || d.state === 'idle') { d.vx = d.vy = 0; continue; }
+    // battery check: enough to get home plus margin?
+    d.battery = Math.max(0, d.battery - (0.12 + 0.28 * Math.hypot(d.vx, d.vy) / SPEED) * dt * (m.opts.drain || 1));
+    if (d.state === 'exploring' && (!d.homeCheck || m.t - d.homeCheck > 1)) {
+      d.homeCheck = m.t; const home = Math.hypot(d.x - (bld.base[0] + 0.5) * CELL, d.y - (bld.base[1] + 0.5) * CELL) * 1.6;
+      const need = home / SPEED * 0.4 * (m.opts.drain || 1) + 10;
+      if (d.battery < need) { d.state = 'recharging'; d.target = null; planTo(m, d, baseCell(m)); m.events.push({ t: m.t, text: `Drone ${d.id + 1} low on battery (${d.battery.toFixed(0)}%), going home to charge`, drone: d.id }); }
+    }
+    // arrived at a frontier that is still there: mark it visited so nobody comes back for it
+    if (d.state === 'exploring' && d.target && (!d.path || d.wp >= d.path.length) && Math.hypot(d.target.gx - d.x, d.target.gy - d.y) < 0.6) {
+      const W = bld.W, cx = Math.floor(d.target.x / CELL), cy = Math.floor(d.target.y / CELL), gx = Math.floor(d.x / CELL), gy = Math.floor(d.y / CELL);
+      for (const [px, py] of [[cx, cy]]) for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const nx = px + dx, ny = py + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < bld.H && dx * dx + dy * dy <= 16) m.black[ny * W + nx] = Math.min(2, m.black[ny * W + nx] + 1); }
+      d.target = null; d.path = null; d.state = 'idle'; m.lastAlloc = -9;
+    }
+    // follow path
+    let ax = 0, ay = 0;
+    if (d.path && d.wp < d.path.length) {
+      const [tx, ty] = d.path[d.wp]; const dx = tx - d.x, dy = ty - d.y, dist = Math.hypot(dx, dy);
+      if (dist < 0.35) d.wp++;
+      const last = d.wp >= d.path.length - 1; const vmax = last ? Math.min(SPEED, dist * 1.5 + 0.3) : SPEED;
+      ax = dx / (dist || 1) * vmax; ay = dy / (dist || 1) * vmax;
+    } else if ((d.state === 'returning' || d.state === 'recharging') && Math.hypot(d.x - (bld.base[0] + 0.5) * CELL, d.y - (bld.base[1] + 0.5) * CELL) > 2.2) {
+      if (!d.rp || m.t - d.rp > 1) { d.rp = m.t; refreshPlanningMaps(m); planTo(m, d, baseCell(m)); }
+    } else if (d.state === 'returning' || d.state === 'recharging') {
+      const bx = d.home[0], by = d.home[1];
+      if (Math.hypot(bx - d.x, by - d.y) < 0.25) { if (d.state === 'returning') { d.state = 'landed'; m.events.push({ t: m.t, text: `Drone ${d.id + 1} landed`, drone: d.id }); } else d.state = 'charging'; d.vx = d.vy = 0; continue; }
+      ax = (bx - d.x) * 1.2; ay = (by - d.y) * 1.2;
+    } else { d.path = null; }
+    // separation from other drones (reciprocal, softens near walls)
+    for (const o of m.drones) { if (o === d || !o.alive || o.state === 'landed' || o.state === 'charging') continue; const dx = d.x - o.x, dy = d.y - o.y, r = Math.hypot(dx, dy); if (r < 1.1 && r > 1e-3) { const k = (1.1 - r) / 1.1 * 2.2; ax += dx / r * k; ay += dy / r * k; } }
+    const sp = Math.hypot(ax, ay); if (sp > SPEED) { ax *= SPEED / sp; ay *= SPEED / sp; }
+    // first-order velocity response
+    d.vx += (ax - d.vx) * Math.min(1, dt * 4); d.vy += (ay - d.vy) * Math.min(1, dt * 4);
+    const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
+    const blocked = (x, y) => { for (const [ox, oy] of [[0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25]]) { const cx = Math.floor((x + ox) / CELL), cy = Math.floor((y + oy) / CELL); if (bld.g[cy * bld.W + cx]) return true; } return false; };
+    if (!blocked(nx, ny) || blocked(d.x, d.y)) { d.dist += Math.hypot(nx - d.x, ny - d.y); d.x = nx; d.y = ny; }
+    else if (!blocked(nx, d.y)) { d.x = nx; d.vy = 0; } else if (!blocked(d.x, ny)) { d.y = ny; d.vx = 0; } else { d.vx = d.vy = 0; d.path = null; }
+    if (d.state === 'exploring') { if (!d.st || m.t - d.st.t > 2) { if (d.st && Math.hypot(d.x - d.st.x, d.y - d.st.y) < 0.1 && d.path) { d.path = null; m.lastAlloc = -9; } d.st = { t: m.t, x: d.x, y: d.y }; } }
+    if (Math.hypot(d.vx, d.vy) > 0.2) { const h = Math.atan2(d.vy, d.vx); let dh = h - d.heading; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; d.heading += dh * Math.min(1, dt * 5); }
+    if (d.battery <= 0 && d.state !== 'landed') { d.alive = false; d.state = 'lost'; m.events.push({ t: m.t, text: `Drone ${d.id + 1} ran out of battery and went down`, drone: d.id }); }
+  }
+  const flying = m.drones.filter(d => d.alive && !['landed'].includes(d.state));
+  if (m.finishing && !flying.length) { m.phase = 'done'; m.done = true; m.events.push({ t: m.t, text: `Mission complete: ${(coverageOf(m) * 100).toFixed(1)}% of the building mapped` }); }
+  if (!m.drones.some(d => d.alive)) { m.phase = 'done'; m.done = true; m.events.push({ t: m.t, text: 'Every drone is down. Mission failed.' }); }
+}
+if (typeof module !== 'undefined') module.exports = { CELL, makeBuilding, finalizeBuilding, makeMission, stepMission, coverageOf, hungarian, frontiers, DRONE_COLORS };
+
+</script>
+<script>
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const cfg = Object.assign({ seed: 11, drones: 4, speed: 2, drain: 1, truth: false, byDrone: true, useCustom: false }, store.get('dsm.cfg', {}));
+// plan storage: run-length encoded walls
+const enc = g => { let out = [], v = g[0], n = 0; for (let i = 0; i < g.length; i++) { if (g[i] === v) n++; else { out.push(n); v = g[i]; n = 1; } } out.push(n); return { first: g[0], runs: out }; };
+const dec = (e, len) => { const g = new Uint8Array(len); let v = e.first, i = 0; for (const n of e.runs) { g.fill(v, i, i + n); i += n; v = v ? 0 : 1; } return g; };
+let plan = (() => { const p = store.get('dsm.plan', null); if (!p) return null; try { return { name: p.name, W: p.W, H: p.H, base: p.base, g: dec(p.g, p.W * p.H) }; } catch (e) { return null; } })();
+const savePlan = () => { if (plan) store.set('dsm.plan', { name: plan.name, W: plan.W, H: plan.H, base: plan.base, g: enc(plan.g) }); };
+const customOpt = () => cfg.useCustom && plan ? { g: plan.g, W: plan.W, H: plan.H, base: plan.base } : null;
+const saveCfg = () => store.set('dsm.cfg', cfg);
+const probe = document.createElement('i'); probe.style.display = 'none'; document.body.appendChild(probe);
+const css = n => { probe.style.color = `var(${n})`; return getComputedStyle(probe).color; };
+const rgbOf = n => (css(n).match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+let m = null, paused = false, t0Real = 0, logged = false;
+function newMission() {
+  m = makeMission({ seed: cfg.seed, drones: cfg.drones, drain: cfg.drain, custom: customOpt() }); paused = false; logged = false;
+  $('#covLbl').textContent = cfg.useCustom && plan ? `${plan.name} mapped` : `Building #${cfg.seed} mapped`;
+  $('#start').disabled = false; $('#start').textContent = 'Launch swarm'; $('#pause').disabled = true; $('#kill').disabled = true; $('#pause').textContent = 'Pause';
+  $('#feed').innerHTML = ''; lastEv = 0; buildImg(); renderFleet(); kpis();
+}
+// ---------- rendering ----------
+const cv = $('#cv'), wrap = $('#wrap'), ctx = cv.getContext('2d');
+let off, offCtx, img, truthOff, hatch;
+function buildImg() {
+  const { W, H } = m.bld;
+  off = document.createElement('canvas'); off.width = W; off.height = H; offCtx = off.getContext('2d'); img = offCtx.createImageData(W, H);
+  truthOff = document.createElement('canvas'); truthOff.width = W; truthOff.height = H; const tc = truthOff.getContext('2d'), ti = tc.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) if (m.bld.g[i]) { ti.data[i * 4] = 214; ti.data[i * 4 + 1] = 60; ti.data[i * 4 + 2] = 48; ti.data[i * 4 + 3] = 120; }
+  tc.putImageData(ti, 0, 0);
+}
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function paintMap(target, byDrone) {
+  const { W, H } = m.bld, lo = m.map.lo, d = img.data, free = rgbOf('--free'), wall = rgbOf('--wall');
+  const cols = DRONE_COLORS.map(hexRgb);
+  for (let i = 0; i < W * H; i++) {
+    const v = lo[i], k = i * 4;
+    if (v > 0.8) { d[k] = wall[0]; d[k + 1] = wall[1]; d[k + 2] = wall[2]; d[k + 3] = 255; }
+    else if (v < -0.5) { let r = free[0], g = free[1], b = free[2]; const s = m.map.seenBy[i]; if (byDrone && s >= 0) { const c = cols[s]; r = r * 0.8 + c[0] * 0.2; g = g * 0.8 + c[1] * 0.2; b = b * 0.8 + c[2] * 0.2; } d[k] = r; d[k + 1] = g; d[k + 2] = b; d[k + 3] = 255; }
+    else d[k + 3] = 0;
+  }
+  offCtx.putImageData(img, 0, 0);
+}
+function fit(canvas, el) { const r = el.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio); const w = Math.max(10, Math.round(r.width * dpr)), h = Math.max(10, Math.round(r.height * dpr)); if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; } return { w, h, dpr }; }
+function hatchPattern(c) { const p = document.createElement('canvas'); p.width = p.height = 10; const g = p.getContext('2d'); g.strokeStyle = css('--hatch') || '#c9c4b8'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-2, 12); g.lineTo(12, -2); g.stroke(); return c.createPattern(p, 'repeat'); }
+let spin = 0;
+function draw(dt) {
+  const { w, h, dpr } = fit(cv, wrap); const { W, H } = m.bld;
+  const sc = Math.min(w / (W * CELL), h / (H * CELL)), ox = (w - W * CELL * sc) / 2, oy = (h - H * CELL * sc) / 2;
+  const X = x => ox + x * sc, Y = y => oy + y * sc;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = hatch || (hatch = hatchPattern(ctx)); ctx.fillRect(ox, oy, W * CELL * sc, H * CELL * sc);
+  paintMap(off, cfg.byDrone); ctx.imageSmoothingEnabled = false; ctx.drawImage(off, ox, oy, W * CELL * sc, H * CELL * sc);
+  if (cfg.truth) ctx.drawImage(truthOff, ox, oy, W * CELL * sc, H * CELL * sc);
+  // base pad
+  const bx = (m.bld.base[0] + 0.5) * CELL, by = (m.bld.base[1] + 0.5) * CELL;
+  ctx.strokeStyle = css('--cobalt'); ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.arc(X(bx), Y(by), 1.4 * sc, 0, Math.PI * 2); ctx.stroke();
+  ctx.font = `700 ${Math.max(10, 0.9 * sc)}px Archivo`; ctx.fillStyle = css('--cobalt'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BASE', X(bx), Y(by) + 2.3 * sc > h - 8 ? Y(by) - 2.2 * sc : Y(by) + 2.3 * sc);
+  // frontiers
+  ctx.fillStyle = '#f2b705';
+  for (const f of m.frontiers) for (let k = 0; k < f.cells.length; k += 2) { const c = f.cells[k]; ctx.fillRect(X((c % W) * CELL), Y(((c / W) | 0) * CELL), CELL * sc, CELL * sc); }
+  // lidar, paths, assignments
+  for (const d of m.drones) {
+    if (!d.alive || d.state === 'landed' || d.state === 'charging') continue;
+    if (d.hits && d.hits.length) { ctx.strokeStyle = d.color + '22'; ctx.lineWidth = 1 * dpr; ctx.beginPath(); for (let k = 0; k < d.hits.length; k += 3) { ctx.moveTo(X(d.x), Y(d.y)); ctx.lineTo(X(d.hits[k][0]), Y(d.hits[k][1])); } ctx.stroke(); }
+    if (d.path && d.wp < d.path.length) { ctx.strokeStyle = d.color; ctx.lineWidth = 2 * dpr; ctx.setLineDash([6 * dpr, 5 * dpr]); ctx.beginPath(); ctx.moveTo(X(d.x), Y(d.y)); for (let k = d.wp; k < d.path.length; k++) ctx.lineTo(X(d.path[k][0]), Y(d.path[k][1])); ctx.stroke(); ctx.setLineDash([]); }
+    if (d.target) { ctx.strokeStyle = d.color; ctx.lineWidth = 2.5 * dpr; ctx.beginPath(); ctx.arc(X(d.target.x), Y(d.target.y), (0.5 + 0.15 * Math.sin(spin * 3)) * sc, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  // drones
+  spin += dt;
+  for (const d of m.drones) {
+    const x = X(d.x), y = Y(d.y), r = Math.max(7 * dpr, 0.45 * sc);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(d.heading + Math.PI / 4);
+    if (!d.alive) { ctx.strokeStyle = css('--warn'); ctx.lineWidth = 2.5 * dpr; ctx.beginPath(); ctx.moveTo(-r, -r); ctx.lineTo(r, r); ctx.moveTo(r, -r); ctx.lineTo(-r, r); ctx.stroke(); ctx.restore(); continue; }
+    const flying = d.state !== 'landed' && d.state !== 'charging';
+    ctx.strokeStyle = css('--ink'); ctx.lineWidth = 2 * dpr; ctx.beginPath(); ctx.moveTo(-r * .75, -r * .75); ctx.lineTo(r * .75, r * .75); ctx.moveTo(r * .75, -r * .75); ctx.lineTo(-r * .75, r * .75); ctx.stroke();
+    for (const [px, py] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { ctx.beginPath(); ctx.arc(px * r * .75, py * r * .75, r * .42, 0, Math.PI * 2); ctx.fillStyle = d.color + (flying ? '55' : '22'); ctx.fill(); if (flying) { ctx.strokeStyle = d.color; ctx.lineWidth = 1.6 * dpr; ctx.beginPath(); const a = spin * 30 + px; ctx.moveTo(px * r * .75 + Math.cos(a) * r * .4, py * r * .75 + Math.sin(a) * r * .4); ctx.lineTo(px * r * .75 - Math.cos(a) * r * .4, py * r * .75 - Math.sin(a) * r * .4); ctx.stroke(); } }
+    ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(0, 0, r * .38, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = css('--ink'); ctx.font = `600 ${11 * dpr}px "DM Mono"`; ctx.textAlign = 'left'; ctx.fillText(String(d.id + 1), x + r + 3 * dpr, y - r);
+  }
+}
+// ---------- fleet + kpis ----------
+const STATE = { idle: 'Waiting for a task', exploring: 'Exploring', returning: 'Heading home', recharging: 'Low battery, going to charge', charging: 'Charging at base', landed: 'Landed', lost: 'Down' };
+function renderFleet() {
+  $('#fleet').innerHTML = m.drones.map(d => `<div class="dr ${d.alive ? '' : 'lost'}" id="dr${d.id}" style="animation-delay:${d.id * 40}ms"><svg width="30" height="30" viewBox="0 0 30 30"><g stroke="${d.color}" stroke-width="2.4" fill="none"><circle cx="7" cy="7" r="5"/><circle cx="23" cy="7" r="5"/><circle cx="7" cy="23" r="5"/><circle cx="23" cy="23" r="5"/></g><circle cx="15" cy="15" r="4" fill="${d.color}"/></svg><div><div class="nm">Drone ${d.id + 1} <span class="st"></span></div><div class="bat"><i></i></div></div><div class="n"></div></div>`).join('');
+}
+function updateFleet() {
+  for (const d of m.drones) { const el = $('#dr' + d.id); if (!el) continue; el.classList.toggle('lost', !d.alive); el.querySelector('.st').textContent = '· ' + (STATE[d.state] || d.state);
+    const b = el.querySelector('.bat i'); b.style.width = d.battery + '%'; b.style.background = d.battery < 25 ? css('--warn') : d.color; el.querySelector('.n').textContent = `${Math.round(d.found * CELL * CELL)} m²`; }
+}
+const fmtT = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function kpis() {
+  const c = m.map.known_free ? coverageOf(m) : 0;
+  $('#cov').firstChild.nodeValue = `${(c * 100).toFixed(c > 0.995 ? 0 : 1)}%`;
+  $('#covTime').textContent = m.phase === 'ready' ? 'ready' : m.phase === 'done' ? 'mission complete' : paused ? 'paused' : 'live';
+  $('#kT').textContent = fmtT(m.t); $('#kA').textContent = `${Math.round((m.map.known_free || 0) * CELL * CELL)} m²`;
+  $('#kD').textContent = `${Math.round(m.drones.reduce((s, d) => s + d.dist, 0))} m`; $('#kF').textContent = m.phase === 'ready' ? '–' : m.frontiers.length;
+}
+let lastEv = 0;
+function feedUpdate() {
+  if (m.events.length === lastEv) return;
+  const ul = $('#feed'); for (const e of m.events.slice(lastEv)) { const li = document.createElement('li'); if (/down|failed|low/i.test(e.text)) li.className = 'bad'; li.innerHTML = `<time>${fmtT(e.t)}</time><span>${e.text}</span>`; ul.prepend(li); }
+  while (ul.children.length > 30) ul.lastChild.remove(); lastEv = m.events.length;
+}
+// ---------- loop ----------
+let last = performance.now(), uiT = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (m.phase === 'flying' && !paused) { const steps = Math.round(dt * cfg.speed / 0.05) || 1; for (let i = 0; i < steps && m.phase === 'flying'; i++) stepMission(m, 0.05); }
+  if ($('#mission').classList.contains('on')) draw(dt);
+  if (now - uiT > 150) { uiT = now; kpis(); updateFleet(); feedUpdate(); if (m.phase === 'done' && !logged) finish(); }
+  requestAnimationFrame(frame);
+}
+function finish() {
+  logged = true; $('#pause').disabled = true; $('#kill').disabled = true; $('#start').textContent = 'Fly it again'; $('#start').disabled = false;
+  const c = coverageOf(m), t95 = (m.coverage.find(p => p[1] >= 0.95) || [null])[0];
+  const runs = store.get('dsm.runs', []); runs.unshift({ at: new Date().toISOString(), seed: cfg.useCustom && plan ? plan.name : cfg.seed, drones: cfg.drones, drain: cfg.drain, t: m.t, t95, cov: c, dist: m.drones.reduce((s, d) => s + d.dist, 0), lost: m.drones.filter(d => !d.alive).length }); store.set('dsm.runs', runs.slice(0, 80));
+}
+$('#start').addEventListener('click', () => { if (m.phase !== 'ready') newMission(); m.phase = 'flying'; $('#start').disabled = true; $('#start').textContent = 'Flying'; $('#pause').disabled = false; $('#kill').disabled = false; m.events.push({ t: 0, text: `${cfg.drones} drone${cfg.drones > 1 ? 's' : ''} launched into an unmapped building` }); });
+$('#pause').addEventListener('click', () => { paused = !paused; $('#pause').textContent = paused ? 'Resume' : 'Pause'; });
+$('#kill').addEventListener('click', () => { const live = m.drones.filter(d => d.alive && d.state !== 'landed'); if (!live.length) return; const d = live[Math.floor(Math.random() * live.length)]; d.alive = false; d.state = 'lost'; d.path = null; d.target = null; m.lastAlloc = -9; m.events.push({ t: m.t, text: `Drone ${d.id + 1} went down. Reassigning its work.` }); });
+$('#newb').addEventListener('click', () => { cfg.seed = Math.floor(Math.random() * 90000) + 100; cfg.useCustom = false; saveCfg(); newMission(); });
+$('#nDr').value = cfg.drones; $('#nDrV').textContent = cfg.drones;
+$('#nDr').addEventListener('input', e => { cfg.drones = +e.target.value; $('#nDrV').textContent = cfg.drones; saveCfg(); if (m.phase !== 'flying') newMission(); });
+function seg(sel, key) { const el = $(sel); el.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === cfg[key])); el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cfg[key] = +b.dataset.v; saveCfg(); el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (key === 'drain') { m.opts.drain = cfg.drain; } }); }
+seg('#speed', 'speed'); seg('#drain', 'drain');
+$('#showTruth').checked = cfg.truth; $('#byDrone').checked = cfg.byDrone;
+$('#showTruth').addEventListener('change', e => { cfg.truth = e.target.checked; saveCfg(); });
+$('#byDrone').addEventListener('change', e => { cfg.byDrone = e.target.checked; saveCfg(); });
+
+// ---------- map view ----------
+function line(svg, series, o) {
+  const W = svg.clientWidth, H = svg.clientHeight; if (!W) return; const pl = 44, pr = 12, pt = 10, pb = 28;
+  const xs = v => pl + (v - o.x0) / (o.x1 - o.x0 || 1) * (W - pl - pr), ys = v => pt + (1 - (v - o.y0) / (o.y1 - o.y0 || 1)) * (H - pt - pb);
+  let s = ''; const nt = W < 420 ? 3 : 5;
+  for (let i = 0; i <= nt; i++) { const v = o.y0 + (o.y1 - o.y0) * i / nt, y = ys(v); s += `<line x1="${pl}" x2="${W - pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl - 6}" y="${y + 4}" text-anchor="end">${o.fy(v)}</text>`; }
+  for (const v of (o.xt || Array.from({ length: nt + 1 }, (_, i) => o.x0 + (o.x1 - o.x0) * i / nt))) { s += `<text x="${xs(v)}" y="${H - 8}" text-anchor="middle">${o.fx(v)}</text>`; }
+  for (const se of series) { if (se.dots) { s += se.pts.map(p => `<circle cx="${xs(p[0])}" cy="${ys(p[1])}" r="6" fill="${se.color}" style="animation:vin .4s both"/>`).join(''); continue; } if (!se.pts.length) continue; s += `<path d="${se.pts.map((p, i) => (i ? 'L' : 'M') + xs(p[0]).toFixed(1) + ' ' + ys(p[1]).toFixed(1)).join('')}" fill="none" stroke="${se.color}" stroke-width="${se.w || 2.5}" stroke-linejoin="round" stroke-dasharray="3000" stroke-dashoffset="3000" style="animation:dr 1.2s ease forwards"/>`; }
+  svg.innerHTML = `<style>@keyframes dr{to{stroke-dashoffset:0}}</style>` + s;
+}
+function renderMapView() {
+  const mc = $('#mapCv'); const { w, h } = fit(mc, mc.parentElement); const c2 = mc.getContext('2d'); const { W, H } = m.bld;
+  c2.setTransform(1, 0, 0, 1, 0, 0); c2.clearRect(0, 0, w, h); c2.fillStyle = hatchPattern(c2); c2.fillRect(0, 0, w, h);
+  paintMap(off, true); c2.imageSmoothingEnabled = false; c2.drawImage(off, 0, 0, w, h);
+  const sx = w / (W * CELL), sy = h / (H * CELL);
+  for (const d of m.drones) { c2.fillStyle = d.alive ? d.color : css('--warn'); c2.beginPath(); c2.arc(d.x * sx, d.y * sy, 6, 0, Math.PI * 2); c2.fill(); }
+  const cov = coverageOf(m);
+  $('#mapTitle').textContent = m.phase === 'ready' ? 'Launch a mission to build a map' : `${cfg.drones} drone${cfg.drones > 1 ? 's' : ''} mapped ${(cov * 100).toFixed(0)}% of the building in ${fmtT(m.t)}`;
+  line($('#chCov'), [{ pts: m.coverage.filter((p, i) => i % 2 === 0).map(p => [p[0], p[1] * 100]), color: 'var(--cobalt)' }], { x0: 0, x1: Math.max(10, m.t), y0: 0, y1: 100, fx: v => fmtT(v), fy: v => `${v.toFixed(0)}%` });
+  const tot = m.drones.reduce((s, d) => s + d.found, 0) || 1;
+  $('#contrib').innerHTML = m.drones.map(d => `<div class="bar"><span>Drone ${d.id + 1}</span><div class="t"><i style="width:${d.found / tot * 100}%;background:${d.color}"></i></div><b>${(d.found / tot * 100).toFixed(0)}%</b></div>`).join('');
+}
+// ---------- fleet-size experiment (worker) ----------
+const coreSrc = document.getElementById('core-src').textContent;
+let expWorker = null;
+$('#runExp').addEventListener('click', () => {
+  if (expWorker) expWorker.terminate();
+  const src = coreSrc + `\nonmessage = e => { const { seed, sizes, drain, custom } = e.data; if (custom) custom.g = Uint8Array.from(custom.g); for (const n of sizes) { const t0 = performance.now(); const mm = makeMission({ seed, drones: n, drain, custom }); mm.phase = 'flying'; while (!mm.done && mm.t < 900) stepMission(mm, 0.1); const t95 = (mm.coverage.find(p => p[1] >= 0.95) || [null])[0]; postMessage({ n, t: mm.t, t95, cov: coverageOf(mm), dist: mm.drones.reduce((s, d) => s + d.dist, 0), cpu: performance.now() - t0 }); } postMessage({ done: true }); };`;
+  expWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+  const res = []; const sizes = [1, 2, 3, 4, 6, 8];
+  $('#expStatus').textContent = 'Flying 1 drone…'; $('#runExp').disabled = true;
+  expWorker.onmessage = e => {
+    if (e.data.done) { $('#expStatus').textContent = `Done. ${cfg.useCustom && plan ? plan.name : 'Building #' + cfg.seed}.`; $('#runExp').disabled = false; store.set('dsm.exp', { seed: expId(), res }); return; }
+    res.push(e.data); const nx = sizes[res.length]; $('#expStatus').textContent = nx ? `Flying ${nx} drones…` : 'Finishing…'; renderExp({ seed: cfg.seed, res });
+  };
+  const cu = customOpt(); expWorker.postMessage({ seed: cfg.seed, sizes, drain: 1, custom: cu ? { g: Array.from(cu.g), W: cu.W, H: cu.H, base: cu.base } : null });
+});
+const expId = () => cfg.useCustom && plan ? 'plan:' + plan.name + ':' + plan.W + 'x' + plan.H : cfg.seed;
+function renderExp(ex) {
+  lastExp = ex; renderSizing();
+  if (!ex || !ex.res.length) { $('#expTable').innerHTML = '<tbody><tr><td class="empty">No results yet.</td></tr></tbody>'; $('#chExp').innerHTML = ''; return; }
+  const r = ex.res, ok = r.filter(x => x.t95);
+  if (ok.length > 1) { const best = ok.reduce((a, b) => (b.t95 < a.t95 ? b : a)); const one = r.find(x => x.n === 1);
+    $('#expTitle').textContent = one && one.t95 ? `${best.n} drones mapped it ${(one.t95 / best.t95).toFixed(1)}× faster than one` : 'Do more drones always map faster?'; }
+  line($('#chExp'), [{ pts: ok.map(x => [x.n, x.t95]), color: 'var(--cobalt)' }, { dots: true, pts: ok.map(x => [x.n, x.t95]), color: 'var(--cobalt)' }], { x0: 1, x1: 8, xt: [1, 2, 3, 4, 6, 8], y0: 0, y1: Math.max(...ok.map(x => x.t95), 10) * 1.1, fx: v => `${Math.round(v)}`, fy: v => `${Math.round(v)} s` });
+  $('#expTable').innerHTML = `<thead><tr><th>Drones</th><th class="r">To 95%</th><th class="r">Finished</th><th class="r">Coverage</th><th class="r">Flown</th></tr></thead><tbody>${r.map(x => `<tr><td>${x.n}</td><td class="r">${x.t95 ? x.t95.toFixed(0) + ' s' : '–'}</td><td class="r">${x.t.toFixed(0)} s</td><td class="r">${(x.cov * 100).toFixed(1)}%</td><td class="r">${Math.round(x.dist)} m</td></tr>`).join('')}</tbody>`;
+}
+
+// ---------- fleet sizing ----------
+let lastExp = null;
+function renderSizing() {
+  const out = $('#sOut'); const ex = lastExp; if (!ex || !ex.res || !ex.res.length) { out.innerHTML = '<p class="sub">Run the test above first.</p>'; return; }
+  const dead = +$('#sDead').value * 60, unit = +$('#sUnit').value, crew = +$('#sCrew').value, month = +$('#sMonth').value;
+  const rows = ex.res.filter(x => x.t95).map(x => ({ n: x.n, t95: x.t95, fin: x.t, capex: x.n * unit, opex: month * (x.t / 3600) * crew, ok: x.t95 <= dead }));
+  const okRows = rows.filter(r => r.ok); const best = okRows.sort((a, b) => a.capex - b.capex || a.t95 - b.t95)[0];
+  const inr = v => '₹' + Math.round(v).toLocaleString('en-IN');
+  out.innerHTML = (best ? `<div class="rec"><div><span>Buy</span><b>${best.n} drone${best.n > 1 ? 's' : ''}</b></div><div><span>Maps 95% in</span><b>${Math.round(best.t95)} s</b></div><div><span>Fleet cost</span><b>${inr(best.capex)}</b></div><div><span>Crew time a month</span><b>${inr(best.opex)}</b></div></div>` : `<div class="rec"><div><span>No fleet size up to 8 meets</span><b>${$('#sDead').value} min</b></div><div style="color:var(--mute);font-size:14px;max-width:40ch">The fastest here took ${Math.round(Math.min(...rows.map(r => r.t95)))} s. Relax the deadline or split the building.</div></div>`) +
+    `<div class="scroll" style="margin-top:12px"><table class="stack"><thead><tr><th>Drones</th><th class="r">To 95%</th><th class="r">Fleet cost</th><th class="r">Crew a month</th><th>Deadline</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.n}</td><td class="r">${Math.round(r.t95)} s</td><td class="r">${inr(r.capex)}</td><td class="r">${inr(r.opex)}</td><td>${r.ok ? '<span class="pill ok">meets it</span>' : '<span class="pill no">too slow</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+['#sDead', '#sUnit', '#sCrew', '#sMonth'].forEach(id => $(id).addEventListener('input', renderSizing));
+
+// ---------- your building ----------
+let planImg = null, brush = 'wall', brushR = 3;
+const pcv = $('#planCv'), pbox = $('#planBox');
+function loadImage(src, name) { const im = new Image(); im.onload = () => { planImg = im; planName = name; processPlan(); }; im.src = src; }
+let planName = 'Your plan';
+$('#planFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => loadImage(r.result, f.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Your plan'); r.readAsDataURL(f); });
+$('#planSample').addEventListener('click', () => loadImage(samplePlan(), 'Sample office'));
+['#planWidth', '#planThr', '#planThick', '#planClean'].forEach(id => $(id).addEventListener('input', () => { $('#thrV').textContent = $('#planThr').value + '%'; if (planImg) processPlan(); }));
+function samplePlan() {
+  const c = document.createElement('canvas'); c.width = 1500; c.height = 1000; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 1500, 1000); g.strokeStyle = '#111'; g.lineCap = 'square';
+  const wall = (x1, y1, x2, y2, w) => { g.lineWidth = w || 9; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+  wall(40, 40, 1460, 40, 16); wall(1460, 40, 1460, 960, 16); wall(1460, 960, 40, 960, 16); wall(40, 960, 40, 40, 16);
+  wall(40, 420, 380, 420); wall(470, 420, 700, 420); wall(700, 40, 700, 330); wall(700, 420, 700, 560); wall(700, 650, 700, 960);
+  wall(700, 420, 900, 420); wall(990, 420, 1460, 420); wall(1100, 40, 1100, 300); wall(1100, 420, 1100, 560); wall(1100, 650, 1100, 960); wall(1100, 700, 1300, 700); wall(1390, 700, 1460, 700);
+  wall(380, 420, 380, 960); g.clearRect(370, 700, 20, 90); wall(40, 680, 300, 680);
+  g.lineWidth = 2; for (const [x, y, w, h] of [[120, 120, 220, 90], [450, 150, 160, 160], [820, 120, 180, 110], [1200, 130, 180, 120], [780, 560, 240, 120], [1180, 500, 200, 110], [480, 760, 130, 120], [1200, 790, 160, 100]]) g.strokeRect(x, y, w, h);
+  g.strokeStyle = '#b8b8b8'; g.lineWidth = 2; for (const [x, y, a0, a1] of [[470, 420, Math.PI, Math.PI * 1.5], [990, 420, Math.PI, Math.PI * 1.5]]) { g.beginPath(); g.arc(x, y, 85, a0, a1); g.stroke(); }
+  g.strokeStyle = '#111'; g.fillStyle = '#333'; g.font = '28px Arial'; g.fillText('OPEN OFFICE', 820, 300); g.fillText('MEETING', 1180, 600); g.fillText('LOBBY', 150, 820);
+  return c.toDataURL('image/png');
+}
+function processPlan() {
+  const widthM = Math.max(8, Math.min(80, +$('#planWidth').value || 30)); const iw = planImg.naturalWidth, ih = planImg.naturalHeight;
+  let W = Math.round(widthM / CELL), H = Math.round(W * ih / iw); const k = Math.sqrt(Math.min(1, 70000 / (W * H))); W = Math.max(30, Math.round(W * k)); H = Math.max(20, Math.round(H * k));
+  // read the image at (up to) native resolution so thin lines survive, then keep the darkest pixel in each cell
+  const sc0 = Math.min(1, 3200 / Math.max(iw, ih)), cw0 = Math.round(iw * sc0), ch0 = Math.round(ih * sc0);
+  const c = document.createElement('canvas'); c.width = cw0; c.height = ch0; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cw0, ch0); g.drawImage(planImg, 0, 0, cw0, ch0);
+  const d = g.getImageData(0, 0, cw0, ch0).data, thr = +$('#planThr').value / 100, grid = new Uint8Array(W * H), dk = new Float32Array(W * H);
+  for (let py = 0; py < ch0; py++) { const cy = Math.min(H - 1, Math.floor(py / ch0 * H)); for (let px = 0; px < cw0; px++) { const i = (py * cw0 + px) * 4; const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; const cx = Math.min(W - 1, Math.floor(px / cw0 * W)), k = cy * W + cx; if (1 - l > dk[k]) dk[k] = 1 - l; } }
+  for (let i = 0; i < W * H; i++) grid[i] = dk[i] > thr ? 1 : 0;
+  if ($('#planClean').checked) { // drop small specks such as text and dimension marks
+    const seen = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) { if (!grid[i] || seen[i]) continue; const q = [i], comp = []; seen[i] = 1; while (q.length) { const c2 = q.pop(); comp.push(c2); const x = c2 % W, y = (c2 / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (grid[n] && !seen[n]) { seen[n] = 1; q.push(n); } } }
+      let x0 = W, x1 = 0, y0 = H, y1 = 0; for (const c2 of comp) { const x = c2 % W, y = (c2 / W) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      if (Math.max(x1 - x0, y1 - y0) < 9) for (const c2 of comp) grid[c2] = 0; }
+  }
+  let gg = grid; if ($('#planThick').checked) { gg = grid.slice(); for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; if (grid[i - 1] || grid[i + 1] || grid[i - W] || grid[i + W]) gg[i] = 1; } }
+  for (let x = 0; x < W; x++) { gg[x] = 1; gg[(H - 1) * W + x] = 1; } for (let y = 0; y < H; y++) { gg[y * W] = 1; gg[y * W + W - 1] = 1; }
+  plan = { name: planName, W, H, g: gg, base: autoBase(gg, W, H) }; savePlan(); renderPlanView();
+}
+function autoBase(g, W, H) {
+  // largest open region (with drone clearance), the spot in it nearest the bottom-left corner
+  const ok = new Uint8Array(W * H); for (let y = 6; y < H - 6; y++) for (let x = 6; x < W - 6; x++) { let f = 1; for (let dy = -6; dy <= 6 && f; dy++) for (let dx = -6; dx <= 6; dx++) if (g[(y + dy) * W + x + dx]) { f = 0; break; } ok[y * W + x] = f; }
+  const comp = new Int32Array(W * H).fill(-1); let best = -1, bestN = 0, id = 0;
+  for (let i = 0; i < W * H; i++) { if (!ok[i] || comp[i] >= 0) continue; const q = [i]; comp[i] = id; let n = 0; while (q.length) { const c = q.pop(); n++; for (const nb of [c - 1, c + 1, c - W, c + W]) if (nb >= 0 && nb < W * H && ok[nb] && comp[nb] < 0) { comp[nb] = id; q.push(nb); } } if (n > bestN) { bestN = n; best = id; } id++; }
+  let bi = -1, bd = Infinity; for (let i = 0; i < W * H; i++) if (comp[i] === best) { const x = i % W, y = (i / W) | 0, dd = x * x + (H - y) ** 2; if (dd < bd) { bd = dd; bi = i; } }
+  return bi < 0 ? [Math.floor(W / 2), Math.floor(H / 2)] : [bi % W, (bi / W) | 0];
+}
+let reachCache = null;
+function renderPlanView() {
+  $('#planFly').disabled = !plan; if (!plan) { pcv.getContext('2d').clearRect(0, 0, pcv.width, pcv.height); return; }
+  const { W, H, g, base } = plan; const box = pbox.getBoundingClientRect(); const dpr = Math.min(2, devicePixelRatio); const sc = Math.min(box.width / W, box.height / H);
+  pcv.style.width = W * sc + 'px'; pcv.style.height = H * sc + 'px'; pcv.style.position = 'relative'; pcv.style.inset = 'auto'; pcv.style.margin = '0 auto'; pcv.style.display = 'block';
+  pcv.width = Math.round(W * sc * dpr); pcv.height = Math.round(H * sc * dpr);
+  const b = finalizeBuilding(g, W, H, [], base); reachCache = b;
+  const im = new ImageData(W, H), wall = rgbOf('--wall'), cob = rgbOf('--cobalt'), free = rgbOf('--free');
+  for (let i = 0; i < W * H; i++) { const k = i * 4; const c = g[i] ? wall : b.reach[i] ? [free[0] * 0.82 + cob[0] * 0.18, free[1] * 0.82 + cob[1] * 0.18, free[2] * 0.82 + cob[2] * 0.18] : free; im.data[k] = c[0]; im.data[k + 1] = c[1]; im.data[k + 2] = c[2]; im.data[k + 3] = 255; }
+  const o = document.createElement('canvas'); o.width = W; o.height = H; o.getContext('2d').putImageData(im, 0, 0);
+  const cx = pcv.getContext('2d'); cx.imageSmoothingEnabled = false; cx.drawImage(o, 0, 0, pcv.width, pcv.height);
+  const s = pcv.width / W; cx.strokeStyle = css('--cobalt'); cx.lineWidth = 3 * dpr; cx.beginPath(); cx.arc((base[0] + 0.5) * s, (base[1] + 0.5) * s, 6 * s, 0, Math.PI * 2); cx.stroke();
+  cx.fillStyle = css('--cobalt'); cx.font = `700 ${12 * dpr}px Archivo`; cx.textAlign = 'center'; cx.fillText('BASE', (base[0] + 0.5) * s, (base[1] + 0.5) * s + (base[1] > H - 14 ? -9 : 10) * s);
+  const area = Math.round(b.reachable * CELL * CELL);
+  $('#planInfo').textContent = `${plan.name}: ${(W * CELL).toFixed(0)} × ${(H * CELL).toFixed(0)} m, ${W} × ${H} cells of 20 cm.`;
+  $('#planReach').textContent = `${area.toLocaleString()} m² reachable from the base (tinted). Untinted rooms are sealed off: open a door with the eraser.`;
+}
+let painting = false;
+function paint(e) {
+  if (!plan) return; const r = pcv.getBoundingClientRect(); const x = Math.floor((e.clientX - r.left) / r.width * plan.W), y = Math.floor((e.clientY - r.top) / r.height * plan.H);
+  if (x < 1 || y < 1 || x >= plan.W - 1 || y >= plan.H - 1) return;
+  if (brush === 'base') { plan.base = [x, y]; painting = false; }
+  else { const v = brush === 'wall' ? 1 : 0; for (let dy = -brushR; dy <= brushR; dy++) for (let dx = -brushR; dx <= brushR; dx++) { if (dx * dx + dy * dy > brushR * brushR + 1) continue; const nx = x + dx, ny = y + dy; if (nx > 0 && ny > 0 && nx < plan.W - 1 && ny < plan.H - 1) plan.g[ny * plan.W + nx] = v; } }
+  drawSoon();
+}
+let rafP = 0; const drawSoon = () => { if (rafP) return; rafP = requestAnimationFrame(() => { rafP = 0; renderPlanView(); }); };
+pcv.addEventListener('pointerdown', e => { painting = true; pcv.setPointerCapture(e.pointerId); paint(e); });
+pcv.addEventListener('pointermove', e => { if (painting) paint(e); });
+pcv.addEventListener('pointerup', () => { painting = false; savePlan(); });
+function segInit2(sel, fn) { const el = $(sel); el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); fn(b.dataset.v); }); }
+segInit2('#brush', v => brush = v); segInit2('#brushSize', v => brushR = +v);
+$('#planFly').addEventListener('click', () => { if (!plan || !reachCache || reachCache.reachable < 50) { $('#planReach').textContent = 'The base has almost no open space around it. Move the base or erase walls.'; return; } cfg.useCustom = true; saveCfg(); savePlan(); newMission(); location.hash = 'mission'; });
+new ResizeObserver(() => { if ($('#building').classList.contains('on')) renderPlanView(); }).observe(pbox);
+
+// ---------- survey report ----------
+let dlCap = null;
+(async () => { try { if (window.claude && window.claude.use) dlCap = await window.claude.use('downloads'); } catch (e) { dlCap = null; }
+  // outside claude.ai: an ordinary browser download
+  if (!dlCap && !window.claude) dlCap = { save: async ({ filename, data }) => { const a = document.createElement('a'), u = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); a.href = u; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return { status: 'saved' }; } }; await null; document.querySelectorAll('.dl').forEach(b => b.hidden = !dlCap); })();
+$('#mapPdf').addEventListener('click', async e => {
+  if (!dlCap || !m) return; const btn = e.currentTarget, old = btn.textContent;
+  try { await dlCap.save({ filename: `survey-${(cfg.useCustom && plan ? plan.name : 'building-' + cfg.seed).replace(/[^\w-]+/g, '_')}.pdf`, data: surveyPdf() }); btn.textContent = 'Saved'; }
+  catch (err) { if (err && err.code !== 'declined') btn.textContent = 'Could not save here'; }
+  setTimeout(() => btn.textContent = old, 2000);
+});
+function surveyPdf() {
+  const { jsPDF } = window.jspdf; const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' }); const W = 297, M = 14;
+  const { W: gw, H: gh } = m.bld; const name = cfg.useCustom && plan ? plan.name : `Building #${cfg.seed}`;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(`Drone survey: ${name}`, M, 18);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
+  doc.text(`${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC · ${m.drones.length} drones · simulated mission`, M, 25); doc.setTextColor(20);
+  // map image with walls dark, open space white, unseen grey
+  const c = document.createElement('canvas'); c.width = gw * 4; c.height = gh * 4; const g = c.getContext('2d'); const im = g.createImageData(gw, gh);
+  for (let i = 0; i < gw * gh; i++) { const v = m.map.lo[i], k = i * 4; const col = v > 0.8 ? [30, 42, 82] : v < -0.5 ? [255, 255, 255] : [214, 210, 200]; im.data[k] = col[0]; im.data[k + 1] = col[1]; im.data[k + 2] = col[2]; im.data[k + 3] = 255; }
+  const o = document.createElement('canvas'); o.width = gw; o.height = gh; o.getContext('2d').putImageData(im, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(o, 0, 0, c.width, c.height);
+  const mw = 170, mh = mw * gh / gw; doc.addImage(c.toDataURL('image/png'), 'PNG', M, 32, mw, mh); doc.setDrawColor(30); doc.rect(M, 32, mw, mh);
+  doc.setFontSize(9); doc.setTextColor(90); doc.text(`Map ${(gw * CELL).toFixed(0)} × ${(gh * CELL).toFixed(0)} m. Dark: walls found. White: open space seen. Grey: not seen.`, M, 32 + mh + 6); doc.setTextColor(20);
+  const x0 = M + mw + 12; let y = 36; doc.setFontSize(11);
+  const cov = coverageOf(m), t95 = (m.coverage.find(p => p[1] >= 0.95) || [null])[0];
+  for (const [k, v] of [['Floor mapped', `${(cov * 100).toFixed(1)}% of reachable space`], ['Area seen', `${Math.round((m.map.known_free || 0) * CELL * CELL).toLocaleString()} m²`], ['Mission time', fmtT(m.t)], ['Time to 95%', t95 ? `${Math.round(t95)} s` : 'not reached'], ['Distance flown', `${Math.round(m.drones.reduce((s, d) => s + d.dist, 0))} m`], ['Drones lost', String(m.drones.filter(d => !d.alive).length)]]) { doc.setFont('helvetica', 'bold'); doc.text(k, x0, y); doc.setFont('helvetica', 'normal'); doc.text(v, x0 + 38, y); y += 7; }
+  y += 4; doc.setFont('helvetica', 'bold'); doc.text('Per drone', x0, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  const tot = m.drones.reduce((s, d) => s + d.found, 0) || 1;
+  for (const d of m.drones) { doc.text(`Drone ${d.id + 1}`, x0, y); doc.text(`${Math.round(d.dist)} m flown`, x0 + 22, y); doc.text(`${(d.found / tot * 100).toFixed(0)}% of map`, x0 + 52, y); doc.text(d.alive ? `${Math.round(d.battery)}% battery` : 'lost', x0 + 80, y); y += 5.5; }
+  // coverage curve
+  y += 6; doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Coverage over time', x0, y); y += 3; const cw = W - M - x0, ch = 40; doc.setDrawColor(200); doc.rect(x0, y, cw, ch);
+  doc.setDrawColor(33, 71, 201); doc.setLineWidth(0.6); const pts = m.coverage; for (let i = 1; i < pts.length; i++) { const X = p => x0 + p[0] / Math.max(1, m.t) * cw, Y = p => y + ch - p[1] * ch; doc.line(X(pts[i - 1]), Y(pts[i - 1]), X(pts[i]), Y(pts[i])); }
+  doc.setFontSize(8); doc.setTextColor(110); doc.text('0:00', x0, y + ch + 4); doc.text(fmtT(m.t), x0 + cw - 8, y + ch + 4); doc.text('100%', x0 + 1, y + 4);
+  doc.setFontSize(8); doc.text('Simulated survey: shared lidar occupancy grid, frontier exploration with Hungarian task allocation. Positions assumed known.', M, 200);
+  return doc.output('blob');
+}
+
+// ---------- runs ----------
+function renderRuns() {
+  const runs = store.get('dsm.runs', []);
+  $('#runsTitle').textContent = runs.length ? `${runs.length} mission${runs.length > 1 ? 's' : ''} flown` : 'Missions flown';
+  $('#runsTable').innerHTML = runs.length ? `<thead><tr><th>When</th><th>Building</th><th class="r">Drones</th><th class="r">To 95%</th><th class="r">Coverage</th><th class="r">Flown</th><th>Losses</th></tr></thead><tbody>${runs.map(r => `<tr><td>${new Date(r.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td><td>${typeof r.seed === 'number' ? '#' + r.seed : esc(String(r.seed))}${r.drain > 1 ? ' · small packs' : ''}</td><td class="r">${r.drones}</td><td class="r">${r.t95 ? r.t95.toFixed(0) + ' s' : '–'}</td><td class="r">${(r.cov * 100).toFixed(1)}%</td><td class="r">${Math.round(r.dist)} m</td><td>${r.lost ? `<span class="pill no">${r.lost} lost</span>` : '<span class="pill ok">none</span>'}</td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">No missions yet.</td></tr></tbody>';
+}
+$('#clearRuns').addEventListener('click', () => { store.set('dsm.runs', []); renderRuns(); });
+
+// ---------- router ----------
+const VIEWS = ['mission', 'building', 'map', 'experiment', 'runs', 'method'];
+function route() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'mission';
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === v));
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + v));
+  if (v === 'map') requestAnimationFrame(renderMapView);
+  if (v === 'experiment') { const ex = store.get('dsm.exp', null); renderExp(ex && ex.seed === expId() ? ex : null); }
+  if (v === 'building') renderPlanView();
+  if (v === 'runs') renderRuns();
+  window.scrollTo(0, 0);
+}
+addEventListener('hashchange', route);
+document.querySelectorAll('.dl').forEach(b => b.hidden = true);
+const roM = new ResizeObserver(() => { if ($('#map').classList.contains('on')) renderMapView(); }); roM.observe($('#chCov'));
+new MutationObserver(() => { hatch = null; }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+newMission(); route(); requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
