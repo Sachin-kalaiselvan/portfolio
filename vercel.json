@@ -11,6 +11,15 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/(.*)\\.(glb|ktx|png|jpg|webp|mp3|ogg|wasm|woff2|ttf|json)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
     }
   ],
   "redirects": [

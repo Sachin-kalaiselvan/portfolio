@@ -69,6 +69,9 @@ export class Game
 
     async init()
     {
+        // Physics engine (largest download) starts loading before anything else
+        const rapierPromise = import('@dimforge/rapier3d')
+
         // Setup
         this.domElement = document.querySelector('.game')
         this.canvasElement = this.domElement.querySelector('.js-canvas')
@@ -100,38 +103,8 @@ export class Game
         const compressedTextureExtension = compressed ? 'ktx' : 'png'
 
         const cb = '?cb=1'
-        this.resources = await this.resourcesLoader.load([
-            [ 'respawnsReferencesModel',    `respawns/respawnsReferences${compressedModelSuffix}.glb${cb}`, 'gltf' ],
-            [ 'behindTheSceneStarsTexture', `behindTheScene/stars.${compressedTextureExtension}${cb}`,      compressedTextureFormat, (resource) => { resource.colorSpace = THREE.SRGBColorSpace; resource.minFilter = THREE.NearestFilter; resource.magFilter = THREE.NearestFilter; resource.generateMipmaps = false; resource.wrapS = THREE.RepeatWrapping; resource.wrapT = THREE.RepeatWrapping; } ],
-            [ 'soundTexture',               `intro/sound.${compressedTextureExtension}${cb}`,               compressedTextureFormat, (resource) => { resource.minFilter = THREE.LinearFilter; resource.magFilter = THREE.LinearFilter; resource.generateMipmaps = false; resource.repeat.x = 0.5; } ],
-            [ 'paletteTexture',             `palette.${compressedTextureExtension}${cb}`,                   compressedTextureFormat, (resource) => { resource.minFilter = THREE.NearestFilter; resource.magFilter = THREE.NearestFilter; resource.generateMipmaps = false; resource.colorSpace = THREE.SRGBColorSpace; } ],
 
-        ])
-        this.options = new Options()
-        // ?spawn=projects (etc.) starts the car at that area; used by "View in the world" on the case studies
-        const spawnQuery = new URLSearchParams(window.location.search).get('spawn')
-        const spawnNames = [ 'landing', 'projects', 'lab', 'career', 'social', 'circuit', 'bowling', 'achievements', 'behindTheScene', 'timeMachine', 'cookie', 'altar' ]
-        this.respawns = new Respawns(spawnNames.includes(spawnQuery) ? spawnQuery : (import.meta.env.VITE_PLAYER_SPAWN || 'landing'))
-        this.view = new View()
-        this.rendering.setPostprocessing()
-        this.rendering.start()
-        this.reveal = new Reveal()
-        this.noises = new Noises()
-        this.weather = new Weather()
-        this.wind = new Wind()
-        this.tracks = new Tracks()
-        this.lighting = new Lighting()
-        this.fog = new Fog()
-        this.water = new Water()
-        this.materials = new Materials()
-        this.objects = new Objects()
-        this.explosions = new Explosions()
-        this.world = new World()
-
-        // Load and init RAPIER
-        const rapierPromise = import('@dimforge/rapier3d')
-
-        // Load rest of resources
+        // Rest of the resources download at the same time as the first batch (was: after it)
         const resourcesPromise = this.resourcesLoader.load(
             [
                 [ 'foliageTexture',                        `foliage/foliageSDF.${compressedTextureExtension}${cb}`,                              compressedTextureFormat, (resource) => { resource.minFilter = THREE.NearestFilter; resource.magFilter = THREE.NearestFilter; resource.generateMipmaps = false; } ],
@@ -177,9 +150,40 @@ export class Game
             ],
             (toLoad, total) =>
             {
-                this.world.intro.updateProgress(1 - toLoad / total)
+                // Starts before the intro exists; the intro picks up the latest value when it's created
+                this.loadProgress = 1 - toLoad / total
+                this.world?.intro?.updateProgress(this.loadProgress)
             }
         )
+
+        this.resources = await this.resourcesLoader.load([
+            [ 'respawnsReferencesModel',    `respawns/respawnsReferences${compressedModelSuffix}.glb${cb}`, 'gltf' ],
+            [ 'behindTheSceneStarsTexture', `behindTheScene/stars.${compressedTextureExtension}${cb}`,      compressedTextureFormat, (resource) => { resource.colorSpace = THREE.SRGBColorSpace; resource.minFilter = THREE.NearestFilter; resource.magFilter = THREE.NearestFilter; resource.generateMipmaps = false; resource.wrapS = THREE.RepeatWrapping; resource.wrapT = THREE.RepeatWrapping; } ],
+            [ 'soundTexture',               `intro/sound.${compressedTextureExtension}${cb}`,               compressedTextureFormat, (resource) => { resource.minFilter = THREE.LinearFilter; resource.magFilter = THREE.LinearFilter; resource.generateMipmaps = false; resource.repeat.x = 0.5; } ],
+            [ 'paletteTexture',             `palette.${compressedTextureExtension}${cb}`,                   compressedTextureFormat, (resource) => { resource.minFilter = THREE.NearestFilter; resource.magFilter = THREE.NearestFilter; resource.generateMipmaps = false; resource.colorSpace = THREE.SRGBColorSpace; } ],
+
+        ])
+        this.options = new Options()
+        // ?spawn=projects (etc.) starts the car at that area; used by "View in the world" on the case studies
+        const spawnQuery = new URLSearchParams(window.location.search).get('spawn')
+        const spawnNames = [ 'landing', 'projects', 'lab', 'career', 'social', 'circuit', 'bowling', 'achievements', 'behindTheScene', 'timeMachine', 'cookie', 'altar' ]
+        this.respawns = new Respawns(spawnNames.includes(spawnQuery) ? spawnQuery : (import.meta.env.VITE_PLAYER_SPAWN || 'landing'))
+        this.view = new View()
+        this.rendering.setPostprocessing()
+        this.rendering.start()
+        this.reveal = new Reveal()
+        this.noises = new Noises()
+        this.weather = new Weather()
+        this.wind = new Wind()
+        this.tracks = new Tracks()
+        this.lighting = new Lighting()
+        this.fog = new Fog()
+        this.water = new Water()
+        this.materials = new Materials()
+        this.objects = new Objects()
+        this.explosions = new Explosions()
+        this.world = new World()
+        this.world.intro?.updateProgress(this.loadProgress ?? 0)
 
         const [ newResources, RAPIER ] = await Promise.all([ resourcesPromise, rapierPromise ])
         this.RAPIER = RAPIER

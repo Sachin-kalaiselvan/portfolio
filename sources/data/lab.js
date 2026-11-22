@@ -1,10 +1,17 @@
 // Sachin's smaller builds and experiments. Where there is no public link, the board says so.
+const card = (key) => ({ image: `sk-${key}.png`, imageMini: `sk-${key}-mini.png` })
 export default [
-    { title: 'Core Blocks', url: '', image: 'sk-core-blocks.png', imageMini: 'sk-core-blocks-mini.png' },
-    { title: 'Gridlock Arrows', url: 'https://play.google.com/store/apps/details?id=co.theingredientlist.arrowout', image: 'sk-gridlock-arrows.png', imageMini: 'sk-gridlock-arrows-mini.png' },
-    { title: 'Box costing calculator', url: 'https://boxcalc.theingredientlist.co', image: 'sk-box-costing.png', imageMini: 'sk-box-costing-mini.png' },
-    { title: 'Bengaluru: Traffic Life', url: '', image: 'sk-traffic-life.png', imageMini: 'sk-traffic-life-mini.png' },
-    { title: 'Lead pipeline', url: '', image: 'sk-lead-pipeline.png', imageMini: 'sk-lead-pipeline-mini.png' },
-    { title: 'Gridshot', url: '', image: 'sk-gridshot.png', imageMini: 'sk-gridshot-mini.png' },
-    { title: 'QuantaGrid', url: 'https://github.com/Sachin-kalaiselvan/quantagrid', image: 'sk-quantagrid.png', imageMini: 'sk-quantagrid-mini.png' },
+    { title: 'WHAT RA SUDEEEP?', url: '', ...card('wrs') },
+    { title: 'Bengaluru: Traffic Life', url: '', ...card('traffic-life') },
+    { title: 'Core Blocks', url: 'https://apps.theingredientlist.co/coreblocks', ...card('core-blocks') },
+    { title: 'Gridlock Arrows', url: 'https://play.google.com/store/apps/details?id=co.theingredientlist.arrowout', ...card('gridlock-arrows') },
+    { title: 'Box costing calculator', url: 'https://boxcalc.theingredientlist.co', ...card('box-costing') },
+    { title: 'Borrower Risk Intelligence', url: 'https://huggingface.co/spaces/SachinK011/borrower-risk-intelligence', ...card('borrower-risk') },
+    { title: 'Financial Document Analyzer', url: 'https://huggingface.co/spaces/SachinK011/financial-document-analyzer', ...card('fin-docs') },
+    { title: 'Credit Scoring API', url: 'https://github.com/Sachin-kalaiselvan/credit-scoring-api', ...card('credit-api') },
+    { title: 'Job application pipeline', url: '', ...card('job-pipeline') },
+    { title: 'Papillon lead pipeline', url: 'https://github.com/Sachin-kalaiselvan/papillon-leads', ...card('lead-pipeline') },
+    { title: 'J.K. Padmalaya booking', url: '', ...card('padmalaya') },
+    { title: 'Gridshot', url: '', ...card('gridshot') },
+    { title: 'QuantaGrid', url: 'https://github.com/Sachin-kalaiselvan/quantagrid', ...card('quantagrid') },
 ]
