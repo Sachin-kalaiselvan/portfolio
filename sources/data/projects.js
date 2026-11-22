@@ -60,6 +60,54 @@ export default [
         images: [ 'sk-threxa-1.png', 'sk-threxa-2.png', 'sk-threxa-3.png', 'sk-threxa-4.png' ]
     },
     {
+        title: 'Delivery Route Planner',
+        titleSmall: [ 'Route', 'planner' ],
+        url: '',
+        attributes:
+        {
+            role: [ 'Routing solver', 'fleet planning' ],
+            with: 'Tested vs PyVRP',
+        },
+        distinctions: [],
+        images: [ 'sk-route-1.png', 'sk-route-2.png' ]
+    },
+    {
+        title: 'Inventory Planner',
+        titleSmall: [ 'Inventory', 'planner' ],
+        url: '',
+        attributes:
+        {
+            role: [ 'Forecasting', 'reorder policy' ],
+            with: 'Tested on M4',
+        },
+        distinctions: [],
+        images: [ 'sk-inv-1.png', 'sk-inv-2.png' ]
+    },
+    {
+        title: 'Marketing Budget Planner',
+        titleSmall: [ 'Budget', 'planner' ],
+        url: '',
+        attributes:
+        {
+            role: [ 'Media mix model', 'budget optimiser' ],
+            with: 'Tested vs scipy',
+        },
+        distinctions: [],
+        images: [ 'sk-mmm-1.png', 'sk-mmm-2.png' ]
+    },
+    {
+        title: 'Cap Table Simulator',
+        titleSmall: [ 'Cap', 'table' ],
+        url: '',
+        attributes:
+        {
+            role: [ 'SAFEs, rounds', 'exit waterfall' ],
+            with: "Matches YC's guide",
+        },
+        distinctions: [],
+        images: [ 'sk-cap-1.png', 'sk-cap-2.png' ]
+    },
+    {
         title: 'Papillon Interiors',
         titleSmall: [ 'Papillon', 'Interiors' ],
         url: 'https://github.com/Sachin-kalaiselvan/papllions',
