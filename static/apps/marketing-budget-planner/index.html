@@ -226,7 +226,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-  // ---------- transforms ----------
+  // transforms
   // Geometric adstock, normalised so a constant spend x settles at x: a_t = (1-θ)x_t + θ a_{t-1}
   function adstock(x, theta) {
     const out = new Float64Array(x.length); let a = 0;
@@ -237,7 +237,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   }
   const hill = (x, K, s) => (x <= 0 ? 0 : 1 / (1 + Math.pow(K / x, s)));
 
-  // ---------- NNLS (Lawson & Hanson 1974) ----------
+  // nnls (lawson & hanson 1974)
   // min ||A b - y||  subject to b_j >= 0 for j in `pos`; other coefficients are free.
   // Solved on the normal equations, which is fine at this size (< 20 columns).
   function solveSym(M, v) {
@@ -277,7 +277,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     return b;
   }
 
-  // ---------- design ----------
+  // design
   // data: {y:[...], spend:{channel:[...]}, period (52 for weekly)}
   function baseColumns(n, period, harmonics) {
     const cols = [new Array(n).fill(1), Array.from({ length: n }, (_, t) => t / n)];
@@ -306,7 +306,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     return { b, sse, fit };
   }
 
-  // ---------- Nelder-Mead over the curve shapes ----------
+  // nelder-mead over the curve shapes
   function nelderMead(f, x0, lo, hi, iters, step = 0.2) {
     const n = x0.length, cl = (x) => x.map((v, i) => clamp(v, lo[i], hi[i]));
     let S = [cl(x0)]; for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] += (hi[i] - lo[i]) * step * (x[i] > (lo[i] + hi[i]) / 2 ? -1 : 1); S.push(cl(x)); }
@@ -410,7 +410,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   const response = (c, x) => c.beta * hill(x, c.K, c.s);
   const marginal = (c, x, h) => (response(c, x + (h || Math.max(1, x * 1e-4))) - response(c, x)) / (h || Math.max(1, x * 1e-4));
 
-  // ---------- budget optimiser ----------
+  // budget optimiser
   // Maximise sum_c response_c(x_c) with sum x_c = B and lo_c <= x_c <= hi_c.
   // Hill curves with s > 1 are S-shaped (not concave), so marginal-return rules can get stuck. The budget
   // above the minimums is cut into G equal units and split exactly by dynamic programming over channels
@@ -457,7 +457,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
   }
   const totalResponse = (chs, alloc) => Object.keys(alloc).reduce((s, c) => s + response(chs[c], alloc[c]), 0);
 
-  // ---------- bootstrap ----------
+  // bootstrap
   // Moving-block bootstrap of residuals (blocks of 8 weeks keep the autocorrelation), refit each replicate
   function bootstrap(data, model, B, opts = {}) {
     const r = rng(opts.seed || 11), n = data.y.length, L = opts.block || 8, out = [];
@@ -477,7 +477,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;bac
     return { ci, draws: out };
   }
 
-  // ---------- simulation (for the demo and the recovery test) ----------
+  // simulation (for the demo and the recovery test)
   function simulate(o) {
     const r = rng(o.seed || 3), n = o.weeks || 156, gauss = () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
     const spend = {}, truth = {};
@@ -545,7 +545,7 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch
 const color = (c) => COL[S.data && Object.keys(S.data.spend).indexOf(c) % COL.length];
 const truth = () => (S.data.demo ? X.simulate(Demo.spec).truth : null);
 
-// ---------- worker ----------
+// worker
 const W = new Worker(URL.createObjectURL(new Blob([CORE_SRC + `
 self.onmessage = (e) => {
   const { job, data, tests, model } = e.data, M = self.MMM;
@@ -576,7 +576,7 @@ const dataForFit = () => ({ y: S.data.y, spend: S.data.spend, controls: S.data.c
 function refit() { busy(true, 'Fitting the model', 0); W.postMessage({ job: 'fit', data: dataForFit(), tests: S.tests }); }
 $('#bootBtn').onclick = () => { if (!MODEL) return; busy(true, 'Resampling', 0); W.postMessage({ job: 'boot', data: dataForFit(), model: MODEL }); };
 
-// ---------- navigation ----------
+// navigation
 function go(v) { S.view = v; save(); $$('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v)); $$('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v)); moveBlob(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function moveBlob() { const b = $(`#nav button[data-v="${S.view}"]`); if (b) $('#blob').style.transform = `translateY(${b.offsetTop}px)`; }
 $$('#nav button').forEach((b) => (b.onclick = () => go(b.dataset.v)));
@@ -586,7 +586,7 @@ function tween(el, to, fmt) { const from = +el.dataset.v || 0; el.dataset.v = to
 const weekDate = (i) => { const d = new Date(S.data.start); d.setDate(d.getDate() + 7 * i); return d; };
 const short = (d) => d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
 
-// ---------- overview ----------
+// overview
 function renderOverview() {
   const m = MODEL; if (!m) return;
   const n = S.data.y.length, last = Math.min(52, n), sl = (a) => a.slice(n - last);
@@ -626,7 +626,7 @@ function renderOverview() {
   $('#roi').setAttribute('viewBox', `0 0 420 ${rois.length * 52 + 20}`);
 }
 
-// ---------- channels ----------
+// channels
 $('#truth').onchange = () => renderChannels();
 function renderChannels() {
   const m = MODEL; if (!m) return;
@@ -646,7 +646,7 @@ function renderChannels() {
   }).join('');
 }
 
-// ---------- budget ----------
+// budget
 function nowSpend() { return Object.fromEntries(MODEL.channels.map((c) => [c, X.mean(S.data.spend[c].slice(-13))])); }
 function limits() { const m = MODEL, out = {}; for (const c of m.channels) { const l = S.lims[c] || {}; out[c] = [l.min || 0, l.max != null ? l.max : 2 * Math.max(...S.data.spend[c].slice(-26))]; } return out; }
 let fr = null;
@@ -702,7 +702,7 @@ $('#saveScen').onclick = () => { if (!window.__plan) return; S.scen.push({ name:
 $('#csvPlan').onclick = () => { const o = window.__plan, now = nowSpend(); if (!o) return; dl('budget-plan.csv', [['channel', 'now_per_week', 'recommended_per_week', 'change', 'expected_revenue_per_week']].concat(MODEL.channels.map((c) => [c, Math.round(now[c]), Math.round(o.alloc[c]), Math.round(o.alloc[c] - now[c]), Math.round(X.response(MODEL.ch[c], o.alloc[c]))]))); };
 function dl(name, rows) { const csv = rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = name; a.click(); }
 
-// ---------- calibrate ----------
+// calibrate
 function renderCal() {
   const m = MODEL; if (!m) return;
   $('#tCh').innerHTML = m.channels.map((c) => `<option>${esc(c)}</option>`).join('');
@@ -717,7 +717,7 @@ function renderCal() {
 }
 $('#tAdd').onclick = () => { const c = $('#tCh').value, roi = parseFloat($('#tRoi').value), se = parseFloat($('#tSe').value); if (!isFinite(roi) || !(se > 0)) return toast('Enter ROI and a positive error'); S.tests[c] = { roi, se }; save(); refit(); };
 
-// ---------- fit ----------
+// fit
 function renderFit() {
   const m = MODEL; if (!m || !HOLD) return;
   const n = S.data.y.length, h = HOLD.h, y = S.data.y;
@@ -733,7 +733,7 @@ function renderFit() {
   $('#fitChart').innerHTML = g + `<rect x="${Xp(n - h)}" y="${T}" width="${Xp(n - 1) - Xp(n - h)}" height="${B - T}" fill="#b4472f" opacity=".08"/><path d="${path(y)}" fill="none" stroke="#1d2433" stroke-width="1.4" pathLength="1" class="draw"/><path d="${path(m.fitted)}" fill="none" stroke="#1f4e79" stroke-width="1.8" pathLength="1" class="draw" style="animation-delay:.25s"/><path d="${path(HOLD.pred.slice(n - h), n - h)}" fill="none" stroke="#b4472f" stroke-width="2.6" pathLength="1" class="draw" style="animation-delay:.6s"/>`;
 }
 
-// ---------- data ----------
+// data
 function renderData() {
   const d = S.data, ch = Object.keys(d.spend), ctr = Object.keys(d.controls || {}), n = d.y.length;
   $('#dTitle').textContent = d.name; $('#dHint').textContent = `${n} weeks from ${weekDate(0).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ${ch.length} channels${ctr.length ? ' · controls: ' + ctr.join(', ') : ''}${d.demo ? ' · simulated with known effects' : ''}`;
@@ -763,7 +763,7 @@ function load(file) {
 $('#sample').onclick = () => { const d = S.data, ch = Object.keys(d.spend), ctr = Object.keys(d.controls || {}); dl('marketing-data.csv', [['week', 'revenue', ...ch, ...ctr.map((c) => 'ctrl:' + c)]].concat(d.y.map((v, t) => [weekDate(t).toISOString().slice(0, 10), v, ...ch.map((c) => d.spend[c][t]), ...ctr.map((c) => d.controls[c][t])]))); };
 $('#reset').onclick = () => { S = { data: demoData(), tests: {}, scen: [], view: S.view, budget: null, lims: {} }; save(); refit(); renderData(); toast('Demo reloaded'); };
 
-// ---------- bench ----------
+// bench
 function renderBench() {
   const b = BENCH; if (!b) return;
   const r = b.recovery.summary, pct = (x) => (x * 100).toFixed(1) + '%';

@@ -239,7 +239,7 @@ tbody tr:hover{background:#f6f7f4}
 (function (root) {
   'use strict';
 
-  // ---------- random numbers (seeded, so runs can be repeated) ----------
+  // random numbers (seeded, so runs can be repeated)
   function rng(seed) {
     let s = (seed >>> 0) || 1;
     return function () {
@@ -248,7 +248,7 @@ tbody tr:hover{background:#f6f7f4}
     };
   }
 
-  // ---------- problem ----------
+  // problem
   // nodes[0] is the depot. Each node: {x, y, demand, ready, due, service}.
   // opts: capacity, maxVehicles, fixedCost (per vehicle used), costPerUnit (per distance unit),
   //       distance (optional matrix), travelFactor (time per distance unit, default 1).
@@ -281,7 +281,7 @@ tbody tr:hover{background:#f6f7f4}
     };
   }
 
-  // ---------- route bookkeeping ----------
+  // route bookkeeping
   // A route is an array of customer indices (depot excluded). For each route we keep
   // forward earliest start times and backward latest start times so an insertion can be
   // checked in O(1) (Savelsbergh 1992).
@@ -351,7 +351,7 @@ tbody tr:hover{background:#f6f7f4}
     return pos < 0 ? null : { cost: best, pos };
   }
 
-  // ---------- solution ----------
+  // solution
   function Solution(P, routes) {
     this.P = P;
     this.routes = routes.map((r) => r.slice());
@@ -378,7 +378,7 @@ tbody tr:hover{background:#f6f7f4}
   };
   const UNASSIGNED = 1e7;
 
-  // ---------- repair: regret-k insertion ----------
+  // repair: regret-k insertion
   function regretInsert(sol, customers, k, rand, noise) {
     const P = sol.P;
     const pending = customers.slice();
@@ -428,7 +428,7 @@ tbody tr:hover{background:#f6f7f4}
     }
   }
 
-  // ---------- destroy operators ----------
+  // destroy operators
   function where(sol) {
     const loc = new Int32Array(sol.P.n).fill(-1);
     sol.routes.forEach((r, ri) => r.forEach((v) => { loc[v] = ri; }));
@@ -496,7 +496,7 @@ tbody tr:hover{background:#f6f7f4}
     noisyGreedy: (sol, cs, rand) => regretInsert(sol, cs, 1, rand, 8),
   };
 
-  // ---------- local search: relocate and 2-opt* between routes, run on new best solutions ----------
+  // local search: relocate and 2-opt* between routes, run on new best solutions
   function localSearch(sol) {
     const P = sol.P;
     let improved = true, guard = 0;
@@ -542,7 +542,7 @@ tbody tr:hover{background:#f6f7f4}
     return sol;
   }
 
-  // ---------- main search ----------
+  // main search
   function initial(P, rand) {
     const sol = new Solution(P, []);
     const cs = []; for (let i = 1; i < P.n; i++) cs.push(i);
@@ -686,7 +686,7 @@ const parseHM = (s) => { const [h, m] = String(s).split(':').map(Number); return
 const inr = (v) => '₹' + Math.round(v).toLocaleString('en-IN');
 const COLORS = ['#2f6690', '#c0503a', '#2a9d8f', '#d49a2a', '#6a4c93', '#3a7d44', '#b5446e', '#4c6a92', '#8c5e3c', '#1b998b', '#9b2915', '#5e6472', '#7b9e2f', '#a05195', '#d17a22', '#3d5a80', '#6b8f71', '#c44536', '#457b9d', '#8a6f3f'];
 
-// ---------- city ----------
+// city
 // Approximate neighbourhood centres; good enough to place realistic demo orders.
 const CENTER = { lat: 12.955, lon: 77.62 };
 const AREAS = [
@@ -699,7 +699,7 @@ const DEPOT = { name: 'Warehouse, Bommanahalli', lat: 12.9037, lon: 77.624 };
 const toXY = (lat, lon) => ({ x: (lon - CENTER.lon) * 108.6, y: -(lat - CENTER.lat) * 110.9 }); // km
 const SLOTS = [[540, 720], [720, 900], [900, 1080], [1080, 1260]];
 
-// ---------- state (kept between visits) ----------
+// state (kept between visits)
 const DEF = {
   bike: { label: 'Bike riders', capacity: 20, speed: 18, service: 4, fixed: 650, perKm: 3.5, count: 25 },
   van: { label: 'Vans', capacity: 350, speed: 14, service: 7, fixed: 2200, perKm: 14, count: 8 },
@@ -725,7 +725,7 @@ function generate(n, seed) {
 }
 if (!S.orders.length) { S.orders = generate(120, 11); save(); }
 
-// ---------- problem building ----------
+// problem building
 function buildProblem(mode, orders, extra = {}) {
   const f = S.fleet[mode];
   const d = toXY(DEPOT.lat, DEPOT.lon);
@@ -739,7 +739,7 @@ function buildProblem(mode, orders, extra = {}) {
   return { nodes, opts: { capacity: f.capacity, maxVehicles: orders.length, fixedCost: f.perKm * 0.5, costPerUnit: f.perKm, costPerMinute: f.fixed / 540, circuity: S.circ, travelFactor: 60 / f.speed } };
 }
 
-// ---------- worker ----------
+// worker
 function runSolver(prob, iterations, onProgress) {
   return new Promise((resolve) => {
     const src = CORE_SRC + `\nonmessage=(e)=>{const R=self.Routing;const P=R.makeProblem(e.data.nodes,e.data.opts);const t=Date.now();const s=R.solve(P,{iterations:e.data.iterations,seed:e.data.seed,onProgress:(p)=>postMessage({type:'p',it:p.iteration,cost:p.best.cost(),routes:p.best.routes})});const c=R.check(P,s.routes);postMessage({type:'done',s,check:c,ms:Date.now()-t});};`;
@@ -749,7 +749,7 @@ function runSolver(prob, iterations, onProgress) {
   });
 }
 
-// ---------- map ----------
+// map
 const cv = $('#map'), cx = cv.getContext('2d');
 let view = { s: 9, ox: 0, oy: 0 }, selRoute = -1, liveRoutes = null, now = 480;
 function fit() {
@@ -832,7 +832,7 @@ cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('drag'
 cv.addEventListener('wheel', (e) => { e.preventDefault(); const k = Math.exp(-e.deltaY * 0.0015), r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; view.ox = mx - (mx - view.ox) * k; view.oy = my - (my - view.oy) * k; view.s *= k; draw(); }, { passive: false });
 addEventListener('resize', () => { resize(); });
 
-// ---------- plan ----------
+// plan
 async function plan() {
   const btn = $('#solve'); btn.disabled = true; btn.textContent = 'Planning…';
   const prob = buildProblem(S.mode, S.orders);
@@ -903,7 +903,7 @@ $('#play').onclick = () => {
   playing = requestAnimationFrame(tick);
 };
 
-// ---------- orders ----------
+// orders
 function renderOrders() {
   $('#otable').innerHTML = S.orders.map((o, i) => `<tr><td class="mono">${o.id}</td><td>${o.area}</td><td class="num mono">${o.kg}</td><td><span class="pill" style="background:${slotColor(o)}">${hm(o.start)}–${hm(o.end)}</span></td><td class="num mono">${o.lat}</td><td class="num mono">${o.lon}</td><td><button class="btn" data-del="${i}" style="min-height:30px;padding:0 10px">Remove</button></td></tr>`).join('');
   $$('[data-del]').forEach((b) => b.onclick = () => { S.orders.splice(+b.dataset.del, 1); S.plan = null; save(); renderOrders(); renderPlan(); draw(); });
@@ -922,7 +922,7 @@ $('#csv').onchange = async (e) => {
   S.orders = out; S.plan = null; save(); fit(); renderOrders(); renderPlan(); draw(); toast(out.length + ' orders imported');
 };
 
-// ---------- fleet ----------
+// fleet
 const FIELDS = [['capacity', 'Capacity (kg)'], ['count', 'Available'], ['speed', 'Avg speed (km/h)'], ['service', 'Minutes per drop'], ['fixed', 'Cost per day (₹)'], ['perKm', 'Cost per km (₹)']];
 function renderFleet() {
   for (const m of ['bike', 'van']) $('#' + m + 'F').innerHTML = FIELDS.map(([k, l]) => `<label class="f">${l}<input type="number" step="any" data-m="${m}" data-k="${k}" value="${S.fleet[m][k]}"></label>`).join('');
@@ -952,7 +952,7 @@ $('#cmp').onclick = async () => {
   b.disabled = false; b.textContent = 'Compare bikes and vans';
 };
 
-// ---------- schedule ----------
+// schedule
 function renderGantt() {
   const p = S.plan, box = $('#gantt');
   if (!p || !p.drivers) { box.innerHTML = '<div class="empty">Plan the routes first.</div>'; return; }
@@ -982,7 +982,7 @@ function renderGantt() {
   box.querySelectorAll('rect').forEach((r, i) => { r.style.opacity = 0; r.style.transition = 'opacity .5s'; setTimeout(() => (r.style.opacity = ''), 10 + (i % 60) * 8); });
 }
 
-// ---------- benchmark ----------
+// benchmark
 function renderBench() {
   if (!BENCH || !BENCH.ours) { $('#bkpi').innerHTML = '<div class="card">Benchmark results not built in.</div>'; return; }
   const names = Object.keys(BENCH.ours).filter((n) => BENCH.ref[n]).sort();
@@ -1016,7 +1016,7 @@ $('#brun').onclick = async () => {
   b.disabled = false;
 };
 
-// ---------- navigation ----------
+// navigation
 function go() {
   const id = (location.hash || '#plan').slice(1);
   $$('.view').forEach((v) => v.classList.toggle('on', v.id === 'v-' + id));

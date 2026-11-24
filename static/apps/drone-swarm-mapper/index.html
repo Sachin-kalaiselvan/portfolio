@@ -216,7 +216,7 @@ const CELL = 0.2; // metres
 const UNKNOWN = 0, FREE = 1, OCC = 2;
 function rng(seed) { let s = (seed >>> 0) || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
 
-// ---------- building ----------
+// building
 function makeBuilding(seed, W = 200, H = 140) {
   const R = rng(seed);
   const g = new Uint8Array(W * H); // 1 = wall
@@ -286,7 +286,7 @@ function inflate(src, W, H, r, isOcc) {
   return out;
 }
 
-// ---------- shared occupancy map (log-odds) ----------
+// shared occupancy map (log-odds)
 function makeMap(W, H) { return { W, H, lo: new Float32Array(W * H), seenBy: new Int8Array(W * H).fill(-1), known: 0 }; }
 const L_FREE = -0.7, L_OCC = 1.6, L_MIN = -4, L_MAX = 4;
 function cellState(map, i) { const v = map.lo[i]; return v > 0.8 ? OCC : v < -0.5 ? FREE : UNKNOWN; }
@@ -316,7 +316,7 @@ function scan(bld, map, drone, rays, range, noise, R) {
   return { newly, hits };
 }
 
-// ---------- planning helpers ----------
+// planning helpers
 // 1 = seen free, 2 = not seen yet (allowed, at a higher cost), 0 = wall or too close to one
 function traversable(map, infl) { const n = map.W * map.H, t = new Uint8Array(n); for (let i = 0; i < n; i++) { if (infl[i]) continue; const c = cellState(map, i); t[i] = c === FREE ? 1 : c === UNKNOWN ? 2 : 0; } return t; }
 function occInflation(map, r) { return inflate(map.lo, map.W, map.H, r, v => v > 0.8); }
@@ -408,7 +408,7 @@ function hungarian(cost) {
   return res;
 }
 
-// ---------- mission ----------
+// mission
 const DRONE_COLORS = ['#e4572e', '#2f6bd8', '#16a37f', '#c4499b', '#d99a00', '#6b4fd6', '#0f9fb5', '#7a8a1e'];
 function makeMission(opts) {
   const bld = opts.custom ? finalizeBuilding(opts.custom.g, opts.custom.W, opts.custom.H, [], opts.custom.base) : makeBuilding(opts.seed);
@@ -550,7 +550,7 @@ const CELL = 0.2; // metres
 const UNKNOWN = 0, FREE = 1, OCC = 2;
 function rng(seed) { let s = (seed >>> 0) || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
 
-// ---------- building ----------
+// building
 function makeBuilding(seed, W = 200, H = 140) {
   const R = rng(seed);
   const g = new Uint8Array(W * H); // 1 = wall
@@ -620,7 +620,7 @@ function inflate(src, W, H, r, isOcc) {
   return out;
 }
 
-// ---------- shared occupancy map (log-odds) ----------
+// shared occupancy map (log-odds)
 function makeMap(W, H) { return { W, H, lo: new Float32Array(W * H), seenBy: new Int8Array(W * H).fill(-1), known: 0 }; }
 const L_FREE = -0.7, L_OCC = 1.6, L_MIN = -4, L_MAX = 4;
 function cellState(map, i) { const v = map.lo[i]; return v > 0.8 ? OCC : v < -0.5 ? FREE : UNKNOWN; }
@@ -650,7 +650,7 @@ function scan(bld, map, drone, rays, range, noise, R) {
   return { newly, hits };
 }
 
-// ---------- planning helpers ----------
+// planning helpers
 // 1 = seen free, 2 = not seen yet (allowed, at a higher cost), 0 = wall or too close to one
 function traversable(map, infl) { const n = map.W * map.H, t = new Uint8Array(n); for (let i = 0; i < n; i++) { if (infl[i]) continue; const c = cellState(map, i); t[i] = c === FREE ? 1 : c === UNKNOWN ? 2 : 0; } return t; }
 function occInflation(map, r) { return inflate(map.lo, map.W, map.H, r, v => v > 0.8); }
@@ -742,7 +742,7 @@ function hungarian(cost) {
   return res;
 }
 
-// ---------- mission ----------
+// mission
 const DRONE_COLORS = ['#e4572e', '#2f6bd8', '#16a37f', '#c4499b', '#d99a00', '#6b4fd6', '#0f9fb5', '#7a8a1e'];
 function makeMission(opts) {
   const bld = opts.custom ? finalizeBuilding(opts.custom.g, opts.custom.W, opts.custom.H, [], opts.custom.base) : makeBuilding(opts.seed);
@@ -902,7 +902,7 @@ function newMission() {
   $('#start').disabled = false; $('#start').textContent = 'Launch swarm'; $('#pause').disabled = true; $('#kill').disabled = true; $('#pause').textContent = 'Pause';
   $('#feed').innerHTML = ''; lastEv = 0; buildImg(); renderFleet(); kpis();
 }
-// ---------- rendering ----------
+// rendering
 const cv = $('#cv'), wrap = $('#wrap'), ctx = cv.getContext('2d');
 let off, offCtx, img, truthOff, hatch;
 function buildImg() {
@@ -963,7 +963,7 @@ function draw(dt) {
     ctx.fillStyle = css('--ink'); ctx.font = `600 ${11 * dpr}px "DM Mono"`; ctx.textAlign = 'left'; ctx.fillText(String(d.id + 1), x + r + 3 * dpr, y - r);
   }
 }
-// ---------- fleet + kpis ----------
+// fleet + kpis
 const STATE = { idle: 'Waiting for a task', exploring: 'Exploring', returning: 'Heading home', recharging: 'Low battery, going to charge', charging: 'Charging at base', landed: 'Landed', lost: 'Down' };
 function renderFleet() {
   $('#fleet').innerHTML = m.drones.map(d => `<div class="dr ${d.alive ? '' : 'lost'}" id="dr${d.id}" style="animation-delay:${d.id * 40}ms"><svg width="30" height="30" viewBox="0 0 30 30"><g stroke="${d.color}" stroke-width="2.4" fill="none"><circle cx="7" cy="7" r="5"/><circle cx="23" cy="7" r="5"/><circle cx="7" cy="23" r="5"/><circle cx="23" cy="23" r="5"/></g><circle cx="15" cy="15" r="4" fill="${d.color}"/></svg><div><div class="nm">Drone ${d.id + 1} <span class="st"></span></div><div class="bat"><i></i></div></div><div class="n"></div></div>`).join('');
@@ -986,7 +986,7 @@ function feedUpdate() {
   const ul = $('#feed'); for (const e of m.events.slice(lastEv)) { const li = document.createElement('li'); if (/down|failed|low/i.test(e.text)) li.className = 'bad'; li.innerHTML = `<time>${fmtT(e.t)}</time><span>${e.text}</span>`; ul.prepend(li); }
   while (ul.children.length > 30) ul.lastChild.remove(); lastEv = m.events.length;
 }
-// ---------- loop ----------
+// loop
 let last = performance.now(), uiT = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -1012,7 +1012,7 @@ $('#showTruth').checked = cfg.truth; $('#byDrone').checked = cfg.byDrone;
 $('#showTruth').addEventListener('change', e => { cfg.truth = e.target.checked; saveCfg(); });
 $('#byDrone').addEventListener('change', e => { cfg.byDrone = e.target.checked; saveCfg(); });
 
-// ---------- map view ----------
+// map view
 function line(svg, series, o) {
   const W = svg.clientWidth, H = svg.clientHeight; if (!W) return; const pl = 44, pr = 12, pt = 10, pb = 28;
   const xs = v => pl + (v - o.x0) / (o.x1 - o.x0 || 1) * (W - pl - pr), ys = v => pt + (1 - (v - o.y0) / (o.y1 - o.y0 || 1)) * (H - pt - pb);
@@ -1034,7 +1034,7 @@ function renderMapView() {
   const tot = m.drones.reduce((s, d) => s + d.found, 0) || 1;
   $('#contrib').innerHTML = m.drones.map(d => `<div class="bar"><span>Drone ${d.id + 1}</span><div class="t"><i style="width:${d.found / tot * 100}%;background:${d.color}"></i></div><b>${(d.found / tot * 100).toFixed(0)}%</b></div>`).join('');
 }
-// ---------- fleet-size experiment (worker) ----------
+// fleet-size experiment (worker)
 const coreSrc = document.getElementById('core-src').textContent;
 let expWorker = null;
 $('#runExp').addEventListener('click', () => {
@@ -1060,7 +1060,7 @@ function renderExp(ex) {
   $('#expTable').innerHTML = `<thead><tr><th>Drones</th><th class="r">To 95%</th><th class="r">Finished</th><th class="r">Coverage</th><th class="r">Flown</th></tr></thead><tbody>${r.map(x => `<tr><td>${x.n}</td><td class="r">${x.t95 ? x.t95.toFixed(0) + ' s' : '–'}</td><td class="r">${x.t.toFixed(0)} s</td><td class="r">${(x.cov * 100).toFixed(1)}%</td><td class="r">${Math.round(x.dist)} m</td></tr>`).join('')}</tbody>`;
 }
 
-// ---------- fleet sizing ----------
+// fleet sizing
 let lastExp = null;
 function renderSizing() {
   const out = $('#sOut'); const ex = lastExp; if (!ex || !ex.res || !ex.res.length) { out.innerHTML = '<p class="sub">Run the test above first.</p>'; return; }
@@ -1073,7 +1073,7 @@ function renderSizing() {
 }
 ['#sDead', '#sUnit', '#sCrew', '#sMonth'].forEach(id => $(id).addEventListener('input', renderSizing));
 
-// ---------- your building ----------
+// your building
 let planImg = null, brush = 'wall', brushR = 3;
 const pcv = $('#planCv'), pbox = $('#planBox');
 function loadImage(src, name) { const im = new Image(); im.onload = () => { planImg = im; planName = name; processPlan(); }; im.src = src; }
@@ -1155,7 +1155,7 @@ segInit2('#brush', v => brush = v); segInit2('#brushSize', v => brushR = +v);
 $('#planFly').addEventListener('click', () => { if (!plan || !reachCache || reachCache.reachable < 50) { $('#planReach').textContent = 'The base has almost no open space around it. Move the base or erase walls.'; return; } cfg.useCustom = true; saveCfg(); savePlan(); newMission(); location.hash = 'mission'; });
 new ResizeObserver(() => { if ($('#building').classList.contains('on')) renderPlanView(); }).observe(pbox);
 
-// ---------- survey report ----------
+// survey report
 let dlCap = null;
 (async () => { try { if (window.claude && window.claude.use) dlCap = await window.claude.use('downloads'); } catch (e) { dlCap = null; }
   // outside claude.ai: an ordinary browser download
@@ -1192,7 +1192,7 @@ function surveyPdf() {
   return doc.output('blob');
 }
 
-// ---------- runs ----------
+// runs
 function renderRuns() {
   const runs = store.get('dsm.runs', []);
   $('#runsTitle').textContent = runs.length ? `${runs.length} mission${runs.length > 1 ? 's' : ''} flown` : 'Missions flown';
@@ -1200,7 +1200,7 @@ function renderRuns() {
 }
 $('#clearRuns').addEventListener('click', () => { store.set('dsm.runs', []); renderRuns(); });
 
-// ---------- router ----------
+// router
 const VIEWS = ['mission', 'building', 'map', 'experiment', 'runs', 'method'];
 function route() {
   const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'mission';

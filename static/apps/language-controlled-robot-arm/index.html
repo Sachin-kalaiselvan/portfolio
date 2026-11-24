@@ -281,7 +281,7 @@ function fk(q) {
   return [r * Math.cos(yaw), h, -r * Math.sin(yaw)];
 }
 
-// ---------- perception: symbolic state from block poses ----------
+// perception: symbolic state from block poses
 // blocks: [{id, x, y, z, yaw}]
 function perceive(blocks) {
   const on = {}, issues = [];
@@ -308,7 +308,7 @@ function towers(state, ids) {
   return out;
 }
 
-// ---------- planner (complete for blocks world) ----------
+// planner (complete for blocks world)
 // goal: { on: {blockId: 'table' | blockId}, row?: [ids] }
 function validateGoal(goal, ids) {
   const on = goal.on || {};
@@ -384,7 +384,7 @@ function goalSatisfied(state, goal) {
   return Object.entries(gOn).every(([a, b]) => state.on[a] === b);
 }
 
-// ---------- built-in command parser (used when Claude is not available) ----------
+// built-in command parser (used when claude is not available)
 function parseCommand(text, ids, state) {
   const t = ' ' + text.toLowerCase().replace(/[^a-z\s,]/g, ' ').replace(/\s+/g, ' ') + ' ';
   const found = [];
@@ -479,7 +479,7 @@ const hex = id => '#' + COLORS[id].toString(16).padStart(6, '0');
 const settings = Object.assign({ slip: 0.12, speed: 1, watch: true }, store.get('arm.settings', {}));
 const saveSettings = () => store.set('arm.settings', settings);
 
-// ---------- physics ----------
+// physics
 const world = new CANNON.World(); world.gravity.set(0, -9.81, 0); world.broadphase = new CANNON.NaiveBroadphase(); world.solver.iterations = 25;
 const pmat = new CANNON.Material('m'); world.addContactMaterial(new CANNON.ContactMaterial(pmat, pmat, { friction: 0.6, restitution: 0.02, contactEquationStiffness: 1e7, contactEquationRelaxation: 3 }));
 const groundB = new CANNON.Body({ mass: 0, material: pmat }); groundB.addShape(new CANNON.Plane()); groundB.quaternion.setFromEuler(-Math.PI / 2, 0, 0); world.addBody(groundB);
@@ -502,7 +502,7 @@ const saved = store.get('arm.scene', null);
 if (saved && saved.length === IDS.length) saved.forEach(s => { const b = bodies[s.id]; b.position.set(s.p[0], s.p[1] + 0.001, s.p[2]); b.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]); }); else scatter(4242);
 function saveScene() { store.set('arm.scene', IDS.map(id => { const b = bodies[id]; return { id, p: [b.position.x, b.position.y, b.position.z], q: [b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w] }; })); }
 
-// ---------- three.js ----------
+// three.js
 THREE.ColorManagement.legacyMode = false;
 const canvas = $('#gl'), stageEl = $('#stage');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -560,7 +560,7 @@ const pathGeo = new THREE.BufferGeometry(); pathGeo.setAttribute('position', new
 const pathLine = new THREE.Line(pathGeo, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.012, gapSize: 0.01, transparent: true, opacity: 0.8 })); pathLine.frustumCulled = false; scene.add(pathLine);
 function showPath(pts) { const a = pathGeo.attributes.position; pts.forEach((p, i) => a.setXYZ(i, p[0], p[1], p[2])); a.needsUpdate = true; pathGeo.setDrawRange(0, pts.length); pathLine.computeLineDistances(); }
 
-// ---------- arm state & motion ----------
+// arm state & motion
 const HOME = [-Math.PI / 2, 1.45, -2.1, -Math.PI / 2 - (1.45 - 2.1), 0];
 let q = HOME.slice(), gripOpen = 1, held = null, heldRel = null, motion = null, paused = false;
 const LIMITS = [[-Math.PI, Math.PI], [-0.2, 2.6], [-2.8, 0.3], [-2.6, 1.6], [-Math.PI / 2, Math.PI / 2]];
@@ -606,7 +606,7 @@ function followHeld() {
   b.position.set(wp.x, wp.y, wp.z); b.quaternion.set(wq.x, wq.y, wq.z, wq.w);
 }
 
-// ---------- perception helpers ----------
+// perception helpers
 function yawOf(b) { const v = new CANNON.Vec3(1, 0, 0), w = b.quaternion.vmult(v); return Math.atan2(-w.z, w.x); }
 function tiltOf(b) { let best = 0; for (const ax of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) { const w = b.quaternion.vmult(new CANNON.Vec3(...ax)); best = Math.max(best, Math.abs(w.y)); } return Math.acos(Math.min(1, best)) * 180 / Math.PI; }
 function readBlocks() { return IDS.map(id => { const b = bodies[id]; return { id, x: b.position.x, y: b.position.y, z: b.position.z, yaw: yawOf(b), tilt: tiltOf(b) }; }); }
@@ -628,7 +628,7 @@ function freeSpot(near, exclude, slot, avoidRow) {
 }
 function rowSlots(order) { const n = order.length, out = {}; order.forEach((id, i) => { const x = (i - (n - 1) / 2) * 0.085; out[id] = [x, BLOCK / 2, 0.36 - Math.abs(x) * 0.18]; }); return out; }
 
-// ---------- episodes (training data) ----------
+// episodes (training data)
 const r4 = v => Math.round(v * 1e4) / 1e4;
 let episode = null, lastPP = null, epClock = 0, epSampleT = 0;
 const epT = () => r4(epClock);
@@ -647,7 +647,7 @@ function endEpisode(ok) {
   if (keep.length <= 1) store.set('arm.episodes', keep);
 }
 
-// ---------- executive: plan, act, perceive, repeat ----------
+// executive: plan, act, perceive, repeat
 let goal = null, busy = false, stopReq = false, curPlan = [], stats = null, failedSig = null;
 const sceneSig = () => IDS.map(id => { const b = bodies[id]; return Math.round(b.position.x * 100) + ',' + Math.round(b.position.z * 100) + ',' + Math.round(b.position.y * 100); }).join('|');
 function binSlotFor(id) {
@@ -758,7 +758,7 @@ setInterval(() => {
   event('Something moved. Putting it back.', 'fault'); execute(goal, null);
 }, 1200);
 
-// ---------- conversation ----------
+// conversation
 const thread = $('#thread');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function bubble(cls, html) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.innerHTML = html; thread.appendChild(d); thread.scrollTop = thread.scrollHeight; return d; }
@@ -822,7 +822,7 @@ $('#watch').checked = settings.watch; $('#watch').addEventListener('change', e =
 const segInit = (sel, keyName) => { const el = $(sel); el.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === settings[keyName])); el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; settings[keyName] = +b.dataset.v; saveSettings(); el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); }); };
 segInit('#slip', 'slip'); segInit('#speed', 'speed');
 
-// ---------- camera + block dragging ----------
+// camera + block dragging
 let yaw = 0.95, pitch = 0.66, dist = 1.6, shake = 0;
 const target = new THREE.Vector3(0, 0.05, 0.18), ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
 let drag = null, orbit = null;
@@ -846,7 +846,7 @@ canvas.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(0.6,
 function resize() { const w = stageEl.clientWidth, h = stageEl.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 const ro = new ResizeObserver(resize); ro.observe(stageEl);
 
-// ---------- loop ----------
+// loop
 let last = performance.now(), acc = 0, uiT = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -865,7 +865,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ---------- planner view ----------
+// planner view
 function towersSvg(svg, st, rowOrder) {
   const W = svg.clientWidth, H = svg.clientHeight; if (!W) return;
   let tw = towers(st, IDS);
@@ -897,7 +897,7 @@ function renderPlanner() {
 ['#svNow', '#svGoal'].forEach(s => { const r2 = new ResizeObserver(() => renderPlanner()); r2.observe($(s)); });
 setInterval(() => { if ($('#planner').classList.contains('on')) renderPlanner(); }, 1500);
 
-// ---------- history ----------
+// history
 function logHistory(cmd, ok, st, secs) { const h = store.get('arm.history', []); h.unshift({ at: new Date().toISOString(), text: cmd.text, who: cmd.who, ok, moves: st ? st.moves : 0, slips: st ? st.slips : 0, replans: st ? st.replans : 0, secs }); store.set('arm.history', h.slice(0, 80)); }
 function renderHistory() {
   const h = store.get('arm.history', []); const done = h.filter(x => x.ok);
@@ -906,7 +906,7 @@ function renderHistory() {
 }
 $('#hiClear').addEventListener('click', () => { store.set('arm.history', []); renderHistory(); });
 
-// ---------- jobs ----------
+// jobs
 const JOB_PRESETS = [
   { id: 'warmcool', name: 'Warm and cool', desc: 'Warm colours into bin A, cool colours into bin B.', bins: { red: 'A', orange: 'A', yellow: 'A', green: 'B', blue: 'B', purple: 'B' } },
   { id: 'kits', name: 'Kit two orders', desc: 'Order 1 gets red, green and blue in bin A. Order 2 gets the rest in bin C.', bins: { red: 'A', green: 'A', blue: 'A', orange: 'C', yellow: 'C', purple: 'C' } },
@@ -957,7 +957,7 @@ function renderJobRuns() {
   $('#jbRuns').innerHTML = jr.length ? `<thead><tr><th>When</th><th>Job</th><th>Result</th><th class="r">Picks</th><th class="r">Slips</th><th class="r">Time at 1×</th></tr></thead><tbody>${jr.map(r => `<tr><td>${new Date(r.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td><td>${esc(r.name)}</td><td>${r.ok ? '<span class="pill ok">Finished</span>' : '<span class="pill bad">Not finished</span>'}</td><td class="r">${r.picks}</td><td class="r">${r.slips}</td><td class="r">${(r.secs * (r.speed || 1)).toFixed(0)} s</td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">No job runs yet. Run one of the jobs above.</td></tr></tbody>';
 }
 
-// ---------- training data export ----------
+// training data export
 let dlCap = null;
 (async () => { try { if (window.claude && window.claude.use) dlCap = await window.claude.use('downloads'); } catch (e) { dlCap = null; }
   // outside claude.ai: an ordinary browser download
@@ -975,7 +975,7 @@ $('#epJson').addEventListener('click', e => saveText(e.currentTarget, `arm-episo
 $('#epJsonl').addEventListener('click', e => { const h = datasetHeader(); saveText(e.currentTarget, `arm-episodes-${dstamp()}.jsonl`, store.get('arm.episodes', []).slice().reverse().map(ep => JSON.stringify(Object.assign({ dataset: { format: h.format, version: h.version, trajectory_columns: h.trajectory_columns } }, ep))).join('\n') + '\n', 'application/x-ndjson'); });
 $('#epClear').addEventListener('click', () => { store.set('arm.episodes', []); renderEpisodes(); });
 
-// ---------- language test ----------
+// language test
 const LANG_EVAL = (() => { const module = {}; // Labelled command set for the language step. Each item says what the sentence MEANS
 // (written by hand, not copied from any parser output). Used by bench/parser.js, and the
 // same file can be scored against Claude.
@@ -1073,7 +1073,7 @@ $('#leRun').addEventListener('click', async () => {
 });
 $('#leDl').addEventListener('click', e => { const last = store.get('arm.langeval', null); if (last) saveText(e.currentTarget, `language-test-${dstamp()}.json`, JSON.stringify(Object.assign({ scene: LANG_EVAL.state, parser_correct: parserScore(), total: LANG_EVAL.commands.length }, last), null, 1), 'application/json'); });
 
-// ---------- method diagram ----------
+// method diagram
 function pipe() {
   const box = (x, label, sub, fill) => `<g style="animation:pop .5s ${x / 2000}s both"><rect x="${x}" y="40" width="128" height="66" rx="14" fill="${fill}" stroke="var(--line)"/><text x="${x + 64}" y="68" text-anchor="middle" style="font:600 15px Sora;fill:var(--ink)">${label}</text><text x="${x + 64}" y="90" text-anchor="middle">${sub}</text></g>`;
   const arrow = x => `<path d="M${x} 73h18" stroke="var(--mint)" stroke-width="2.5" marker-end="url(#ah)"/>`;
@@ -1082,7 +1082,7 @@ function pipe() {
     `<path d="M678 110 C678 170 222 170 222 110" fill="none" stroke="var(--coral)" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#ah2)"/><defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--coral)"/></marker></defs><text x="450" y="182" text-anchor="middle">re-plan from what is really there, after every move</text>`;
 }
 
-// ---------- router ----------
+// router
 const VIEWS = ['workcell', 'jobs', 'planner', 'history', 'method'];
 function route() {
   const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'workcell';

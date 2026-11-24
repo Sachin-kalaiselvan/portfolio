@@ -209,7 +209,7 @@ svg text{font-family:var(--mono)}
   const mean = (a) => (a.length ? sum(a) / a.length : 0);
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-  // ---------- optimiser ----------
+  // optimiser
   // Nelder-Mead on a box: parameters are clamped to [lo, hi].
   function nelderMead(f, x0, lo, hi, iters = 300) {
     const n = x0.length, cl = (x) => x.map((v, i) => clamp(v, lo[i], hi[i]));
@@ -232,7 +232,7 @@ svg text{font-family:var(--mono)}
     return { x: S[b], f: F[b] };
   }
 
-  // ---------- exponential smoothing family ----------
+  // exponential smoothing family
   // spec: {trend: 'N'|'A'|'Ad', season: 'N'|'A'|'M'}; params [alpha, beta, gamma, phi, l0, b0]
   function etsRun(y, m, spec, p, init, keepFitted) {
     const [a, bt, g, phi] = p;
@@ -299,7 +299,7 @@ svg text{font-family:var(--mono)}
   }
   const sumPow = (phi, j) => { let s = 0; for (let i = 1; i <= j; i++) s += Math.pow(phi, i); return s; };
 
-  // ---------- seasonality (as in the M4 benchmarks) ----------
+  // seasonality (as in the m4 benchmarks)
   function acf(y, k) { const mu = mean(y); let num = 0, den = 0; for (let t = 0; t < y.length; t++) { den += (y[t] - mu) ** 2; if (t >= k) num += (y[t] - mu) * (y[t - k] - mu); } return den ? num / den : 0; }
   function isSeasonal(y, m) {
     if (m <= 1 || y.length < 3 * m) return false;
@@ -327,7 +327,7 @@ svg text{font-family:var(--mono)}
   }
   const reseason = (fc, si, n, m) => (si ? fc.map((v, j) => v * si[(n + j) % m]) : fc);
 
-  // ---------- Theta (Assimakopoulos & Nikolopoulos 2000, as in the M4 benchmark code) ----------
+  // theta (assimakopoulos & nikolopoulos 2000, as in the m4 benchmark code)
   function fitTheta(y0, m) {
     const ds = deseason(y0, m), y = ds.y, n = y.length;
     const ses = fitETS(y, m, { trend: 'N', season: 'N' });
@@ -373,7 +373,7 @@ svg text{font-family:var(--mono)}
     return { name: seasonal ? 'Seasonal naive' : 'Naive', forecast: (h) => Array.from({ length: h }, (_, j) => y[n - k + (j % k)]), sigma, sd: (h) => Array.from({ length: h }, (_, j) => sigma * Math.sqrt(Math.floor(j / k) + 1)), fitted: y.map((v, t) => (t >= k ? y[t - k] : v)) };
   }
 
-  // ---------- intermittent demand ----------
+  // intermittent demand
   // Croston (1972), SBA (Syntetos & Boylan 2005), TSB (Teunter, Syntetos & Babai 2011).
   // Initialisation follows statsforecast: first non-zero demand and its interval.
   function crostonCore(y, alpha) {
@@ -412,7 +412,7 @@ svg text{font-family:var(--mono)}
     return { adi, cv2, kind };
   }
 
-  // ---------- model registry ----------
+  // model registry
   const METHODS = {
     naive: { label: 'Naive', fit: (y, m) => fitNaive(y, m, false) },
     snaive: { label: 'Seasonal naive', fit: (y, m) => fitNaive(y, m, true) },
@@ -430,7 +430,7 @@ svg text{font-family:var(--mono)}
   const SMOOTH = ['snaive', 'ses', 'damped', 'hw', 'theta', 'comb'];
   const INTERMITTENT = ['croston', 'sba', 'tsb', 'ses'];
 
-  // ---------- accuracy ----------
+  // accuracy
   function smape(a, f) { let s = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i]) + Math.abs(f[i]); s += d ? (2 * Math.abs(a[i] - f[i])) / d : 0; } return (100 * s) / a.length; }
   function mase(insample, a, f, m) {
     const k = insample.length > m ? m : 1; let s = 0;
@@ -461,7 +461,7 @@ svg text{font-family:var(--mono)}
     return { best: scores.length ? scores[0].key : keys[0], scores, cls };
   }
 
-  // ---------- inventory policy ----------
+  // inventory policy
   const erf = (x) => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const yv = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * yv; };
   const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
   const phi = (z) => Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
@@ -568,7 +568,7 @@ const dayMs = 86400000;
 const iso = (d) => new Date(d).toISOString().slice(0, 10);
 const nice = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
-// ---------- demo shop ----------
+// demo shop
 function demo() {
   let seed = 2026; const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const gamma = (k) => { let s = 0; for (let i = 0; i < Math.round(k * 3); i++) s -= Math.log(r() || 1e-9); return s / 3; };
@@ -617,7 +617,7 @@ S.view = S.view || 'items'; S.sel = S.sel || S.items[0].sku;
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 const today = () => new Date(S.start).getTime() + (S.sales[S.items[0].sku].length - 1) * dayMs;
 
-// ---------- analysis in a worker ----------
+// analysis in a worker
 const worker = new Worker(URL.createObjectURL(new Blob([CORE_SRC + `
 self.onmessage = (e) => {
   const { items, sales, H, BT } = e.data, I = self.Inventory;
@@ -646,7 +646,7 @@ function analyse(onlySku) {
   worker.postMessage({ items, sales: Object.fromEntries(items.map((i) => [i.sku, S.sales[i.sku]])), H, BT });
 }
 
-// ---------- planning maths per item ----------
+// planning maths per item
 function plan(it) {
   const a = A[it.sku]; if (!a) return null;
   const P = I.protectionDays(it);
@@ -663,7 +663,7 @@ function plan(it) {
   return { ...pol, P, muDaily, position, pipeline, need, qty, cover, status, next30: a.fc.slice(0, 30).reduce((s, v) => s + v, 0) };
 }
 
-// ---------- navigation ----------
+// navigation
 function go(v) {
   S.view = v; save();
   $$('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v));
@@ -677,7 +677,7 @@ function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('o
 function tween(el, to, fmt) { const from = +el.dataset.v || 0; el.dataset.v = to; const t0 = performance.now(); const f = (now) => { const k = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
 const bc = () => `<div class="bc">${[2, 1, 3, 1, 2, 1, 1, 3].map((w) => `<i style="width:${w}px"></i>`).join('')}</div>`;
 
-// ---------- items ----------
+// items
 let filter = 'all';
 $$('#filt button').forEach((b) => (b.onclick = () => { filter = b.dataset.f; $$('#filt button').forEach((x) => x.classList.toggle('on', x === b)); renderItems(); }));
 const STATUS = { risk: ['bad', 'Stock-out risk'], reorder: ['warn', 'Reorder now'], over: ['info', 'Overstocked'], ok: ['ok', 'Healthy'] };
@@ -698,7 +698,7 @@ function renderItems() {
   $$('#itemTable tr[data-s]').forEach((r) => (r.onclick = () => { S.sel = r.dataset.s; go('forecast'); }));
 }
 
-// ---------- forecast ----------
+// forecast
 function skuPicker(sel) { sel.innerHTML = S.items.map((i) => `<option value="${i.sku}" ${i.sku === S.sel ? 'selected' : ''}>${esc(i.name)}</option>`).join(''); sel.onchange = () => { S.sel = sel.value; save(); render(); }; }
 let range = 180;
 $$('#fRange button').forEach((b) => (b.onclick = () => { range = +b.dataset.r; $$('#fRange button').forEach((x) => x.classList.toggle('on', x === b)); renderForecast(); }));
@@ -733,7 +733,7 @@ function renderForecast() {
   $('#weekBars').innerHTML = wk.map((v, w) => { const h2 = v / mx * 110, x = 10 + w * (360 / wk.length); return `<rect x="${x}" y="${125 - h2}" width="${360 / wk.length - 10}" height="${h2}" rx="2" fill="${w ? '#c9d6e6' : '#24508a'}" style="transform-origin:${x}px 125px;animation:grow .7s var(--ease) ${w * 0.06}s both"/><text x="${x + (360 / wk.length - 10) / 2}" y="${120 - h2}" text-anchor="middle" font-size="10" fill="#1a1a18">${n0(v)}</text><text x="${x + (360 / wk.length - 10) / 2}" y="142" text-anchor="middle" font-size="9.5" fill="#8b8a83">wk ${w + 1}</text>`; }).join('') + '<style>@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}</style>';
 }
 
-// ---------- policy ----------
+// policy
 function renderPolicy() {
   skuPicker($('#pSku'));
   const it = S.items.find((i) => i.sku === S.sel), a = A[it.sku]; if (!a) return;
@@ -780,7 +780,7 @@ function renderPolicy() {
   $('#tradeoff').innerHTML = g2 + `<path pathLength="1" class="ln draw" d="${pts.map((q, i) => `${i ? 'L' : 'M'}${XX(q[0]).toFixed(1)} ${YY(q[1]).toFixed(1)}`).join('')}" stroke="#24508a" stroke-width="2" fill="none"/><circle cx="${XX(cur[0])}" cy="${YY(cur[1])}" r="7" fill="#24508a" stroke="#ffffff" stroke-width="3" style="transition:all .4s"/><text x="${XX(cur[0]) - 10}" y="${YY(cur[1]) - 12}" text-anchor="end" font-size="11" fill="#1a1a18">${(cur[0] * 100).toFixed(1)}% → ${inrS(cur[1])} safety stock</text>`;
 }
 
-// ---------- purchase orders ----------
+// purchase orders
 function poRows() { return S.items.map((it) => [it, plan(it)]).filter(([, p]) => p && p.need && p.qty > 0); }
 function renderOrders() {
   const rows = poRows(), by = {};
@@ -795,7 +795,7 @@ $('#oPlace').onclick = () => { const rows = poRows(); if (!rows.length) return t
 $('#oCsv').onclick = () => { const rows = poRows(); download('purchase-orders.csv', [['supplier', 'sku', 'item', 'qty', 'unit_cost', 'value', 'arrives']].concat(rows.map(([it, p]) => [it.supplier, it.sku, it.name, p.qty, it.cost, p.qty * it.cost, iso(today() + it.lead * dayMs)]))); };
 function download(name, rows) { const csv = rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = name; a.click(); }
 
-// ---------- data ----------
+// data
 function renderData() {
   $('#itemEdit').innerHTML = `<thead><tr><th>Item</th><th class="n">On hand</th><th class="n">Cost ₹</th><th>Supplier</th></tr></thead><tbody>${S.items.map((it, i) => `<tr><td class="sku"><b>${esc(it.name)}</b><small>${it.sku}</small></td><td><input class="ed" data-i="${i}" data-k="onHand" value="${it.onHand}" style="width:80px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px;font:500 13px var(--mono);text-align:right"></td><td><input class="ed" data-i="${i}" data-k="cost" value="${it.cost}" style="width:70px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px;font:500 13px var(--mono);text-align:right"></td><td><input class="ed" data-i="${i}" data-k="supplier" value="${esc(it.supplier)}" style="width:100%;min-width:130px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px"></td></tr>`).join('')}</tbody>`;
   $$('.ed').forEach((el) => (el.onchange = () => { const it = S.items[+el.dataset.i]; it[el.dataset.k] = el.dataset.k === 'supplier' ? el.value : parseFloat(el.value) || 0; save(); toast('Saved'); }));
@@ -828,7 +828,7 @@ function readCsv(file) {
 $('#sample').onclick = () => { const rows = [['date', 'sku', 'qty']]; const t0 = new Date(S.start).getTime(); S.items.slice(0, 3).forEach((it) => S.sales[it.sku].forEach((q, t) => rows.push([iso(t0 + t * dayMs), it.sku, q]))); download('sales-sample.csv', rows); };
 $('#reset').onclick = () => { const v = S.view; S = demo(); S.view = v; S.sel = S.items[0].sku; for (const k in A) delete A[k]; save(); $('#kpis').innerHTML = ''; analyse(); renderData(); toast('Demo shop reloaded'); };
 
-// ---------- benchmark ----------
+// benchmark
 function renderBench() {
   const b = BENCH; if (!b) { $('#bTable').innerHTML = '<tr><td>Run the benchmarks and rebuild.</td></tr>'; return; }
   const pairs = [['Seasonal naive', 'snaive', 'SeasonalNaive'], ['Naive', 'naive', 'Naive'], ['SES', 'ses', 'SESOpt'], ['Holt', 'holt', 'Holt'], ['Auto ETS', 'ets', 'AutoETS'], ['Theta', 'theta', 'Theta'], ['Damped trend', 'damped', null], ['Comb (S-H-D)', 'comb', null], ['Holt-Winters', 'hw', null], ['AutoTheta', null, 'AutoTheta']];

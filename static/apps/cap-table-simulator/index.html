@@ -299,7 +299,7 @@ svg text{font-family:var(--mono)}
   const floor = Math.floor;
   const roundTo = (x, d) => { const k = Math.pow(10, d); return Math.round(x * k) / k; };
 
-  // ---------- the cap table ----------
+  // the cap table
   // holders: [{name, cls, shares, strike?}] where cls is 'Common', 'Options', 'Pool' or a preferred class name.
   // classes: {name: {kind:'common'|'preferred', price, multiple, participating, capMultiple, rank}}
   // outstanding: unconverted safes and notes.
@@ -320,7 +320,7 @@ svg text{font-family:var(--mono)}
   const total = (t, pred) => t.holders.filter(pred || (() => true)).reduce((s, h) => s + h.shares, 0);
   const poolShares = (t) => total(t, (h) => h.cls === 'Pool');
 
-  // ---------- events ----------
+  // events
   function applyEvent(t0, ev) {
     const t = clone(t0);
     switch (ev.type) {
@@ -362,7 +362,7 @@ svg text{font-family:var(--mono)}
     return t;
   }
 
-  // ---------- priced round ----------
+  // priced round
   // Conventions (YC Post-Money Safe User Guide, Appendix II):
   //  * "Company Capitalization" for post-money safes = every share, option and the existing pool,
   //    plus every converting security, but not the pool increase or new money.
@@ -456,7 +456,7 @@ svg text{font-family:var(--mono)}
     return tables;
   }
 
-  // ---------- summaries ----------
+  // summaries
   function ownership(t) {
     const fd = total(t);
     const by = new Map();
@@ -464,7 +464,7 @@ svg text{font-family:var(--mono)}
     return [...by].map(([name, shares]) => ({ name, shares, pct: shares / fd })).sort((a, b) => b.shares - a.shares);
   }
 
-  // ---------- exit waterfall ----------
+  // exit waterfall
   // Pays an exit of value V. Preferred classes take their preference (by rank, pari passu within a rank)
   // unless converting to common pays them more; participating classes also share the remainder (up to
   // their cap). Options are exercised when the common price beats the strike. Unconverted safes are
@@ -668,7 +668,7 @@ const C = window.CapTable, $ = (s, r = document) => r.querySelector(s), $$ = (s,
 const PAL = ['#8c2f39', '#2f5d50', '#b8893b', '#3d5a80', '#6b4e71', '#c46a3c', '#4f8a86', '#7a7f3a', '#a35d6a', '#1d1a16', '#5e7d4f', '#8a6d9e'];
 const KEY = 'cts:v1';
 
-// ---------- presets ----------
+// presets
 const L = 1e5, CR = 1e7;
 const PRESETS = {
   india: () => ({ company: 'Kirana Cloud Pvt Ltd', currency: 'INR', events: [
@@ -690,7 +690,7 @@ try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
 if (!S || !Array.isArray(S.events)) S = Object.assign(PRESETS.india(), { view: 'rounds', open: -1, step: -1 });
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 
-// ---------- formatting ----------
+// formatting
 const loc = () => (S.currency === 'INR' ? 'en-IN' : 'en-US');
 const sym = () => (S.currency === 'INR' ? '₹' : '$');
 const num = (x) => Math.round(x).toLocaleString(loc());
@@ -712,7 +712,7 @@ const pct = (x, d = 2) => (x * 100).toFixed(d) + '%';
 const price = (p) => sym() + (p >= 10 ? p.toFixed(2) : p.toFixed(4));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// ---------- compute ----------
+// compute
 let R; // {tables, error}
 function compute() {
   const tables = []; let t = C.emptyTable(), error = null;
@@ -729,7 +729,7 @@ function resetColors() { colors.clear(); for (const t of R.tables) for (const o 
 function lastPrice(t) { let p = 0; for (const c of Object.values(t.classes)) if (c.kind === 'preferred' && !c.shadow && c.price) p = c.price; return p; }
 function lastPriceUpTo(i) { const t = R.tables[i]; if (!t) return 0; let best = 0, rank = -1; for (const c of Object.values(t.classes)) if (c.kind === 'preferred' && !c.shadow && c.rank > rank) { rank = c.rank; best = c.price; } return best; }
 
-// ---------- tween numbers ----------
+// tween numbers
 function tween(el, to, fmt) {
   const from = +el.dataset.v || 0; el.dataset.v = to;
   const t0 = performance.now(), d = 650;
@@ -738,7 +738,7 @@ function tween(el, to, fmt) {
 }
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1800); }
 
-// ---------- navigation ----------
+// navigation
 function go(v) {
   S.view = v; save();
   $$('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v));
@@ -749,7 +749,7 @@ function go(v) {
 }
 $$('#nav button').forEach((b) => (b.onclick = () => go(b.dataset.v)));
 
-// ---------- top bar ----------
+// top bar
 $('#company').oninput = (e) => { S.company = e.target.value; save(); };
 $$('#cur button').forEach((b) => (b.onclick = () => { S.currency = b.dataset.c; save(); render(); }));
 $('#preset').onchange = (e) => { const k = e.target.value; if (!k) return; const keep = S.view; S = Object.assign(PRESETS[k](), { view: keep, open: -1, step: -1 }); save(); e.target.value = ''; full(); toast('Loaded'); };
@@ -760,7 +760,7 @@ $('#exportBtn').onclick = () => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = (S.company || 'cap-table').replace(/\W+/g, '-') + '.csv'; a.click();
 };
 
-// ---------- event editing ----------
+// event editing
 const TYPE = { founders: ['Founders', '#1d1a16'], pool: ['Option pool', '#b8893b'], grant: ['Option grant', '#4f8a86'], safe: ['SAFE', '#8c2f39'], note: ['Convertible note', '#6b4e71'], priced: ['Priced round', '#2f5d50'], secondary: ['Secondary', '#3d5a80'] };
 function blank(type) {
   const T = finalTable(), fd = C.total(T) || 1e7, px = lastPrice(T) || 1;
@@ -862,7 +862,7 @@ function refreshErrors() {
   });
 }
 
-// ---------- rounds view ----------
+// rounds view
 function renderKpis() {
   const t = finalTable(), fd = C.total(t), own = C.ownership(t);
   const founders = (S.events.find((e) => e.type === 'founders') || { holders: [] }).holders.map((h) => h.name);
@@ -897,7 +897,7 @@ function renderStack() {
   $('#legend').innerHTML = names.map((n) => `<span><i style="background:${colorOf(n)}"></i>${esc(n)}</span>`).join('');
 }
 
-// ---------- cap table view ----------
+// cap table view
 function renderTable() {
   const n = R.tables.length;
   if (!n) { $('#capTable').innerHTML = '<tr><td class="empty">Nothing yet.</td></tr>'; return; }
@@ -928,7 +928,7 @@ function renderTable() {
   $('#pending').innerHTML = t.outstanding.length ? `<table><thead><tr><th>Holder</th><th>Type</th><th class="num">Converts</th><th class="num">Cap</th><th class="num">Discount</th></tr></thead><tbody>${t.outstanding.map((o) => `<tr><td>${esc(o.name)}</td><td>${o.type === 'note' ? 'Note' : (o.kind === 'pre' ? 'Pre' : 'Post') + '-money safe'}</td><td class="num">${money(o.amount)}</td><td class="num">${o.cap ? money(o.cap) : '–'}</td><td class="num">${o.discount ? Math.round(o.discount * 100) + '%' : '–'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">None outstanding at this step.</div>';
 }
 
-// ---------- next round modeler ----------
+// next round modeler
 function renderModel() {
   const body = $('#modelBody');
   const idx = S.events.map((e, i) => (e.type === 'priced' ? i : -1)).filter((i) => i >= 0);
@@ -995,7 +995,7 @@ function renderModel() {
       <text x="380" y="${ly2[i] + 4}" font-size="11" fill="#1d1a16">${(v2 * 100).toFixed(1)}% ${esc(n2.length > 13 ? n2.slice(0, 12) + '…' : n2)}</text></g>`; }).join('');
 }
 
-// ---------- exit ----------
+// exit
 let curveCache = null;
 function exitRange() {
   const t = finalTable(), pos = C.exitPositions(t);
@@ -1067,7 +1067,7 @@ function drawTerms() {
   }));
 }
 
-// ---------- checks ----------
+// checks
 function renderChecks() {
   const res = YCCases.check(C);
   const all = res.flatMap((r) => r.checks), pass = all.filter((c) => c.ok).length;
@@ -1090,7 +1090,7 @@ function renderChecks() {
 }
 function fmtC(label, v) { if (/price|per share/i.test(label)) return '$' + v.toFixed(4); if (/%/.test(label)) return v.toFixed(2) + '%'; if (/cash|paid/i.test(label)) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 }); return Math.round(v).toLocaleString('en-US'); }
 
-// ---------- render ----------
+// render
 function render() {
   $('#company').value = S.company || '';
   $$('#cur button').forEach((b) => b.classList.toggle('on', b.dataset.c === S.currency));
