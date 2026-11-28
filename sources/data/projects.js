@@ -13,18 +13,6 @@ export default [
         images: [ 'sk-rocket-1.png', 'sk-rocket-2.png', 'sk-rocket-3.png' ]
     },
     {
-        title: 'Language-Controlled Robot Arm',
-        titleSmall: [ 'Robot', 'arm' ],
-        url: '/apps/language-controlled-robot-arm/',
-        attributes:
-        {
-            role: [ 'Planning, IK', 'perception, ROS 2' ],
-            with: 'MuJoCo, Claude',
-        },
-        distinctions: [],
-        images: [ 'sk-arm-1.png', 'sk-arm-2.png' ]
-    },
-    {
         title: 'Satellite Collision Watch',
         titleSmall: [ 'Satellite', 'watch' ],
         url: '/apps/satellite-collision-watch/',
@@ -37,15 +25,16 @@ export default [
         images: [ 'sk-sat-1.png', 'sk-sat-2.png' ]
     },
     {
-        title: 'Drone Swarm Mapper',
-        titleSmall: [ 'Drone', 'swarm' ],
-        url: '/apps/drone-swarm-mapper/',
+        title: 'ABYSS',
+        titleSmall: [ 'ABYSS', 'VR' ],
+        url: 'https://github.com/Sachin-kalaiselvan/underwater_vr_experience_build',
         attributes:
         {
-            role: [ 'Exploration', 'flight sim' ],
+            role: [ 'VR build, 3D', 'Unity, WebXR' ],
+            with: 'Client, Meta Quest',
         },
         distinctions: [],
-        images: [ 'sk-drone-1.png', 'sk-drone-2.png' ]
+        images: [ 'sk-abyss-1.png', 'sk-abyss-2.png', 'sk-abyss-3.png' ]
     },
     {
         title: 'THREXA',
@@ -58,6 +47,41 @@ export default [
         },
         distinctions: [],
         images: [ 'sk-threxa-1.png', 'sk-threxa-2.png', 'sk-threxa-3.png', 'sk-threxa-4.png' ]
+    },
+    {
+        title: 'Language-Controlled Robot Arm',
+        titleSmall: [ 'Robot', 'arm' ],
+        url: '/apps/language-controlled-robot-arm/',
+        attributes:
+        {
+            role: [ 'Planning, IK', 'perception, ROS 2' ],
+            with: 'MuJoCo, Claude',
+        },
+        distinctions: [],
+        images: [ 'sk-arm-1.png', 'sk-arm-2.png' ]
+    },
+    {
+        title: 'Mining Safety Training',
+        titleSmall: [ 'Mining', 'training' ],
+        url: 'https://mining-training-demo.vercel.app',
+        attributes:
+        {
+            role: [ '3D, VR, sim', 'digital twin' ],
+            with: 'Web + Meta Quest',
+        },
+        distinctions: [],
+        images: [ 'sk-mining-1.png', 'sk-mining-2.png', 'sk-mining-3.png', 'sk-mining-4.png' ]
+    },
+    {
+        title: 'Drone Swarm Mapper',
+        titleSmall: [ 'Drone', 'swarm' ],
+        url: '/apps/drone-swarm-mapper/',
+        attributes:
+        {
+            role: [ 'Exploration', 'flight sim' ],
+        },
+        distinctions: [],
+        images: [ 'sk-drone-1.png', 'sk-drone-2.png' ]
     },
     {
         title: 'Delivery Route Planner',
